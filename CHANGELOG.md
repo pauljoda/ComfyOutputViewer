@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-01-28
+
+### Changed
+- Limited the columns slider maximum based on available width to avoid overly small tiles.
+- Moved filenames from the grid into a single-line footer in the modal view.
+
 ## [0.1.2] - 2026-01-28
 
 ### Changed

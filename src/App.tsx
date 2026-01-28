@@ -37,6 +37,7 @@ const COLUMN_MIN = 1;
 const COLUMN_MAX = 12;
 const TILE_GAP = 12;
 const TARGET_TILE_SIZE = 200;
+const MIN_TILE_SIZE = 80;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -86,10 +87,6 @@ export default function App() {
   const [tileFit, setTileFit] = useState<'cover' | 'contain'>(() => {
     const stored = window.localStorage.getItem('cov_tile_fit');
     return stored === 'contain' || stored === 'content' ? 'contain' : 'cover';
-  });
-  const [showLabels, setShowLabels] = useState<boolean>(() => {
-    const stored = window.localStorage.getItem('cov_show_labels');
-    return stored ? stored === 'true' : false;
   });
   const [hideHidden, setHideHidden] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_hide_hidden');
@@ -150,18 +147,26 @@ export default function App() {
   }, [tileFit]);
 
   useEffect(() => {
-    window.localStorage.setItem('cov_show_labels', String(showLabels));
-  }, [showLabels]);
-
-  useEffect(() => {
     window.localStorage.setItem('cov_hide_hidden', String(hideHidden));
   }, [hideHidden]);
+
+  const maxColumns = useMemo(() => {
+    if (!galleryWidth) return COLUMN_MAX;
+    const rawColumns = Math.floor((galleryWidth + TILE_GAP) / (MIN_TILE_SIZE + TILE_GAP));
+    return clamp(rawColumns || COLUMN_MIN, COLUMN_MIN, COLUMN_MAX);
+  }, [galleryWidth]);
 
   useEffect(() => {
     if (!galleryWidth || columns > 0) return;
     const rawColumns = Math.floor((galleryWidth + TILE_GAP) / (TARGET_TILE_SIZE + TILE_GAP));
     setColumns(clamp(rawColumns || COLUMN_MIN, COLUMN_MIN, COLUMN_MAX));
   }, [galleryWidth, columns]);
+
+  useEffect(() => {
+    if (columns > maxColumns) {
+      setColumns(maxColumns);
+    }
+  }, [columns, maxColumns]);
 
   useEffect(() => {
     if (columns > 0) {
@@ -329,7 +334,7 @@ export default function App() {
     if (!galleryWidth) return TARGET_TILE_SIZE;
     const totalGap = TILE_GAP * (effectiveColumns - 1);
     const available = Math.max(0, galleryWidth - totalGap);
-    return Math.max(80, Math.floor(available / effectiveColumns));
+    return Math.max(MIN_TILE_SIZE, Math.floor(available / effectiveColumns));
   }, [galleryWidth, effectiveColumns]);
   const getContentStyle = (image: ImageItem): React.CSSProperties | undefined => {
     if (tileFit !== 'contain') return undefined;
@@ -449,7 +454,7 @@ export default function App() {
                   <input
                     type="range"
                     min={COLUMN_MIN}
-                    max={COLUMN_MAX}
+                    max={maxColumns}
                     value={effectiveColumns}
                     onChange={(event) => setColumns(Number(event.target.value))}
                   />
@@ -466,15 +471,6 @@ export default function App() {
                     <option value="cover">Cover</option>
                     <option value="contain">Content</option>
                   </select>
-                </label>
-
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={showLabels}
-                    onChange={(event) => setShowLabels(event.target.checked)}
-                  />
-                  <span>Show labels</span>
                 </label>
 
                 <label className="control">
@@ -636,11 +632,6 @@ export default function App() {
                   {image.hidden ? 'Hidden' : 'Hide'}
                 </button>
               </div>
-              {showLabels && (
-                <div className="name" title={image.name}>
-                  {image.name}
-                </div>
-              )}
             </div>
           </button>
         ))}
@@ -828,7 +819,11 @@ export default function App() {
                     />
                   </TransformComponent>
                 </div>
-
+                <div className="modal-footer">
+                  <div className="modal-filename" title={selectedImage.name}>
+                    {selectedImage.name}
+                  </div>
+                </div>
               </>
             )}
           </TransformWrapper>

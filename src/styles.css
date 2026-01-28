@@ -339,19 +339,6 @@ body {
   pointer-events: auto;
 }
 
-.card-overlay .name {
-  font-size: 13px;
-  font-weight: 500;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  padding: 6px 8px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  align-self: flex-start;
-}
-
 .fav {
   border: none;
   background: rgba(0, 0, 0, 0.4);
@@ -530,6 +517,21 @@ body {
   justify-content: center;
   padding: 24px;
   width: 100%;
+}
+
+.modal-footer {
+  padding: 6px 20px 16px;
+  color: rgba(245, 241, 234, 0.75);
+  font-size: 12px;
+  text-align: left;
+}
+
+.modal-filename {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(10px, 2.2vw, 12px);
 }
 
 .zoom-wrapper,
