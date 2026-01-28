@@ -54,14 +54,23 @@ body {
 
 .top-bar {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px;
+  background: var(--toolbar);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--card-border);
+  position: sticky;
+  top: 0;
+  z-index: 9;
+}
+
+.top-row {
+  display: flex;
   flex-wrap: wrap;
   gap: 16px 24px;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 24px;
-  background: var(--toolbar);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--card-border);
 }
 
 .brand {
@@ -82,11 +91,97 @@ body {
   word-break: break-all;
 }
 
-.controls {
+.folder-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  font-size: 13px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
+  justify-content: flex-end;
+}
+
+.tool-button {
+  border: none;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tool-button:hover {
+  transform: translateY(-1px);
+}
+
+.tool-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tool-button.active {
+  background: rgba(211, 95, 59, 0.2);
+  box-shadow: 0 10px 18px rgba(211, 95, 59, 0.18);
+}
+
+.hamburger {
+  width: 18px;
+  height: 12px;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  width: 100%;
+}
+
+.tool-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 20px;
+  min-width: 240px;
+  max-width: min(520px, 92vw);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  border-radius: 16px;
+  padding: 12px 14px;
+  z-index: 11;
+}
+
+.tool-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: center;
+}
+
+.tool-hint {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .control {
@@ -99,7 +194,7 @@ body {
 
 .control select,
 .control input {
-  min-width: 160px;
+  min-width: 140px;
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid var(--card-border);
@@ -142,21 +237,12 @@ body {
 }
 
 .status-bar {
-  padding: 10px 24px;
+  padding: 8px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted);
-}
-
-.settings-panel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px 20px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--card-border);
-  background: var(--card);
 }
 
 .status {
@@ -209,6 +295,10 @@ body {
   height: 100%;
 }
 
+.card.hidden {
+  opacity: 0.75;
+}
+
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 18px 40px rgba(20, 17, 15, 0.12);
@@ -236,6 +326,13 @@ body {
   pointer-events: none;
 }
 
+.card-actions {
+  display: flex;
+  gap: 6px;
+  align-self: flex-end;
+  pointer-events: auto;
+}
+
 .card-overlay .name {
   font-size: 13px;
   font-weight: 500;
@@ -247,11 +344,6 @@ body {
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
   align-self: flex-start;
-}
-
-.card .fav {
-  pointer-events: auto;
-  align-self: flex-end;
 }
 
 .fav {
@@ -267,6 +359,100 @@ body {
 .fav.active {
   background: rgba(211, 95, 59, 0.4);
   color: #fff;
+}
+
+.hide {
+  border: none;
+  background: rgba(0, 0, 0, 0.4);
+  color: #f4f1ea;
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.hide.active {
+  background: rgba(111, 107, 103, 0.7);
+  color: #fff;
+}
+
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 6, 6, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 12;
+}
+
+.drawer-scrim.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: min(320px, 84vw);
+  height: 100%;
+  background: var(--card);
+  border-right: 1px solid var(--card-border);
+  box-shadow: 18px 0 40px rgba(0, 0, 0, 0.18);
+  transform: translateX(-105%);
+  transition: transform 0.25s ease;
+  z-index: 13;
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 18px 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.drawer-actions {
+  display: flex;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.drawer-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 18px;
+  overflow-y: auto;
+}
+
+.drawer-item {
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.drawer-item:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.drawer-item.active {
+  background: rgba(211, 95, 59, 0.18);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .modal {
@@ -368,11 +554,19 @@ body {
 
 @media (max-width: 800px) {
   .top-bar {
-    flex-direction: column;
     align-items: flex-start;
   }
 
-  .controls {
+  .toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tool-popover {
+    right: 14px;
+  }
+
+  .tool-panel {
     width: 100%;
   }
 
@@ -383,7 +577,7 @@ body {
 
 @media (max-width: 600px) {
   .top-bar {
-    padding: 16px;
+    padding: 14px;
   }
 
   .gallery {
@@ -391,7 +585,12 @@ body {
     gap: 12px;
   }
 
-  .controls {
+  .toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .tool-panel {
     flex-direction: column;
     align-items: stretch;
   }

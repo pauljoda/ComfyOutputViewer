@@ -8,6 +8,7 @@ type ImageItem = {
   url: string;
   thumbUrl?: string;
   favorite: boolean;
+  hidden: boolean;
   mtimeMs: number;
   size: number;
 };
@@ -55,7 +56,10 @@ export default function App() {
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string>('');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeTool, setActiveTool] = useState<'view' | 'filters' | 'search' | null>(
+    null
+  );
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -77,6 +81,10 @@ export default function App() {
   });
   const [denseGrid, setDenseGrid] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_dense_grid');
+    return stored ? stored === 'true' : true;
+  });
+  const [hideHidden, setHideHidden] = useState<boolean>(() => {
+    const stored = window.localStorage.getItem('cov_hide_hidden');
     return stored ? stored === 'true' : true;
   });
 
@@ -133,6 +141,10 @@ export default function App() {
     window.localStorage.setItem('cov_dense_grid', String(denseGrid));
   }, [denseGrid]);
 
+  useEffect(() => {
+    window.localStorage.setItem('cov_hide_hidden', String(hideHidden));
+  }, [hideHidden]);
+
   const folders = useMemo(() => {
     const base = data.folders.filter((folder) => folder.length > 0).sort();
     return base;
@@ -146,8 +158,11 @@ export default function App() {
     if (favoritesOnly) {
       result = result.filter((image) => image.favorite);
     }
+    if (!selectedFolder && hideHidden) {
+      result = result.filter((image) => !image.hidden);
+    }
     return result;
-  }, [data.images, favoritesOnly, selectedFolder]);
+  }, [data.images, favoritesOnly, selectedFolder, hideHidden]);
 
   const selectedIndex = selectedId
     ? filteredImages.findIndex((image) => image.id === selectedId)
@@ -175,6 +190,24 @@ export default function App() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorite');
+    }
+  };
+
+  const handleToggleHidden = async (image: ImageItem) => {
+    const nextValue = !image.hidden;
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        item.id === image.id ? { ...item, hidden: nextValue } : item
+      )
+    }));
+    try {
+      await api('/api/hidden', {
+        method: 'POST',
+        body: JSON.stringify({ path: image.id, value: nextValue })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
   };
 
@@ -253,114 +286,246 @@ export default function App() {
     setSelectedId(filteredImages[nextIndex].id);
   };
 
+  const currentFolderLabel = selectedFolder ? selectedFolder : 'Home';
+  const toggleTool = (tool: 'view' | 'filters' | 'search') => {
+    setActiveTool((current) => (current === tool ? null : tool));
+  };
+
   return (
     <div className="app">
       <header className="top-bar">
-        <div className="brand">
-          <div className="title">Comfy Output Viewer</div>
-          <div className="subtitle">{data.sourceDir || 'No source configured'}</div>
+        <div className="top-row">
+          <div className="brand">
+            <div className="title">Comfy Output Viewer</div>
+            <div className="subtitle">{data.sourceDir || 'No source configured'}</div>
+          </div>
+
+          <div className="toolbar">
+            <button
+              className="tool-button"
+              type="button"
+              onClick={() => {
+                setDrawerOpen(true);
+                setActiveTool(null);
+              }}
+              aria-label="Open folders"
+              title="Folders"
+            >
+              <span className="hamburger" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+
+            <button
+              className={activeTool === 'view' ? 'tool-button active' : 'tool-button'}
+              type="button"
+              onClick={() => toggleTool('view')}
+              aria-label="View options"
+              title="View"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 6h10m2 0h4M4 12h4m2 0h10M4 18h8m2 0h6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+                <circle cx="14" cy="6" r="2" fill="currentColor" />
+                <circle cx="8" cy="12" r="2" fill="currentColor" />
+                <circle cx="12" cy="18" r="2" fill="currentColor" />
+              </svg>
+            </button>
+
+            <button
+              className={activeTool === 'filters' ? 'tool-button active' : 'tool-button'}
+              type="button"
+              onClick={() => toggleTool('filters')}
+              aria-label="Filters"
+              title="Filters"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M4 5h16l-6.2 7.1v5.3l-3.6 1.6v-6.9z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+
+            <button
+              className={activeTool === 'search' ? 'tool-button active' : 'tool-button'}
+              type="button"
+              onClick={() => toggleTool('search')}
+              aria-label="Search"
+              title="Search"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle
+                  cx="10"
+                  cy="10"
+                  r="5.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                />
+                <path
+                  d="M14.5 14.5L20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+
+            <div className="folder-pill" title={currentFolderLabel}>
+              {currentFolderLabel}
+            </div>
+          </div>
         </div>
 
-        <div className="controls">
-          <label className="control">
-            <span>Folder</span>
-            <select
-              value={selectedFolder}
-              onChange={(event) => setSelectedFolder(event.target.value)}
-            >
-              <option value="">All</option>
-              {folders.map((folder) => (
-                <option key={folder} value={folder}>
-                  {folder}
-                </option>
-              ))}
-            </select>
-          </label>
+        {activeTool && (
+          <div className="tool-popover" role="dialog" aria-label="Tool options">
+            {activeTool === 'view' && (
+              <div className="tool-panel">
+                <label className="control">
+                  <span>Tile size ({tileSize}px)</span>
+                  <input
+                    type="range"
+                    min={110}
+                    max={280}
+                    value={tileSize}
+                    onChange={(event) => setTileSize(Number(event.target.value))}
+                  />
+                </label>
 
-          <button className="button" type="button" onClick={handleCreateFolder}>
-            New Folder
+                <label className="control">
+                  <span>Image fit</span>
+                  <select
+                    value={tileFit}
+                    onChange={(event) =>
+                      setTileFit(event.target.value as 'cover' | 'contain')
+                    }
+                  >
+                    <option value="cover">Cover</option>
+                    <option value="contain">Contain</option>
+                  </select>
+                </label>
+
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={denseGrid}
+                    onChange={(event) => setDenseGrid(event.target.checked)}
+                  />
+                  <span>Dense grid</span>
+                </label>
+
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={showLabels}
+                    onChange={(event) => setShowLabels(event.target.checked)}
+                  />
+                  <span>Show labels</span>
+                </label>
+
+                <label className="control">
+                  <span>Theme</span>
+                  <select
+                    value={themeMode}
+                    onChange={(event) =>
+                      setThemeMode(event.target.value as 'system' | 'light' | 'dark')
+                    }
+                  >
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                  </select>
+                </label>
+              </div>
+            )}
+
+            {activeTool === 'filters' && (
+              <div className="tool-panel">
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={favoritesOnly}
+                    onChange={(event) => setFavoritesOnly(event.target.checked)}
+                  />
+                  <span>Favorites only</span>
+                </label>
+
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={hideHidden}
+                    onChange={(event) => setHideHidden(event.target.checked)}
+                  />
+                  <span>Hide hidden</span>
+                </label>
+
+                <div className="tool-hint">More filters coming soon.</div>
+              </div>
+            )}
+
+            {activeTool === 'search' && (
+              <div className="tool-panel">
+                <div className="tool-hint">Search tools coming soon.</div>
+              </div>
+            )}
+          </div>
+        )}
+      </header>
+
+      <div className={drawerOpen ? 'drawer-scrim open' : 'drawer-scrim'} onClick={() => setDrawerOpen(false)} />
+      <aside className={drawerOpen ? 'drawer open' : 'drawer'} role="navigation">
+        <div className="drawer-header">
+          <div>Folders</div>
+          <button className="ghost" type="button" onClick={() => setDrawerOpen(false)}>
+            Close
           </button>
-
+        </div>
+        <div className="drawer-actions">
           <button className="button" type="button" onClick={handleSync}>
             Sync
           </button>
-
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={favoritesOnly}
-              onChange={(event) => setFavoritesOnly(event.target.checked)}
-            />
-            <span>Favorites only</span>
-          </label>
-
-          <button
-            className="ghost"
-            type="button"
-            onClick={() => setSettingsOpen((open) => !open)}
-          >
-            Settings
+          <button className="ghost" type="button" onClick={handleCreateFolder}>
+            New Folder
           </button>
         </div>
-      </header>
-
-      {settingsOpen && (
-        <section className="settings-panel">
-          <label className="control">
-            <span>Theme</span>
-            <select
-              value={themeMode}
-              onChange={(event) =>
-                setThemeMode(event.target.value as 'system' | 'light' | 'dark')
-              }
+        <div className="drawer-content">
+          <button
+            type="button"
+            className={selectedFolder ? 'drawer-item' : 'drawer-item active'}
+            onClick={() => {
+              setSelectedFolder('');
+              setDrawerOpen(false);
+            }}
+          >
+            Home
+          </button>
+          {folders.map((folder) => (
+            <button
+              key={folder}
+              type="button"
+              className={selectedFolder === folder ? 'drawer-item active' : 'drawer-item'}
+              onClick={() => {
+                setSelectedFolder(folder);
+                setDrawerOpen(false);
+              }}
             >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-
-          <label className="control">
-            <span>Tile size ({tileSize}px)</span>
-            <input
-              type="range"
-              min={110}
-              max={280}
-              value={tileSize}
-              onChange={(event) => setTileSize(Number(event.target.value))}
-            />
-          </label>
-
-          <label className="control">
-            <span>Image fit</span>
-            <select
-              value={tileFit}
-              onChange={(event) => setTileFit(event.target.value as 'cover' | 'contain')}
-            >
-              <option value="cover">Cover</option>
-              <option value="contain">Contain</option>
-            </select>
-          </label>
-
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={denseGrid}
-              onChange={(event) => setDenseGrid(event.target.checked)}
-            />
-            <span>Dense grid</span>
-          </label>
-
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showLabels}
-              onChange={(event) => setShowLabels(event.target.checked)}
-            />
-            <span>Show labels</span>
-          </label>
-        </section>
-      )}
+              {folder}
+            </button>
+          ))}
+        </div>
+      </aside>
 
       <div className="status-bar">
         <div>
@@ -379,7 +544,7 @@ export default function App() {
         {filteredImages.map((image) => (
           <button
             key={image.id}
-            className={`card ${tileFit}`}
+            className={`card ${tileFit} ${image.hidden ? 'hidden' : ''}`}
             type="button"
             onClick={() => setSelectedId(image.id)}
           >
@@ -397,17 +562,30 @@ export default function App() {
               }}
             />
             <div className="card-overlay">
-              <button
-                className={image.favorite ? 'fav active' : 'fav'}
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleToggleFavorite(image);
-                }}
-                aria-label={image.favorite ? 'Unfavorite' : 'Favorite'}
-              >
-                ★
-              </button>
+              <div className="card-actions">
+                <button
+                  className={image.favorite ? 'fav active' : 'fav'}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleToggleFavorite(image);
+                  }}
+                  aria-label={image.favorite ? 'Unfavorite' : 'Favorite'}
+                >
+                  ★
+                </button>
+                <button
+                  className={image.hidden ? 'hide active' : 'hide'}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleToggleHidden(image);
+                  }}
+                  aria-label={image.hidden ? 'Unhide' : 'Hide'}
+                >
+                  {image.hidden ? 'Hidden' : 'Hide'}
+                </button>
+              </div>
               {showLabels && (
                 <div className="name" title={image.name}>
                   {image.name}
@@ -460,6 +638,13 @@ export default function App() {
                       ★
                     </button>
                     <button
+                      className={selectedImage.hidden ? 'ghost hide active' : 'ghost hide'}
+                      type="button"
+                      onClick={() => handleToggleHidden(selectedImage)}
+                    >
+                      {selectedImage.hidden ? 'Hidden' : 'Hide'}
+                    </button>
+                    <button
                       className="ghost"
                       type="button"
                       onClick={() => setSelectedId(null)}
@@ -494,7 +679,7 @@ export default function App() {
                       value={moveTarget}
                       onChange={(event) => setMoveTarget(event.target.value)}
                     >
-                      <option value="">(root)</option>
+                      <option value="">Home</option>
                       {folders.map((folder) => (
                         <option key={folder} value={folder}>
                           {folder}

@@ -75,6 +75,23 @@ app.post('/api/favorite', async (req, res) => {
   }
 });
 
+app.post('/api/hidden', async (req, res) => {
+  try {
+    const { path: relPath, value } = req.body || {};
+    if (!relPath) return res.status(400).send('Missing path');
+    const db = await readDb();
+    if (value) {
+      db.hidden[relPath] = true;
+    } else {
+      delete db.hidden[relPath];
+    }
+    await writeDb(db);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update hidden state');
+  }
+});
+
 app.post('/api/folders', async (req, res) => {
   try {
     const { path: relPath } = req.body || {};
@@ -97,6 +114,7 @@ app.post('/api/move', async (req, res) => {
     await ensureDir(destFolder);
     await fs.rename(fromPath, destPath);
     await moveFavorite(relPath, toPosix(path.relative(DATA_DIR, destPath)));
+    await moveHidden(relPath, toPosix(path.relative(DATA_DIR, destPath)));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to move image');
@@ -174,10 +192,11 @@ async function readDb() {
     const raw = await fs.readFile(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     return {
-      favorites: parsed.favorites || {}
+      favorites: parsed.favorites || {},
+      hidden: parsed.hidden || {}
     };
   } catch {
-    return { favorites: {} };
+    return { favorites: {}, hidden: {} };
   }
 }
 
@@ -191,6 +210,16 @@ async function moveFavorite(fromRel, toRel) {
   if (db.favorites[fromRel]) {
     delete db.favorites[fromRel];
     db.favorites[toRel] = true;
+    await writeDb(db);
+  }
+}
+
+async function moveHidden(fromRel, toRel) {
+  if (fromRel === toRel) return;
+  const db = await readDb();
+  if (db.hidden[fromRel]) {
+    delete db.hidden[fromRel];
+    db.hidden[toRel] = true;
     await writeDb(db);
   }
 }
@@ -238,6 +267,7 @@ async function walkDir(currentDir, relDir, images, folders, db) {
         url: `/images/${encodeURI(relPath)}`,
         thumbUrl,
         favorite: Boolean(db.favorites[relPath]),
+        hidden: Boolean(db.hidden[relPath]),
         mtimeMs: stats.mtimeMs,
         size: stats.size
       });
