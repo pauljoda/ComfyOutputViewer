@@ -101,5 +101,5 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Added a dimmed blur scrim for tool popovers and blocked clicks from reaching the gallery.
-- Bumped `package.json` version to 0.1.6 and documented the release in `CHANGELOG.md`.
+- Routed tool popover dismissal through the header + scrim to avoid click-through.
+- Bumped `package.json` version to 0.1.7 and documented the release in `CHANGELOG.md`.

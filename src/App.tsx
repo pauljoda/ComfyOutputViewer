@@ -192,25 +192,13 @@ export default function App() {
     }
   }, [columns]);
 
-  useEffect(() => {
+  const handleTopBarPointerDown = (event: React.PointerEvent<HTMLElement>) => {
     if (!activeTool) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (toolPopoverRef.current?.contains(target)) return;
-      if (toolButtonsRef.current?.contains(target)) return;
-      if (toolbarRef.current?.contains(target)) {
-        setActiveTool(null);
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      setActiveTool(null);
-    };
-    document.addEventListener('pointerdown', handlePointerDown, { capture: true });
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown, { capture: true });
-    };
-  }, [activeTool]);
+    const target = event.target as Node;
+    if (toolPopoverRef.current?.contains(target)) return;
+    if (toolButtonsRef.current?.contains(target)) return;
+    setActiveTool(null);
+  };
 
   const folders = useMemo(() => {
     const base = data.folders.filter((folder) => folder.length > 0).sort();
@@ -390,7 +378,7 @@ export default function App() {
       className="app"
       style={{ '--top-bar-height': `${topBarHeight}px` } as React.CSSProperties}
     >
-      <header className="top-bar" ref={topBarRef}>
+      <header className="top-bar" ref={topBarRef} onPointerDown={handleTopBarPointerDown}>
         <div className="top-row">
           <div className="brand">
             <div className="title">

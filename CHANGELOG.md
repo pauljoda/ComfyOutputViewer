@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.7] - 2026-01-28
+
+### Changed
+- Ensured tool popover dismissal uses a scrim + header handler to avoid click-through.
+
 ## [0.1.6] - 2026-01-28
 
 ### Changed
