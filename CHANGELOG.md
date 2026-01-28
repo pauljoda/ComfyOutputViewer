@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.9] - 2026-01-28
+
+### Changed
+- Split the single-page App component into reusable components, hooks, and utilities for easier scaling.
+
 ## [0.1.8] - 2026-01-28
 
 ### Added

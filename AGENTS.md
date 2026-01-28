@@ -47,6 +47,7 @@ API endpoints:
 
 ### Client (Vite + React)
 Entry: `src/App.tsx`
+Component modules live in `src/components`, with shared hooks/utilities in `src/hooks`, `src/utils`, and `src/lib`.
 
 Key UI features:
 - Top toolbar with icon buttons and a single active tool popover.
@@ -101,7 +102,6 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Added created-date metadata to images and sorting options (created default, modified, name, size) in the grid toolbar.
-- Routed tool popover dismissal through the header + scrim to avoid click-through.
-- Bumped `package.json` version to 0.1.7 and documented the release in `CHANGELOG.md`.
-- Added created-date metadata to images and sorting options (created default, modified, name, size) in the grid toolbar.
+- Refactored `src/App.tsx` into modular components, hooks, and utilities for cleaner scaling.
+- Added shared type definitions, constants, and API/helpers for the client UI.
+- Bumped `package.json` version to 0.1.9 and documented the release in `CHANGELOG.md`.
