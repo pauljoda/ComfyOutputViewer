@@ -1,5 +1,5 @@
 import type { TouchEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
 
@@ -36,9 +36,16 @@ export default function ImageModal({
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
+  const lastSwipeDirRef = useRef<'left' | 'right' | null>(null);
   const isPanningRef = useRef(false);
   const isPinchingRef = useRef(false);
   const scaleRef = useRef(1);
+  const prevImageRef = useRef<ImageItem | null>(null);
+  const [swipeOutgoing, setSwipeOutgoing] = useState<{
+    image: ImageItem;
+    direction: 'left' | 'right';
+  } | null>(null);
+  const [swipeIncoming, setSwipeIncoming] = useState(false);
 
   const handlePrev = () => {
     setOverflowOpen(false);
@@ -100,6 +107,7 @@ export default function ImageModal({
 
     if (absX > absY * axisRatio) {
       lastSwipeAtRef.current = Date.now();
+      lastSwipeDirRef.current = dx < 0 ? 'left' : 'right';
       if (dx < 0) {
         handleNext();
       } else {
@@ -110,9 +118,30 @@ export default function ImageModal({
 
     if (absY > absX * axisRatio) {
       lastSwipeAtRef.current = Date.now();
+      lastSwipeDirRef.current = null;
       handleClose();
     }
   };
+
+  useEffect(() => {
+    const previous = prevImageRef.current;
+    prevImageRef.current = image;
+    if (previous && previous.id !== image.id) {
+      const now = Date.now();
+      const recentSwipe = now - lastSwipeAtRef.current < 650;
+      const direction = lastSwipeDirRef.current;
+      if (recentSwipe && direction) {
+        setSwipeOutgoing({ image: previous, direction });
+        setSwipeIncoming(true);
+        const timer = window.setTimeout(() => {
+          setSwipeOutgoing(null);
+          setSwipeIncoming(false);
+        }, 280);
+        return () => window.clearTimeout(timer);
+      }
+    }
+    return undefined;
+  }, [image]);
 
   return (
     <div className="modal" role="dialog" aria-modal="true">
@@ -402,9 +431,20 @@ export default function ImageModal({
                 }
               }}
             >
-              <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
-                <img className="modal-image" src={image.url} alt={image.name} />
-              </TransformComponent>
+              <div className="modal-stage">
+                {swipeOutgoing && (
+                  <div className={`modal-swipe-out ${swipeOutgoing.direction}`} aria-hidden="true">
+                    <img className="modal-image" src={swipeOutgoing.image.url} alt="" />
+                  </div>
+                )}
+                <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
+                  <img
+                    className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
+                    src={image.url}
+                    alt={image.name}
+                  />
+                </TransformComponent>
+              </div>
             </div>
             <div className="modal-footer">
               <div className="modal-filename" title={image.name}>

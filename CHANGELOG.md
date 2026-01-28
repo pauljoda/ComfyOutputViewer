@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.11] - 2026-01-28
+
+### Changed
+- Allowed zoomed images to render beyond the modal viewport while panning.
+- Added swipe transition animations so outgoing images slide offscreen and incoming images pop in.
+
 ## [0.1.10] - 2026-01-28
 
 ### Changed
