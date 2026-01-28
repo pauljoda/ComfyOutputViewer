@@ -60,6 +60,8 @@ export default function App() {
   const [activeTool, setActiveTool] = useState<'view' | 'filters' | 'search' | null>(
     null
   );
+  const [modalTool, setModalTool] = useState<'details' | null>(null);
+  const [ratios, setRatios] = useState<Record<string, number>>({});
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -73,7 +75,7 @@ export default function App() {
   });
   const [tileFit, setTileFit] = useState<'cover' | 'contain'>(() => {
     const stored = window.localStorage.getItem('cov_tile_fit');
-    return stored === 'contain' ? 'contain' : 'cover';
+    return stored === 'contain' || stored === 'content' ? 'contain' : 'cover';
   });
   const [showLabels, setShowLabels] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_show_labels');
@@ -172,8 +174,18 @@ export default function App() {
   useEffect(() => {
     if (selectedImage) {
       setMoveTarget(selectedImage.folder || '');
+      setModalTool(null);
     }
   }, [selectedImage]);
+
+  const handleImageLoad = (id: string, element: HTMLImageElement) => {
+    if (!element.naturalWidth || !element.naturalHeight) return;
+    const nextRatio = Number((element.naturalWidth / element.naturalHeight).toFixed(3));
+    setRatios((prev) => {
+      if (prev[id] === nextRatio) return prev;
+      return { ...prev, [id]: nextRatio };
+    });
+  };
 
   const handleToggleFavorite = async (image: ImageItem) => {
     const nextValue = !image.favorite;
@@ -290,6 +302,16 @@ export default function App() {
   const toggleTool = (tool: 'view' | 'filters' | 'search') => {
     setActiveTool((current) => (current === tool ? null : tool));
   };
+  const getContentStyle = (image: ImageItem): React.CSSProperties | undefined => {
+    if (tileFit !== 'contain') return undefined;
+    const ratio = ratios[image.id];
+    if (!ratio) {
+      return { width: tileSize, height: tileSize };
+    }
+    const width = ratio >= 1 ? tileSize * ratio : tileSize;
+    const height = ratio >= 1 ? tileSize : tileSize / ratio;
+    return { width: Math.round(width), height: Math.round(height) };
+  };
 
   return (
     <div className="app">
@@ -405,7 +427,7 @@ export default function App() {
                 </label>
 
                 <label className="control">
-                  <span>Image fit</span>
+                  <span>Display</span>
                   <select
                     value={tileFit}
                     onChange={(event) =>
@@ -413,7 +435,7 @@ export default function App() {
                     }
                   >
                     <option value="cover">Cover</option>
-                    <option value="contain">Contain</option>
+                    <option value="contain">Content</option>
                   </select>
                 </label>
 
@@ -538,7 +560,9 @@ export default function App() {
       </div>
 
       <main
-        className={`gallery ${denseGrid ? 'dense' : 'spacious'}`}
+        className={`gallery ${denseGrid ? 'dense' : 'spacious'} ${
+          tileFit === 'contain' ? 'content-fit' : ''
+        }`}
         style={{ '--tile-size': `${tileSize}px` } as React.CSSProperties}
       >
         {filteredImages.map((image) => (
@@ -547,6 +571,7 @@ export default function App() {
             className={`card ${tileFit} ${image.hidden ? 'hidden' : ''}`}
             type="button"
             onClick={() => setSelectedId(image.id)}
+            style={getContentStyle(image)}
           >
             <img
               src={image.thumbUrl || image.url}
@@ -554,6 +579,7 @@ export default function App() {
               loading="lazy"
               decoding="async"
               fetchPriority="low"
+              onLoad={(event) => handleImageLoad(image.id, event.currentTarget)}
               onError={(event) => {
                 if (!image.thumbUrl) return;
                 const target = event.currentTarget;
@@ -615,43 +641,150 @@ export default function App() {
                 <div className="modal-toolbar" onClick={(event) => event.stopPropagation()}>
                   <div className="modal-title">{selectedImage.name}</div>
                   <div className="modal-actions">
-                    <button className="ghost" type="button" onClick={movePrev}>
-                      Prev
+                    <button className="tool-button" type="button" onClick={movePrev} title="Previous">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M15 6l-6 6 6 6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
-                    <button className="ghost" type="button" onClick={moveNext}>
-                      Next
+                    <button className="tool-button" type="button" onClick={moveNext} title="Next">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M9 6l6 6-6 6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
-                    <button className="ghost" type="button" onClick={zoomOut}>
-                      −
+                    <button className="tool-button" type="button" onClick={zoomOut} title="Zoom out">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M5 12h14"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </button>
-                    <button className="ghost" type="button" onClick={zoomIn}>
-                      +
+                    <button className="tool-button" type="button" onClick={zoomIn} title="Zoom in">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M12 5v14M5 12h14"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </button>
-                    <button className="ghost" type="button" onClick={resetTransform}>
-                      Reset
+                    <button className="tool-button" type="button" onClick={resetTransform} title="Reset">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                     <button
-                      className={selectedImage.favorite ? 'ghost fav active' : 'ghost fav'}
+                      className={selectedImage.favorite ? 'tool-button active' : 'tool-button'}
                       type="button"
                       onClick={() => handleToggleFavorite(selectedImage)}
+                      title="Favorite"
                     >
                       ★
                     </button>
                     <button
-                      className={selectedImage.hidden ? 'ghost hide active' : 'ghost hide'}
+                      className={selectedImage.hidden ? 'tool-button active' : 'tool-button'}
                       type="button"
                       onClick={() => handleToggleHidden(selectedImage)}
+                      title="Hide"
                     >
-                      {selectedImage.hidden ? 'Hidden' : 'Hide'}
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                        />
+                        <path
+                          d="M4 4l16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </button>
                     <button
-                      className="ghost"
+                      className={modalTool === 'details' ? 'tool-button active' : 'tool-button'}
+                      type="button"
+                      onClick={() =>
+                        setModalTool((current) => (current === 'details' ? null : 'details'))
+                      }
+                      title="Details"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="6" cy="12" r="1.6" fill="currentColor" />
+                        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+                        <circle cx="18" cy="12" r="1.6" fill="currentColor" />
+                      </svg>
+                    </button>
+                    <button
+                      className="tool-button"
                       type="button"
                       onClick={() => setSelectedId(null)}
+                      title="Close"
                     >
-                      Close
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M6 6l12 12M18 6l-12 12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </button>
                   </div>
+
+                  {modalTool === 'details' && (
+                    <div className="modal-tool-popover">
+                      <div className="tool-panel">
+                        <label className="control">
+                          <span>Move to</span>
+                          <select
+                            value={moveTarget}
+                            onChange={(event) => setMoveTarget(event.target.value)}
+                          >
+                            <option value="">Home</option>
+                            {folders.map((folder) => (
+                              <option key={folder} value={folder}>
+                                {folder}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button className="button" type="button" onClick={handleMoveSelected}>
+                          Move
+                        </button>
+                        <div className="hint">Pinch to zoom, drag to pan.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div
@@ -672,26 +805,6 @@ export default function App() {
                   </TransformComponent>
                 </div>
 
-                <div className="modal-footer" onClick={(event) => event.stopPropagation()}>
-                  <label className="control">
-                    <span>Move to</span>
-                    <select
-                      value={moveTarget}
-                      onChange={(event) => setMoveTarget(event.target.value)}
-                    >
-                      <option value="">Home</option>
-                      {folders.map((folder) => (
-                        <option key={folder} value={folder}>
-                          {folder}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="button" type="button" onClick={handleMoveSelected}>
-                    Move
-                  </button>
-                  <div className="hint">Pinch to zoom, drag to pan.</div>
-                </div>
               </>
             )}
           </TransformWrapper>
