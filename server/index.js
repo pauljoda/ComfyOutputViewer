@@ -46,10 +46,9 @@ app.use('/images', express.static(DATA_DIR));
 app.get('/api/images', async (_req, res) => {
   try {
     const db = await readDb();
-    const { images, folders } = await listImages(DATA_DIR, db);
+    const { images } = await listImages(DATA_DIR, db);
     res.json({
       images,
-      folders,
       sourceDir: SOURCE_DIR,
       dataDir: DATA_DIR
     });
@@ -92,32 +91,21 @@ app.post('/api/hidden', async (req, res) => {
   }
 });
 
-app.post('/api/folders', async (req, res) => {
+app.post('/api/tags', async (req, res) => {
   try {
-    const { path: relPath } = req.body || {};
+    const { path: relPath, tags } = req.body || {};
     if (!relPath) return res.status(400).send('Missing path');
-    const target = safeResolve(DATA_DIR, relPath);
-    await ensureDir(target);
-    res.json({ ok: true });
+    const db = await readDb();
+    const normalized = normalizeTags(tags);
+    if (normalized.length) {
+      db.tags[relPath] = normalized;
+    } else {
+      delete db.tags[relPath];
+    }
+    await writeDb(db);
+    res.json({ ok: true, tags: normalized });
   } catch (err) {
-    res.status(500).send(err instanceof Error ? err.message : 'Failed to create folder');
-  }
-});
-
-app.post('/api/move', async (req, res) => {
-  try {
-    const { path: relPath, targetFolder } = req.body || {};
-    if (!relPath) return res.status(400).send('Missing path');
-    const fromPath = safeResolve(DATA_DIR, relPath);
-    const destFolder = safeResolve(DATA_DIR, targetFolder || '');
-    const destPath = path.join(destFolder, path.basename(relPath));
-    await ensureDir(destFolder);
-    await fs.rename(fromPath, destPath);
-    await moveFavorite(relPath, toPosix(path.relative(DATA_DIR, destPath)));
-    await moveHidden(relPath, toPosix(path.relative(DATA_DIR, destPath)));
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).send(err instanceof Error ? err.message : 'Failed to move image');
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update tags');
   }
 });
 
@@ -164,10 +152,6 @@ function resolveDir(input) {
   return input;
 }
 
-function toPosix(input) {
-  return input.split(path.sep).join('/');
-}
-
 async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
@@ -177,26 +161,17 @@ function isImageFile(fileName) {
   return IMAGE_EXTENSIONS.has(ext);
 }
 
-function safeResolve(baseDir, target) {
-  const base = path.resolve(baseDir);
-  const resolved = path.resolve(baseDir, target);
-  const baseWithSep = base.endsWith(path.sep) ? base : `${base}${path.sep}`;
-  if (resolved !== base && !resolved.startsWith(baseWithSep)) {
-    throw new Error('Invalid path');
-  }
-  return resolved;
-}
-
 async function readDb() {
   try {
     const raw = await fs.readFile(DB_PATH, 'utf8');
     const parsed = JSON.parse(raw);
     return {
       favorites: parsed.favorites || {},
-      hidden: parsed.hidden || {}
+      hidden: parsed.hidden || {},
+      tags: normalizeTagsByPath(parsed.tags || {})
     };
   } catch {
-    return { favorites: {}, hidden: {} };
+    return { favorites: {}, hidden: {}, tags: {} };
   }
 }
 
@@ -204,43 +179,19 @@ async function writeDb(db) {
   await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf8');
 }
 
-async function moveFavorite(fromRel, toRel) {
-  if (fromRel === toRel) return;
-  const db = await readDb();
-  if (db.favorites[fromRel]) {
-    delete db.favorites[fromRel];
-    db.favorites[toRel] = true;
-    await writeDb(db);
-  }
-}
-
-async function moveHidden(fromRel, toRel) {
-  if (fromRel === toRel) return;
-  const db = await readDb();
-  if (db.hidden[fromRel]) {
-    delete db.hidden[fromRel];
-    db.hidden[toRel] = true;
-    await writeDb(db);
-  }
-}
-
 async function listImages(root, db) {
   const images = [];
-  const folders = new Set();
 
   if (!existsSync(root)) {
-    return { images, folders: [] };
+    return { images };
   }
 
-  await walkDir(root, '', images, folders, db);
+  await walkDir(root, '', images, db);
 
-  return {
-    images,
-    folders: Array.from(folders).sort()
-  };
+  return { images };
 }
 
-async function walkDir(currentDir, relDir, images, folders, db) {
+async function walkDir(currentDir, relDir, images, db) {
   const entries = await fs.readdir(currentDir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name === '.comfy_viewer.json') continue;
@@ -248,8 +199,7 @@ async function walkDir(currentDir, relDir, images, folders, db) {
     const entryPath = path.join(currentDir, entry.name);
     if (entry.isDirectory()) {
       const nextRel = relDir ? `${relDir}/${entry.name}` : entry.name;
-      folders.add(nextRel);
-      await walkDir(entryPath, nextRel, images, folders, db);
+      await walkDir(entryPath, nextRel, images, db);
     } else if (entry.isFile() && isImageFile(entry.name)) {
       const relPath = relDir ? `${relDir}/${entry.name}` : entry.name;
       const thumbRel = relDir
@@ -268,17 +218,46 @@ async function walkDir(currentDir, relDir, images, folders, db) {
       images.push({
         id: relPath,
         name: entry.name,
-        folder: relDir,
         url: `/images/${encodeURI(relPath)}`,
         thumbUrl,
         favorite: Boolean(db.favorites[relPath]),
         hidden: Boolean(db.hidden[relPath]),
+        tags: db.tags[relPath] || [],
         createdMs,
         mtimeMs: stats.mtimeMs,
         size: stats.size
       });
     }
   }
+}
+
+function normalizeTagsByPath(tagsByPath) {
+  const normalized = {};
+  if (!tagsByPath || typeof tagsByPath !== 'object') return normalized;
+  for (const [relPath, tags] of Object.entries(tagsByPath)) {
+    const clean = normalizeTags(tags);
+    if (clean.length > 0) {
+      normalized[relPath] = clean;
+    }
+  }
+  return normalized;
+}
+
+function normalizeTags(tags) {
+  if (!Array.isArray(tags)) return [];
+  const tagMap = new Map();
+  for (const entry of tags) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim().replace(/\s+/g, ' ');
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (!tagMap.has(key)) {
+      tagMap.set(key, key);
+    }
+  }
+  return Array.from(tagMap.values()).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  );
 }
 
 async function syncSourceToData() {

@@ -11,7 +11,7 @@ import type {
 type TopBarProps = {
   version: string;
   sourceDir: string;
-  currentFolderLabel: string;
+  currentFilterLabel: string;
   activeTool: ActiveTool;
   effectiveColumns: number;
   maxColumns: number;
@@ -20,6 +20,9 @@ type TopBarProps = {
   themeMode: ThemeMode;
   favoritesOnly: boolean;
   hideHidden: boolean;
+  selectedTags: string[];
+  availableTags: string[];
+  showUntagged: boolean;
   onOpenDrawer: () => void;
   onToggleTool: (tool: ToolPanel) => void;
   onDismissTool: () => void;
@@ -29,6 +32,10 @@ type TopBarProps = {
   onThemeModeChange: (value: ThemeMode) => void;
   onFavoritesOnlyChange: (value: boolean) => void;
   onHideHiddenChange: (value: boolean) => void;
+  onAddFilterTag: (tag: string) => void;
+  onRemoveFilterTag: (tag: string) => void;
+  onClearFilterTags: () => void;
+  onExitUntagged: () => void;
 };
 
 const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
@@ -36,7 +43,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     {
       version,
       sourceDir,
-      currentFolderLabel,
+      currentFilterLabel,
       activeTool,
       effectiveColumns,
       maxColumns,
@@ -45,6 +52,9 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       themeMode,
       favoritesOnly,
       hideHidden,
+      selectedTags,
+      availableTags,
+      showUntagged,
       onOpenDrawer,
       onToggleTool,
       onDismissTool,
@@ -53,12 +63,17 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onSortModeChange,
       onThemeModeChange,
       onFavoritesOnlyChange,
-      onHideHiddenChange
+      onHideHiddenChange,
+      onAddFilterTag,
+      onRemoveFilterTag,
+      onClearFilterTags,
+      onExitUntagged
     },
     ref
   ) => {
     const toolPopoverRef = useRef<HTMLDivElement | null>(null);
     const toolButtonsRef = useRef<HTMLDivElement | null>(null);
+    const [tagInput, setTagInput] = React.useState('');
 
     const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
       if (!activeTool) return;
@@ -85,8 +100,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
               className="tool-button"
               type="button"
               onClick={onOpenDrawer}
-              aria-label="Open folders"
-              title="Folders"
+              aria-label="Open tags"
+              title="Tags"
             >
               <span className="hamburger" aria-hidden="true">
                 <span />
@@ -95,8 +110,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
               </span>
             </button>
 
-            <div className="folder-pill" title={currentFolderLabel}>
-              {currentFolderLabel}
+            <div className="filter-pill" title={currentFilterLabel}>
+              {currentFilterLabel}
             </div>
 
             <div className="toolbar-actions" ref={toolButtonsRef}>
@@ -250,7 +265,75 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                   <span>Hide hidden</span>
                 </label>
 
-                <div className="tool-hint">More filters coming soon.</div>
+                <div className="tag-filter">
+                  <div className="tag-filter-header">
+                    <span>Tags (match all)</span>
+                    {selectedTags.length > 0 && (
+                      <button className="ghost" type="button" onClick={onClearFilterTags}>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {showUntagged && (
+                    <div className="tag-filter-note">
+                      Viewing untagged images.
+                      <button className="ghost" type="button" onClick={onExitUntagged}>
+                        Back to all
+                      </button>
+                    </div>
+                  )}
+                  <div className="tag-chip-list">
+                    {selectedTags.length === 0 && (
+                      <span className="tag-empty">No tags selected.</span>
+                    )}
+                    {selectedTags.map((tag) => (
+                      <button
+                        key={tag}
+                        className="tag-chip"
+                        type="button"
+                        onClick={() => onRemoveFilterTag(tag)}
+                        title="Remove tag"
+                      >
+                        {tag}
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="tag-input-row">
+                    <input
+                      list="tag-filter-suggestions"
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          if (tagInput.trim()) {
+                            onAddFilterTag(tagInput);
+                            setTagInput('');
+                          }
+                        }
+                      }}
+                      placeholder="Add tag…"
+                      aria-label="Add tag filter"
+                    />
+                    <button
+                      className="button"
+                      type="button"
+                      onClick={() => {
+                        onAddFilterTag(tagInput);
+                        setTagInput('');
+                      }}
+                      disabled={!tagInput.trim()}
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <datalist id="tag-filter-suggestions">
+                    {availableTags.map((tag) => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
+                </div>
               </div>
             )}
 

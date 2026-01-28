@@ -5,18 +5,19 @@ while working in this repository.
 
 ## App Overview
 
-Comfy Output Viewer is a local-first image browser for ComfyUI output folders.
+Comfy Output Viewer is a local-first image browser for ComfyUI outputs with tag-based organization.
 It mirrors images from a configured source directory into a data directory,
 generates thumbnails, and provides a modern web UI for browsing, filtering,
 and managing images.
 
 ### Key User Flows
 - Browse images in a grid, newest-first.
-- Navigate folders via a left drawer (Home = root).
+- Filter by tags via a left drawer and multi-tag combinations.
+- Jump to an "Untagged" view from the drawer.
 - Toggle favorites and hidden states.
-- Hide hidden items on the Home feed only.
+- Hide hidden items on the All Images feed only.
 - Open a modal viewer with zoom/pan controls and toolbar actions.
-- Move images between folders.
+- Tag images with existing or newly created tags.
 
 ## Architecture
 
@@ -27,8 +28,8 @@ Responsibilities:
 - Serve the SPA in production.
 - Serve image files from the data directory at `/images`.
 - Provide API endpoints for listing images, syncing, favorites, hidden state,
-  folder creation, and moving images.
-- Maintain a small JSON DB for metadata (favorites/hidden).
+  and per-image tags.
+- Maintain a small JSON DB for metadata (favorites/hidden/tags).
 - Generate thumbnails (if `sharp` is available).
 
 Important paths/config:
@@ -38,11 +39,10 @@ Important paths/config:
 - DB stored at `.comfy_viewer.json`.
 
 API endpoints:
-- `GET /api/images` -> `{ images, folders, sourceDir, dataDir }`
+- `GET /api/images` -> `{ images, sourceDir, dataDir }`
 - `POST /api/favorite` -> `{ path, value }`
 - `POST /api/hidden` -> `{ path, value }`
-- `POST /api/folders` -> `{ path }`
-- `POST /api/move` -> `{ path, targetFolder }`
+- `POST /api/tags` -> `{ path, tags }`
 - `POST /api/sync` -> `{ scanned, copied, thumbnails? }`
 
 ### Client (Vite + React)
@@ -51,19 +51,20 @@ Component modules live in `src/components`, with shared hooks/utilities in `src/
 
 Key UI features:
 - Top toolbar with icon buttons and a single active tool popover.
-- Drawer navigation for folders (Home == root).
+- Drawer navigation for tag filters sorted by image count, plus an untagged view.
 - Image grid:
   - "Cover" mode: fixed square tiles with object-fit cover.
   - "Content" mode: tile size becomes the smaller dimension, width/height scaled
     by natural image ratio, tiled via flex-wrap.
 - Favorites and hidden toggles on cards and modal toolbar.
-- Hide hidden items on Home only; folder views show all.
+- Hide hidden items on All Images only; tag filters show hidden items.
 - Zoom/pan modal for selected image.
+- Modal tag editor with add/remove controls.
 
 Key client behaviors:
 - LocalStorage persists theme, columns per row, display mode,
   and hide-hidden flag.
-- Hidden/favorite updates are optimistic, then persisted via API.
+- Hidden/favorite/tag updates are optimistic, then persisted via API.
 
 Styles: `src/styles.css`
 
@@ -102,13 +103,8 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Adjusted modal swipe-in animation to avoid unintended movement on new images.
-- Updated hidden icon colors (default and selected) to improve visibility.
-- Allowed modal images to render beyond the initial viewport while panning.
-- Added swipe transition animations in the modal with an outgoing slide and incoming pop.
-- Updated image card overlay controls with icon-only hide/favorite actions, new alignment, and clearer active styling.
-- Reworked the modal toolbar into primary/secondary rows with a mobile overflow menu for secondary actions.
-- Added swipe navigation (left/right) and dismiss (up/down) gestures in the modal, guarded against pan/zoom.
-- Refactored `src/App.tsx` into modular components, hooks, and utilities for cleaner scaling.
-- Added shared type definitions, constants, and API/helpers for the client UI.
-- Bumped `package.json` version to 0.1.12 and documented the release in `CHANGELOG.md`.
+- Replaced folder navigation with tag-based organization and filtering.
+- Added tag editing in the modal with create-or-select suggestions.
+- Introduced tag counts in the drawer plus an untagged view shortcut.
+- Updated server API and metadata storage to track tags per image.
+- Bumped `package.json` version to 0.2.0 and documented the release in `CHANGELOG.md`.

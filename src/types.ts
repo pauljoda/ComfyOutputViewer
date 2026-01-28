@@ -1,11 +1,11 @@
 export type ImageItem = {
   id: string;
   name: string;
-  folder: string;
   url: string;
   thumbUrl?: string;
   favorite: boolean;
   hidden: boolean;
+  tags: string[];
   createdMs: number;
   mtimeMs: number;
   size: number;
@@ -13,7 +13,6 @@ export type ImageItem = {
 
 export type ApiResponse = {
   images: ImageItem[];
-  folders: string[];
   sourceDir: string;
   dataDir: string;
 };
@@ -38,7 +37,7 @@ export type ToolPanel = 'view' | 'filters' | 'search';
 
 export type ActiveTool = ToolPanel | null;
 
-export type ModalTool = 'details' | null;
+export type ModalTool = 'tags' | null;
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 

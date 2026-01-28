@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import packageJson from '../package.json';
-import FolderDrawer from './components/FolderDrawer';
+import TagDrawer from './components/TagDrawer';
 import Gallery from './components/Gallery';
 import ImageModal from './components/ImageModal';
 import StatusBar from './components/StatusBar';
@@ -15,8 +15,8 @@ import {
 } from './constants';
 import { useElementSize } from './hooks/useElementSize';
 import { api } from './lib/api';
-import { sortFolders } from './utils/folders';
 import { clamp, filterImages, isSortMode, sortImages } from './utils/images';
+import { buildTagCounts, normalizeTagInput, normalizeTags } from './utils/tags';
 import {
   DEFAULT_SORT,
   type ActiveTool,
@@ -32,7 +32,6 @@ import {
 
 const emptyData: ApiResponse = {
   images: [],
-  folders: [],
   sourceDir: '',
   dataDir: ''
 };
@@ -42,10 +41,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState('');
-  const [selectedFolder, setSelectedFolder] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [showUntagged, setShowUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [moveTarget, setMoveTarget] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [modalTool, setModalTool] = useState<ModalTool>(null);
@@ -148,16 +147,22 @@ export default function App() {
     }
   }, [columns]);
 
-  const folders = useMemo(() => sortFolders(data.folders), [data.folders]);
+  const tagCounts = useMemo(() => buildTagCounts(data.images), [data.images]);
+  const availableTags = useMemo(() => tagCounts.map((entry) => entry.tag), [tagCounts]);
+  const untaggedCount = useMemo(
+    () => data.images.filter((image) => image.tags.length === 0).length,
+    [data.images]
+  );
 
   const filteredImages = useMemo(() => {
     const filtered = filterImages(data.images, {
-      selectedFolder,
+      selectedTags,
+      showUntagged,
       favoritesOnly,
       hideHidden
     });
     return sortImages(filtered, sortMode);
-  }, [data.images, favoritesOnly, selectedFolder, hideHidden, sortMode]);
+  }, [data.images, favoritesOnly, hideHidden, selectedTags, showUntagged, sortMode]);
 
   const selectedIndex = selectedId
     ? filteredImages.findIndex((image) => image.id === selectedId)
@@ -166,7 +171,6 @@ export default function App() {
 
   useEffect(() => {
     if (selectedImage) {
-      setMoveTarget(selectedImage.folder || '');
       setModalTool(null);
     }
   }, [selectedImage]);
@@ -207,36 +211,55 @@ export default function App() {
     }
   };
 
-  const handleCreateFolder = async () => {
-    const name = window.prompt('New folder name (relative to current folder):');
-    if (!name) return;
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    const path = selectedFolder ? `${selectedFolder}/${trimmed}` : trimmed;
-    try {
-      await api('/api/folders', {
-        method: 'POST',
-        body: JSON.stringify({ path })
-      });
-      setStatus(`Created folder: ${path}`);
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create folder');
-    }
+  const handleAddSelectedTag = (value: string) => {
+    const normalized = normalizeTagInput(value);
+    if (!normalized) return;
+    setShowUntagged(false);
+    setSelectedTags((prev) =>
+      prev.includes(normalized) ? prev : [...prev, normalized]
+    );
   };
 
-  const handleMoveSelected = async () => {
-    if (!selectedImage) return;
+  const handleRemoveSelectedTag = (tag: string) => {
+    setSelectedTags((prev) => prev.filter((entry) => entry !== tag));
+  };
+
+  const handleClearSelectedTags = () => {
+    setSelectedTags([]);
+  };
+
+  const handleToggleDrawerTag = (tag: string) => {
+    setShowUntagged(false);
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((entry) => entry !== tag) : [...prev, tag]
+    );
+  };
+
+  const handleSelectAllImages = () => {
+    setSelectedTags([]);
+    setShowUntagged(false);
+  };
+
+  const handleSelectUntagged = () => {
+    setSelectedTags([]);
+    setShowUntagged(true);
+  };
+
+  const handleUpdateTags = async (imageId: string, nextTags: string[]) => {
+    const normalized = normalizeTags(nextTags);
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        item.id === imageId ? { ...item, tags: normalized } : item
+      )
+    }));
     try {
-      await api('/api/move', {
+      await api('/api/tags', {
         method: 'POST',
-        body: JSON.stringify({ path: selectedImage.id, targetFolder: moveTarget })
+        body: JSON.stringify({ path: imageId, tags: normalized })
       });
-      setStatus('Moved image');
-      setSelectedId(null);
-      await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to move image');
+      setError(err instanceof Error ? err.message : 'Failed to update tags');
     }
   };
 
@@ -286,7 +309,16 @@ export default function App() {
     setActiveTool((current) => (current === tool ? null : tool));
   }, []);
 
-  const currentFolderLabel = selectedFolder ? selectedFolder : 'Home';
+  const currentFilterLabel = useMemo(() => {
+    if (showUntagged) return 'Untagged';
+    if (selectedTags.length === 0) return 'All images';
+    const visible = selectedTags.slice(0, 2).join(' + ');
+    const overflow = selectedTags.length - 2;
+    if (overflow > 0) {
+      return `Tags: ${visible} +${overflow}`;
+    }
+    return `Tags: ${visible}`;
+  }, [selectedTags, showUntagged]);
   const effectiveColumns = columns > 0 ? columns : COLUMN_MIN;
   const tileSize = useMemo(() => {
     if (!galleryWidth) return TARGET_TILE_SIZE;
@@ -304,7 +336,7 @@ export default function App() {
         ref={topBarRef}
         version={packageJson.version}
         sourceDir={data.sourceDir}
-        currentFolderLabel={currentFolderLabel}
+        currentFilterLabel={currentFilterLabel}
         activeTool={activeTool}
         effectiveColumns={effectiveColumns}
         maxColumns={maxColumns}
@@ -313,6 +345,9 @@ export default function App() {
         themeMode={themeMode}
         favoritesOnly={favoritesOnly}
         hideHidden={hideHidden}
+        selectedTags={selectedTags}
+        availableTags={availableTags}
+        showUntagged={showUntagged}
         onOpenDrawer={() => {
           setDrawerOpen(true);
           setActiveTool(null);
@@ -325,23 +360,37 @@ export default function App() {
         onThemeModeChange={setThemeMode}
         onFavoritesOnlyChange={setFavoritesOnly}
         onHideHiddenChange={setHideHidden}
+        onAddFilterTag={handleAddSelectedTag}
+        onRemoveFilterTag={handleRemoveSelectedTag}
+        onClearFilterTags={handleClearSelectedTags}
+        onExitUntagged={handleSelectAllImages}
       />
 
       {activeTool && (
         <div className="tool-scrim" aria-hidden="true" onClick={() => setActiveTool(null)} />
       )}
 
-      <FolderDrawer
+      <TagDrawer
         open={drawerOpen}
-        folders={folders}
-        selectedFolder={selectedFolder}
-        onSelectFolder={(folder) => {
-          setSelectedFolder(folder);
+        tags={tagCounts}
+        selectedTags={selectedTags}
+        showUntagged={showUntagged}
+        totalCount={data.images.length}
+        untaggedCount={untaggedCount}
+        onToggleTag={(tag) => {
+          handleToggleDrawerTag(tag);
+          setDrawerOpen(false);
+        }}
+        onSelectAll={() => {
+          handleSelectAllImages();
+          setDrawerOpen(false);
+        }}
+        onSelectUntagged={() => {
+          handleSelectUntagged();
           setDrawerOpen(false);
         }}
         onClose={() => setDrawerOpen(false)}
         onSync={handleSync}
-        onCreateFolder={handleCreateFolder}
       />
 
       <StatusBar
@@ -365,13 +414,11 @@ export default function App() {
       {selectedImage && (
         <ImageModal
           image={selectedImage}
-          folders={folders}
-          moveTarget={moveTarget}
           modalTool={modalTool}
-          onMoveTargetChange={setMoveTarget}
-          onMoveSelected={handleMoveSelected}
-          onToggleDetails={() =>
-            setModalTool((current) => (current === 'details' ? null : 'details'))
+          availableTags={availableTags}
+          onUpdateTags={(tags) => handleUpdateTags(selectedImage.id, tags)}
+          onToggleTags={() =>
+            setModalTool((current) => (current === 'tags' ? null : 'tags'))
           }
           onToggleFavorite={() => handleToggleFavorite(selectedImage)}
           onToggleHidden={() => handleToggleHidden(selectedImage)}

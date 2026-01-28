@@ -1,16 +1,15 @@
 import type { TouchEvent } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
+import { normalizeTagInput } from '../utils/tags';
 
 type ImageModalProps = {
   image: ImageItem;
-  folders: string[];
-  moveTarget: string;
   modalTool: ModalTool;
-  onMoveTargetChange: (value: string) => void;
-  onMoveSelected: () => void;
-  onToggleDetails: () => void;
+  availableTags: string[];
+  onUpdateTags: (tags: string[]) => void;
+  onToggleTags: () => void;
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
   onClose: () => void;
@@ -20,12 +19,10 @@ type ImageModalProps = {
 
 export default function ImageModal({
   image,
-  folders,
-  moveTarget,
   modalTool,
-  onMoveTargetChange,
-  onMoveSelected,
-  onToggleDetails,
+  availableTags,
+  onUpdateTags,
+  onToggleTags,
   onToggleFavorite,
   onToggleHidden,
   onClose,
@@ -33,6 +30,7 @@ export default function ImageModal({
   onNext
 }: ImageModalProps) {
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [tagInput, setTagInput] = useState('');
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -62,10 +60,36 @@ export default function ImageModal({
     onClose();
   };
 
-  const handleToggleDetails = () => {
+  const handleToggleTags = () => {
     setOverflowOpen(false);
-    onToggleDetails();
+    onToggleTags();
   };
+
+  const suggestions = useMemo(
+    () => availableTags.filter((tag) => !image.tags.includes(tag)),
+    [availableTags, image.tags]
+  );
+
+  useEffect(() => {
+    setTagInput('');
+  }, [image.id]);
+
+  const handleAddTag = () => {
+    const normalized = normalizeTagInput(tagInput);
+    if (!normalized) return;
+    if (image.tags.includes(normalized)) {
+      setTagInput('');
+      return;
+    }
+    onUpdateTags([...image.tags, normalized]);
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    onUpdateTags(image.tags.filter((entry) => entry !== tag));
+  };
+
+  const suggestionId = 'tag-suggestions-modal';
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length !== 1) return;
@@ -294,16 +318,12 @@ export default function ImageModal({
                   </svg>
                 </button>
                 <button
-                  className={modalTool === 'details' ? 'tool-button active' : 'tool-button'}
+                  className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
                   type="button"
-                  onClick={handleToggleDetails}
-                  title="Details"
+                  onClick={handleToggleTags}
+                  title="Tags"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="6" cy="12" r="1.6" fill="currentColor" />
-                    <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-                    <circle cx="18" cy="12" r="1.6" fill="currentColor" />
-                  </svg>
+                  #
                 </button>
               </div>
 
@@ -377,41 +397,67 @@ export default function ImageModal({
                       </svg>
                     </button>
                     <button
-                      className={modalTool === 'details' ? 'tool-button active' : 'tool-button'}
+                      className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
                       type="button"
-                      onClick={handleToggleDetails}
-                      title="Details"
+                      onClick={handleToggleTags}
+                      title="Tags"
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <circle cx="6" cy="12" r="1.6" fill="currentColor" />
-                        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-                        <circle cx="18" cy="12" r="1.6" fill="currentColor" />
-                      </svg>
+                      #
                     </button>
                   </div>
                 </div>
               )}
 
-              {modalTool === 'details' && (
+              {modalTool === 'tags' && (
                 <div className="modal-tool-popover">
-                  <div className="tool-panel">
+                  <div className="tool-panel tag-editor">
+                    <div className="tag-chip-list">
+                      {image.tags.length === 0 && (
+                        <span className="tag-empty">No tags yet.</span>
+                      )}
+                      {image.tags.map((tag) => (
+                        <button
+                          key={tag}
+                          className="tag-chip"
+                          type="button"
+                          onClick={() => handleRemoveTag(tag)}
+                          title="Remove tag"
+                        >
+                          {tag}
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      ))}
+                    </div>
                     <label className="control">
-                      <span>Move to</span>
-                      <select
-                        value={moveTarget}
-                        onChange={(event) => onMoveTargetChange(event.target.value)}
-                      >
-                        <option value="">Home</option>
-                        {folders.map((folder) => (
-                          <option key={folder} value={folder}>
-                            {folder}
-                          </option>
-                        ))}
-                      </select>
+                      <span>Add tag</span>
+                      <div className="tag-input-row">
+                        <input
+                          list={suggestionId}
+                          value={tagInput}
+                          onChange={(event) => setTagInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              handleAddTag();
+                            }
+                          }}
+                          placeholder="Type a tag…"
+                        />
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={handleAddTag}
+                          disabled={!tagInput.trim()}
+                        >
+                          Add
+                        </button>
+                      </div>
                     </label>
-                    <button className="button" type="button" onClick={onMoveSelected}>
-                      Move
-                    </button>
+                    <datalist id={suggestionId}>
+                      {suggestions.map((tag) => (
+                        <option key={tag} value={tag} />
+                      ))}
+                    </datalist>
                     <div className="hint">Pinch to zoom, drag to pan.</div>
                   </div>
                 </div>

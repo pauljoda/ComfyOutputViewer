@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-01-28
+
+### Added
+- Introduced per-image tags with create-or-select tag editing in the modal.
+- Added tag-based filtering with multi-tag combinations and an untagged-only view.
+- Listed tags in the drawer sorted by image count, including total and untagged counts.
+
+### Removed
+- Removed folder creation/move flows and all folder-based navigation.
+
 ## [0.1.12] - 2026-01-28
 
 ### Changed

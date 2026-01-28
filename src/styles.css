@@ -103,7 +103,7 @@ body {
   word-break: break-all;
 }
 
-.folder-pill {
+.filter-pill {
   display: inline-flex;
   align-items: center;
   height: 40px;
@@ -252,6 +252,13 @@ body {
 
 .button:hover {
   transform: translateY(-1px);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .ghost {
@@ -484,6 +491,10 @@ body {
   cursor: pointer;
   font-size: 14px;
   color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .drawer-item:hover {
@@ -494,6 +505,29 @@ body {
   background: rgba(211, 95, 59, 0.18);
   color: var(--ink);
   font-weight: 600;
+}
+
+.drawer-item.active .drawer-count {
+  color: var(--ink);
+}
+
+.drawer-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.drawer-section {
+  padding: 10px 12px 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.drawer-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 0 12px;
 }
 
 .modal {
@@ -717,6 +751,98 @@ body {
 
 .hint {
   color: #b8b2aa;
+}
+
+.modal-tool-popover .tag-chip {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f5f1ea;
+}
+
+.modal-tool-popover .tag-empty {
+  color: rgba(245, 241, 234, 0.7);
+}
+
+.tag-filter {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1 1 100%;
+}
+
+.tag-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tag-filter-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tag-filter-note .ghost {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.tag-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  border: none;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.tag-chip span {
+  font-weight: 600;
+}
+
+.tag-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tag-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tag-input-row input {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.tag-editor {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 @media (max-width: 800px) {

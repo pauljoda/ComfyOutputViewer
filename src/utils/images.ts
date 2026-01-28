@@ -14,7 +14,6 @@ export const isSortMode = (value: string | null): value is SortMode =>
 
 const compareByName = (a: ImageItem, b: ImageItem) =>
   compareStrings(a.name, b.name) ||
-  compareStrings(a.folder, b.folder) ||
   compareStrings(a.id, b.id);
 
 const SORTERS: Record<SortMode, (a: ImageItem, b: ImageItem) => number> = {
@@ -38,21 +37,26 @@ export const sortImages = (images: ImageItem[], sortMode: SortMode) => {
 };
 
 export type ImageFilterOptions = {
-  selectedFolder: string;
+  selectedTags: string[];
+  showUntagged: boolean;
   favoritesOnly: boolean;
   hideHidden: boolean;
 };
 
 export const filterImages = (images: ImageItem[], options: ImageFilterOptions) => {
-  const { selectedFolder, favoritesOnly, hideHidden } = options;
+  const { selectedTags, showUntagged, favoritesOnly, hideHidden } = options;
   let result = images.slice();
-  if (selectedFolder) {
-    result = result.filter((image) => image.folder === selectedFolder);
+  if (showUntagged) {
+    result = result.filter((image) => image.tags.length === 0);
+  } else if (selectedTags.length) {
+    result = result.filter((image) =>
+      selectedTags.every((tag) => image.tags.includes(tag))
+    );
   }
   if (favoritesOnly) {
     result = result.filter((image) => image.favorite);
   }
-  if (!selectedFolder && hideHidden) {
+  if (!showUntagged && selectedTags.length === 0 && hideHidden) {
     result = result.filter((image) => !image.hidden);
   }
   return result;
