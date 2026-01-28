@@ -16,6 +16,7 @@
   --tile-gap: 12px;
   --backdrop: radial-gradient(circle at top, #fdf8ef 0%, #f0ebe1 60%, #e9e2d7 100%);
   --toolbar: rgba(255, 255, 255, 0.9);
+  --scrim: rgba(20, 17, 15, 0.08);
 }
 
 :root[data-theme='dark'] {
@@ -30,6 +31,7 @@
   --shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   --backdrop: radial-gradient(circle at top, #1f1b17 0%, #131110 55%, #0c0b0a 100%);
   --toolbar: rgba(15, 14, 13, 0.9);
+  --scrim: rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -188,6 +190,17 @@ body {
   border-radius: 16px;
   padding: 12px 14px;
   z-index: 11;
+}
+
+.tool-scrim {
+  position: fixed;
+  top: var(--top-bar-height, 0px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  z-index: 8;
 }
 
 .tool-panel {

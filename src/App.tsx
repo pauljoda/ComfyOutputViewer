@@ -72,10 +72,12 @@ export default function App() {
   );
   const [modalTool, setModalTool] = useState<'details' | null>(null);
   const [ratios, setRatios] = useState<Record<string, number>>({});
+  const topBarRef = useRef<HTMLDivElement | null>(null);
   const galleryRef = useRef<HTMLDivElement | null>(null);
   const toolPopoverRef = useRef<HTMLDivElement | null>(null);
   const toolButtonsRef = useRef<HTMLDivElement | null>(null);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [topBarHeight, setTopBarHeight] = useState(0);
   const [galleryWidth, setGalleryWidth] = useState(0);
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
@@ -113,6 +115,18 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const element = topBarRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setTopBarHeight(Math.round(entry.contentRect.height));
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const element = galleryRef.current;
@@ -372,8 +386,11 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <header className="top-bar">
+    <div
+      className="app"
+      style={{ '--top-bar-height': `${topBarHeight}px` } as React.CSSProperties}
+    >
+      <header className="top-bar" ref={topBarRef}>
         <div className="top-row">
           <div className="brand">
             <div className="title">
@@ -556,6 +573,10 @@ export default function App() {
           </div>
         )}
       </header>
+
+      {activeTool && (
+        <div className="tool-scrim" aria-hidden="true" onClick={() => setActiveTool(null)} />
+      )}
 
       <div className={drawerOpen ? 'drawer-scrim open' : 'drawer-scrim'} onClick={() => setDrawerOpen(false)} />
       <aside className={drawerOpen ? 'drawer open' : 'drawer'} role="navigation">

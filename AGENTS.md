@@ -101,6 +101,5 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Prevented toolbar popover dismiss clicks from selecting items underneath.
-- Stacked the title/source line above the toolbar while keeping the centered folder pill layout.
-- Bumped `package.json` version to 0.1.5 and documented the release in `CHANGELOG.md`.
+- Added a dimmed blur scrim for tool popovers and blocked clicks from reaching the gallery.
+- Bumped `package.json` version to 0.1.6 and documented the release in `CHANGELOG.md`.
