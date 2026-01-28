@@ -12,6 +12,7 @@
   --card-border: rgba(0, 0, 0, 0.08);
   --shadow: 0 12px 30px rgba(20, 17, 15, 0.08);
   --tile-size: 180px;
+  --tile-columns: 4;
   --tile-gap: 12px;
   --backdrop: radial-gradient(circle at top, #fdf8ef 0%, #f0ebe1 60%, #e9e2d7 100%);
   --toolbar: rgba(255, 255, 255, 0.9);
@@ -261,19 +262,11 @@ body {
   overflow-y: auto;
   padding: 20px 24px 32px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--tile-size, 180px), 1fr));
+  grid-template-columns: repeat(var(--tile-columns, 4), minmax(0, 1fr));
   grid-auto-rows: var(--tile-size, 180px);
   gap: var(--tile-gap);
   width: 100%;
   align-content: start;
-}
-
-.gallery.dense {
-  --tile-gap: 10px;
-}
-
-.gallery.spacious {
-  --tile-gap: 18px;
 }
 
 .gallery.content-fit {
@@ -587,9 +580,6 @@ body {
     width: 100%;
   }
 
-  .gallery {
-    --tile-size: 140px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -599,7 +589,7 @@ body {
 
   .gallery {
     padding: 16px;
-    gap: 12px;
+    --tile-gap: 12px;
   }
 
   .toolbar {

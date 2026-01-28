@@ -60,7 +60,7 @@ Key UI features:
 - Zoom/pan modal for selected image.
 
 Key client behaviors:
-- LocalStorage persists theme, tile size, display mode, labels, density,
+- LocalStorage persists theme, columns per row, display mode, labels,
   and hide-hidden flag.
 - Hidden/favorite updates are optimistic, then persisted via API.
 
@@ -101,6 +101,6 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Added `CHANGELOG.md` and documented a 0.1.1 release entry.
-- Bumped `package.json` version to 0.1.1 for semantic versioning.
-- Expanded `AGENTS.md` with changelog/versioning requirements and living doc rules.
+- Replaced tile size controls with a columns-per-row slider that auto-sizes tiles to fill the gallery.
+- Added first-load column defaults and removed the dense grid toggle.
+- Bumped `package.json` version to 0.1.2 and documented the release in `CHANGELOG.md`.

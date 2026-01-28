@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 
 type ImageItem = {
@@ -33,6 +33,14 @@ const emptyData: ApiResponse = {
   dataDir: ''
 };
 
+const COLUMN_MIN = 1;
+const COLUMN_MAX = 12;
+const TILE_GAP = 12;
+const TARGET_TILE_SIZE = 200;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     headers: {
@@ -62,6 +70,8 @@ export default function App() {
   );
   const [modalTool, setModalTool] = useState<'details' | null>(null);
   const [ratios, setRatios] = useState<Record<string, number>>({});
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  const [galleryWidth, setGalleryWidth] = useState(0);
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
@@ -69,9 +79,9 @@ export default function App() {
     }
     return 'system';
   });
-  const [tileSize, setTileSize] = useState<number>(() => {
-    const stored = Number(window.localStorage.getItem('cov_tile_size'));
-    return Number.isFinite(stored) && stored > 80 ? stored : 180;
+  const [columns, setColumns] = useState<number>(() => {
+    const stored = Number(window.localStorage.getItem('cov_columns'));
+    return Number.isFinite(stored) && stored >= COLUMN_MIN ? stored : 0;
   });
   const [tileFit, setTileFit] = useState<'cover' | 'contain'>(() => {
     const stored = window.localStorage.getItem('cov_tile_fit');
@@ -80,10 +90,6 @@ export default function App() {
   const [showLabels, setShowLabels] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_show_labels');
     return stored ? stored === 'true' : false;
-  });
-  const [denseGrid, setDenseGrid] = useState<boolean>(() => {
-    const stored = window.localStorage.getItem('cov_dense_grid');
-    return stored ? stored === 'true' : true;
   });
   const [hideHidden, setHideHidden] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_hide_hidden');
@@ -108,6 +114,18 @@ export default function App() {
   }, [refresh]);
 
   useEffect(() => {
+    const element = galleryRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setGalleryWidth(Math.round(entry.contentRect.width));
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem('cov_theme', themeMode);
     const root = document.documentElement;
     const applyTheme = (mode: 'light' | 'dark') => {
@@ -128,10 +146,6 @@ export default function App() {
   }, [themeMode]);
 
   useEffect(() => {
-    window.localStorage.setItem('cov_tile_size', String(tileSize));
-  }, [tileSize]);
-
-  useEffect(() => {
     window.localStorage.setItem('cov_tile_fit', tileFit);
   }, [tileFit]);
 
@@ -140,12 +154,20 @@ export default function App() {
   }, [showLabels]);
 
   useEffect(() => {
-    window.localStorage.setItem('cov_dense_grid', String(denseGrid));
-  }, [denseGrid]);
-
-  useEffect(() => {
     window.localStorage.setItem('cov_hide_hidden', String(hideHidden));
   }, [hideHidden]);
+
+  useEffect(() => {
+    if (!galleryWidth || columns > 0) return;
+    const rawColumns = Math.floor((galleryWidth + TILE_GAP) / (TARGET_TILE_SIZE + TILE_GAP));
+    setColumns(clamp(rawColumns || COLUMN_MIN, COLUMN_MIN, COLUMN_MAX));
+  }, [galleryWidth, columns]);
+
+  useEffect(() => {
+    if (columns > 0) {
+      window.localStorage.setItem('cov_columns', String(columns));
+    }
+  }, [columns]);
 
   const folders = useMemo(() => {
     const base = data.folders.filter((folder) => folder.length > 0).sort();
@@ -302,6 +324,13 @@ export default function App() {
   const toggleTool = (tool: 'view' | 'filters' | 'search') => {
     setActiveTool((current) => (current === tool ? null : tool));
   };
+  const effectiveColumns = columns > 0 ? columns : COLUMN_MIN;
+  const tileSize = useMemo(() => {
+    if (!galleryWidth) return TARGET_TILE_SIZE;
+    const totalGap = TILE_GAP * (effectiveColumns - 1);
+    const available = Math.max(0, galleryWidth - totalGap);
+    return Math.max(80, Math.floor(available / effectiveColumns));
+  }, [galleryWidth, effectiveColumns]);
   const getContentStyle = (image: ImageItem): React.CSSProperties | undefined => {
     if (tileFit !== 'contain') return undefined;
     const ratio = ratios[image.id];
@@ -416,13 +445,13 @@ export default function App() {
             {activeTool === 'view' && (
               <div className="tool-panel">
                 <label className="control">
-                  <span>Tile size ({tileSize}px)</span>
+                  <span>Columns ({effectiveColumns})</span>
                   <input
                     type="range"
-                    min={110}
-                    max={280}
-                    value={tileSize}
-                    onChange={(event) => setTileSize(Number(event.target.value))}
+                    min={COLUMN_MIN}
+                    max={COLUMN_MAX}
+                    value={effectiveColumns}
+                    onChange={(event) => setColumns(Number(event.target.value))}
                   />
                 </label>
 
@@ -437,15 +466,6 @@ export default function App() {
                     <option value="cover">Cover</option>
                     <option value="contain">Content</option>
                   </select>
-                </label>
-
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={denseGrid}
-                    onChange={(event) => setDenseGrid(event.target.checked)}
-                  />
-                  <span>Dense grid</span>
                 </label>
 
                 <label className="toggle">
@@ -560,10 +580,14 @@ export default function App() {
       </div>
 
       <main
-        className={`gallery ${denseGrid ? 'dense' : 'spacious'} ${
-          tileFit === 'contain' ? 'content-fit' : ''
-        }`}
-        style={{ '--tile-size': `${tileSize}px` } as React.CSSProperties}
+        ref={galleryRef}
+        className={`gallery ${tileFit === 'contain' ? 'content-fit' : ''}`}
+        style={
+          {
+            '--tile-size': `${tileSize}px`,
+            '--tile-columns': effectiveColumns
+          } as React.CSSProperties
+        }
       >
         {filteredImages.map((image) => (
           <button
