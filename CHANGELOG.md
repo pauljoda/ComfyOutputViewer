@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.10] - 2026-01-28
+
+### Changed
+- Updated image card overlays with icon-based hide/favorite controls, updated alignment, and clearer active states.
+- Reworked the modal toolbar layout with a mobile overflow for secondary actions.
+- Added swipe navigation (left/right) and dismiss (up/down) gestures for the detail view with safeguards against pan/zoom.
+
 ## [0.1.9] - 2026-01-28
 
 ### Changed

@@ -365,37 +365,59 @@ body {
 .card-actions {
   display: flex;
   gap: 6px;
-  align-self: flex-end;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
   pointer-events: auto;
 }
 
-.fav {
+.card-action {
   border: none;
   background: rgba(0, 0, 0, 0.4);
   color: #f4f1ea;
   border-radius: 999px;
-  padding: 4px 8px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 14px;
+  padding: 0;
 }
 
-.fav.active {
-  background: rgba(211, 95, 59, 0.4);
-  color: #fff;
+.card-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+.fav svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
 }
 
 .hide {
-  border: none;
-  background: rgba(0, 0, 0, 0.4);
-  color: #f4f1ea;
-  border-radius: 999px;
-  padding: 4px 10px;
-  cursor: pointer;
-  font-size: 12px;
+  color: #9f9a92;
+}
+
+.fav.active {
+  color: #f4c44d;
+  background: rgba(40, 30, 10, 0.65);
+}
+
+.fav.active svg path {
+  fill: currentColor;
+  stroke: currentColor;
 }
 
 .hide.active {
-  background: rgba(111, 107, 103, 0.7);
+  color: #fff;
+  background: rgba(80, 76, 72, 0.7);
+}
+
+.hide.active svg path,
+.hide.active svg circle {
   color: #fff;
 }
 
@@ -489,11 +511,13 @@ body {
 }
 
 .modal-toolbar {
-  height: 56px;
+  min-height: 56px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  justify-content: center;
+  padding: 10px 20px;
   background: rgba(15, 14, 13, 0.85);
   color: #f5f1ea;
   backdrop-filter: blur(12px);
@@ -501,6 +525,13 @@ body {
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+.modal-toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .modal-toolbar .tool-button {
@@ -511,6 +542,10 @@ body {
 .modal-toolbar .tool-button.active {
   background: rgba(240, 139, 90, 0.25);
   box-shadow: 0 10px 18px rgba(240, 139, 90, 0.2);
+}
+
+.modal-overflow-toggle {
+  display: none;
 }
 
 .modal-tool-popover {
@@ -538,6 +573,33 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.modal-actions-primary {
+  justify-content: flex-end;
+}
+
+.modal-actions-secondary {
+  justify-content: flex-end;
+  align-self: flex-end;
+}
+
+.modal-overflow {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 20px;
+  z-index: 3;
+}
+
+.modal-overflow-panel {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  background: rgba(20, 18, 16, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
 }
 
 .modal-body {
@@ -639,5 +701,38 @@ body {
 
   .modal-card {
     height: 94vh;
+  }
+
+  .modal-toolbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .modal-title {
+    max-width: 56vw;
+  }
+
+  .modal-actions-secondary {
+    display: none;
+  }
+
+  .modal-overflow-toggle {
+    display: inline-flex;
+  }
+
+  .modal-overflow {
+    right: 12px;
+    left: 12px;
+  }
+
+  .modal-overflow-panel {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .modal-tool-popover {
+    right: 12px;
+    left: 12px;
+    min-width: unset;
   }
 }
