@@ -272,7 +272,7 @@ export default function ImageModal({
                   ★
                 </button>
                 <button
-                  className={image.hidden ? 'tool-button active' : 'tool-button'}
+                  className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
                   type="button"
                   onClick={onToggleHidden}
                   title="Hide"
@@ -353,7 +353,9 @@ export default function ImageModal({
                       ★
                     </button>
                     <button
-                      className={image.hidden ? 'tool-button active' : 'tool-button'}
+                      className={
+                        image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'
+                      }
                       type="button"
                       onClick={onToggleHidden}
                       title="Hide"

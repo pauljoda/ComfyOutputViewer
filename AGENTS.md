@@ -102,6 +102,8 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Adjusted modal swipe-in animation to avoid unintended movement on new images.
+- Updated hidden icon colors (default and selected) to improve visibility.
 - Allowed modal images to render beyond the initial viewport while panning.
 - Added swipe transition animations in the modal with an outgoing slide and incoming pop.
 - Updated image card overlay controls with icon-only hide/favorite actions, new alignment, and clearer active styling.
@@ -109,4 +111,4 @@ If a request is purely informational and makes no changes, do not commit.
 - Added swipe navigation (left/right) and dismiss (up/down) gestures in the modal, guarded against pan/zoom.
 - Refactored `src/App.tsx` into modular components, hooks, and utilities for cleaner scaling.
 - Added shared type definitions, constants, and API/helpers for the client UI.
-- Bumped `package.json` version to 0.1.11 and documented the release in `CHANGELOG.md`.
+- Bumped `package.json` version to 0.1.12 and documented the release in `CHANGELOG.md`.

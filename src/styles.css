@@ -398,7 +398,7 @@ body {
 }
 
 .hide {
-  color: #9f9a92;
+  color: #f4f1ea;
 }
 
 .fav.active {
@@ -412,14 +412,10 @@ body {
 }
 
 .hide.active {
-  color: #fff;
-  background: rgba(80, 76, 72, 0.7);
+  color: #e2554f;
+  background: rgba(96, 24, 20, 0.65);
 }
 
-.hide.active svg path,
-.hide.active svg circle {
-  color: #fff;
-}
 
 .drawer-scrim {
   position: fixed;
@@ -542,6 +538,12 @@ body {
 .modal-toolbar .tool-button.active {
   background: rgba(240, 139, 90, 0.25);
   box-shadow: 0 10px 18px rgba(240, 139, 90, 0.2);
+}
+
+.modal-toolbar .modal-hide.active {
+  background: rgba(96, 24, 20, 0.65);
+  color: #e2554f;
+  box-shadow: 0 10px 18px rgba(96, 24, 20, 0.28);
 }
 
 .modal-overflow-toggle {
@@ -673,7 +675,8 @@ body {
 }
 
 .modal-image.swipe-in {
-  animation: modal-swipe-in 220ms ease-out;
+  animation: modal-swipe-in 200ms ease-out;
+  transform: none;
 }
 
 @keyframes modal-swipe-out-left {
@@ -701,11 +704,9 @@ body {
 @keyframes modal-swipe-in {
   from {
     opacity: 0;
-    transform: scale(0.94);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 

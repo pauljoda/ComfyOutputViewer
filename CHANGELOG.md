@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.12] - 2026-01-28
+
+### Changed
+- Adjusted swipe-in animation to avoid unintended motion on new images.
+- Updated hidden icon colors to align with default favorite styling and use red when selected.
+
 ## [0.1.11] - 2026-01-28
 
 ### Changed
