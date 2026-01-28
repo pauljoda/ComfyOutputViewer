@@ -101,5 +101,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Added created-date metadata to images and sorting options (created default, modified, name, size) in the grid toolbar.
 - Routed tool popover dismissal through the header + scrim to avoid click-through.
 - Bumped `package.json` version to 0.1.7 and documented the release in `CHANGELOG.md`.
+- Added created-date metadata to images and sorting options (created default, modified, name, size) in the grid toolbar.

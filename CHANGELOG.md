@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2026-01-28
+
+### Added
+- Added sort controls for created date (default), modified date, file name, and file size.
+
 ## [0.1.7] - 2026-01-28
 
 ### Changed

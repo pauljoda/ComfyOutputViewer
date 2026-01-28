@@ -260,6 +260,11 @@ async function walkDir(currentDir, relDir, images, folders, db) {
         ? `/images/.thumbs/${encodeURI(thumbRel)}`
         : undefined;
       const stats = await fs.stat(entryPath);
+      const createdMs = Number.isFinite(stats.birthtimeMs) && stats.birthtimeMs > 0
+        ? stats.birthtimeMs
+        : Number.isFinite(stats.ctimeMs) && stats.ctimeMs > 0
+          ? stats.ctimeMs
+          : stats.mtimeMs;
       images.push({
         id: relPath,
         name: entry.name,
@@ -268,6 +273,7 @@ async function walkDir(currentDir, relDir, images, folders, db) {
         thumbUrl,
         favorite: Boolean(db.favorites[relPath]),
         hidden: Boolean(db.hidden[relPath]),
+        createdMs,
         mtimeMs: stats.mtimeMs,
         size: stats.size
       });

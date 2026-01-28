@@ -10,6 +10,7 @@ type ImageItem = {
   thumbUrl?: string;
   favorite: boolean;
   hidden: boolean;
+  createdMs: number;
   mtimeMs: number;
   size: number;
 };
@@ -27,6 +28,28 @@ type SyncResponse = {
   thumbnails?: number;
 };
 
+type SortMode =
+  | 'created-desc'
+  | 'created-asc'
+  | 'modified-desc'
+  | 'modified-asc'
+  | 'name-asc'
+  | 'name-desc'
+  | 'size-desc'
+  | 'size-asc';
+
+const SORT_MODES: SortMode[] = [
+  'created-desc',
+  'created-asc',
+  'modified-desc',
+  'modified-asc',
+  'name-asc',
+  'name-desc',
+  'size-desc',
+  'size-asc'
+];
+const DEFAULT_SORT: SortMode = 'created-desc';
+
 const emptyData: ApiResponse = {
   images: [],
   folders: [],
@@ -42,6 +65,15 @@ const MIN_TILE_SIZE = 80;
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const isSortMode = (value: string | null): value is SortMode =>
+  value !== null && SORT_MODES.includes(value as SortMode);
+
+const compareStrings = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
+const getCreatedMs = (image: ImageItem) =>
+  Number.isFinite(image.createdMs) && image.createdMs > 0 ? image.createdMs : image.mtimeMs;
 
 async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -97,6 +129,10 @@ export default function App() {
   const [hideHidden, setHideHidden] = useState<boolean>(() => {
     const stored = window.localStorage.getItem('cov_hide_hidden');
     return stored ? stored === 'true' : true;
+  });
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    const stored = window.localStorage.getItem('cov_sort');
+    return isSortMode(stored) ? stored : DEFAULT_SORT;
   });
 
   const refresh = useCallback(async () => {
@@ -168,6 +204,10 @@ export default function App() {
     window.localStorage.setItem('cov_hide_hidden', String(hideHidden));
   }, [hideHidden]);
 
+  useEffect(() => {
+    window.localStorage.setItem('cov_sort', sortMode);
+  }, [sortMode]);
+
   const maxColumns = useMemo(() => {
     if (!galleryWidth) return COLUMN_MAX;
     const rawColumns = Math.floor((galleryWidth + TILE_GAP) / (MIN_TILE_SIZE + TILE_GAP));
@@ -206,7 +246,7 @@ export default function App() {
   }, [data.folders]);
 
   const filteredImages = useMemo(() => {
-    let result = data.images.slice().sort((a, b) => b.mtimeMs - a.mtimeMs);
+    let result = data.images.slice();
     if (selectedFolder) {
       result = result.filter((image) => image.folder === selectedFolder);
     }
@@ -216,8 +256,26 @@ export default function App() {
     if (!selectedFolder && hideHidden) {
       result = result.filter((image) => !image.hidden);
     }
+    const compareByName = (a: ImageItem, b: ImageItem) =>
+      compareStrings(a.name, b.name) ||
+      compareStrings(a.folder, b.folder) ||
+      compareStrings(a.id, b.id);
+    const sorters: Record<SortMode, (a: ImageItem, b: ImageItem) => number> = {
+      'created-desc': (a, b) => getCreatedMs(b) - getCreatedMs(a) || compareByName(a, b),
+      'created-asc': (a, b) => getCreatedMs(a) - getCreatedMs(b) || compareByName(a, b),
+      'modified-desc': (a, b) => b.mtimeMs - a.mtimeMs || compareByName(a, b),
+      'modified-asc': (a, b) => a.mtimeMs - b.mtimeMs || compareByName(a, b),
+      'name-asc': (a, b) => compareByName(a, b),
+      'name-desc': (a, b) => {
+        const nameCompare = compareByName(a, b);
+        return nameCompare === 0 ? 0 : -nameCompare;
+      },
+      'size-desc': (a, b) => b.size - a.size || compareByName(a, b),
+      'size-asc': (a, b) => a.size - b.size || compareByName(a, b)
+    };
+    result.sort(sorters[sortMode] ?? sorters[DEFAULT_SORT]);
     return result;
-  }, [data.images, favoritesOnly, selectedFolder, hideHidden]);
+  }, [data.images, favoritesOnly, selectedFolder, hideHidden, sortMode]);
 
   const selectedIndex = selectedId
     ? filteredImages.findIndex((image) => image.id === selectedId)
@@ -510,6 +568,23 @@ export default function App() {
                   >
                     <option value="cover">Cover</option>
                     <option value="contain">Content</option>
+                  </select>
+                </label>
+
+                <label className="control">
+                  <span>Sort</span>
+                  <select
+                    value={sortMode}
+                    onChange={(event) => setSortMode(event.target.value as SortMode)}
+                  >
+                    <option value="created-desc">Created (newest)</option>
+                    <option value="created-asc">Created (oldest)</option>
+                    <option value="modified-desc">Modified (newest)</option>
+                    <option value="modified-asc">Modified (oldest)</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="size-desc">File size (largest)</option>
+                    <option value="size-asc">File size (smallest)</option>
                   </select>
                 </label>
 
