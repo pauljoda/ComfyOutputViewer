@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+import packageJson from '../package.json';
 
 type ImageItem = {
   id: string;
@@ -72,6 +73,8 @@ export default function App() {
   const [modalTool, setModalTool] = useState<'details' | null>(null);
   const [ratios, setRatios] = useState<Record<string, number>>({});
   const galleryRef = useRef<HTMLDivElement | null>(null);
+  const toolPopoverRef = useRef<HTMLDivElement | null>(null);
+  const toolButtonsRef = useRef<HTMLDivElement | null>(null);
   const [galleryWidth, setGalleryWidth] = useState(0);
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
@@ -173,6 +176,22 @@ export default function App() {
       window.localStorage.setItem('cov_columns', String(columns));
     }
   }, [columns]);
+
+  useEffect(() => {
+    if (!activeTool) return;
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (toolPopoverRef.current?.contains(target)) return;
+      if (toolButtonsRef.current?.contains(target)) return;
+      setActiveTool(null);
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, [activeTool]);
 
   const folders = useMemo(() => {
     const base = data.folders.filter((folder) => folder.length > 0).sort();
@@ -352,7 +371,9 @@ export default function App() {
       <header className="top-bar">
         <div className="top-row">
           <div className="brand">
-            <div className="title">Comfy Output Viewer</div>
+            <div className="title">
+              Comfy Output Viewer <span className="version">v{packageJson.version}</span>
+            </div>
             <div className="subtitle">{data.sourceDir || 'No source configured'}</div>
           </div>
 
@@ -374,79 +395,86 @@ export default function App() {
               </span>
             </button>
 
-            <button
-              className={activeTool === 'view' ? 'tool-button active' : 'tool-button'}
-              type="button"
-              onClick={() => toggleTool('view')}
-              aria-label="View options"
-              title="View"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M4 6h10m2 0h4M4 12h4m2 0h10M4 18h8m2 0h6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-                <circle cx="14" cy="6" r="2" fill="currentColor" />
-                <circle cx="8" cy="12" r="2" fill="currentColor" />
-                <circle cx="12" cy="18" r="2" fill="currentColor" />
-              </svg>
-            </button>
-
-            <button
-              className={activeTool === 'filters' ? 'tool-button active' : 'tool-button'}
-              type="button"
-              onClick={() => toggleTool('filters')}
-              aria-label="Filters"
-              title="Filters"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M4 5h16l-6.2 7.1v5.3l-3.6 1.6v-6.9z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-
-            <button
-              className={activeTool === 'search' ? 'tool-button active' : 'tool-button'}
-              type="button"
-              onClick={() => toggleTool('search')}
-              aria-label="Search"
-              title="Search"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle
-                  cx="10"
-                  cy="10"
-                  r="5.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M14.5 14.5L20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-
             <div className="folder-pill" title={currentFolderLabel}>
               {currentFolderLabel}
+            </div>
+
+            <div className="toolbar-actions" ref={toolButtonsRef}>
+              <button
+                className={activeTool === 'view' ? 'tool-button active' : 'tool-button'}
+                type="button"
+                onClick={() => toggleTool('view')}
+                aria-label="View options"
+                title="View"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 6h10m2 0h4M4 12h4m2 0h10M4 18h8m2 0h6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="14" cy="6" r="2" fill="currentColor" />
+                  <circle cx="8" cy="12" r="2" fill="currentColor" />
+                  <circle cx="12" cy="18" r="2" fill="currentColor" />
+                </svg>
+              </button>
+
+              <button
+                className={activeTool === 'filters' ? 'tool-button active' : 'tool-button'}
+                type="button"
+                onClick={() => toggleTool('filters')}
+                aria-label="Filters"
+                title="Filters"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 5h16l-6.2 7.1v5.3l-3.6 1.6v-6.9z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+
+              <button
+                className={activeTool === 'search' ? 'tool-button active' : 'tool-button'}
+                type="button"
+                onClick={() => toggleTool('search')}
+                aria-label="Search"
+                title="Search"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="5.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  />
+                  <path
+                    d="M14.5 14.5L20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
         </div>
 
         {activeTool && (
-          <div className="tool-popover" role="dialog" aria-label="Tool options">
+          <div
+            className="tool-popover"
+            role="dialog"
+            aria-label="Tool options"
+            ref={toolPopoverRef}
+          >
             {activeTool === 'view' && (
               <div className="tool-panel">
                 <label className="control">

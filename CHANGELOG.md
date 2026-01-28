@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2026-01-28
+
+### Changed
+- Dismissed toolbar popovers on outside click/tap and realigned the toolbar layout.
+- Added the app version next to the title for quick reference.
+
 ## [0.1.3] - 2026-01-28
 
 ### Changed

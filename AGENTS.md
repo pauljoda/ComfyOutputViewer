@@ -101,6 +101,6 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Limited the columns slider maximum based on available width to avoid overly small tiles.
-- Moved grid filenames into a single-line footer in the modal view.
-- Bumped `package.json` version to 0.1.3 and documented the release in `CHANGELOG.md`.
+- Added outside-click dismissal for toolbar popovers and reorganized the toolbar layout.
+- Displayed the semantic version next to the app title.
+- Bumped `package.json` version to 0.1.4 and documented the release in `CHANGELOG.md`.
