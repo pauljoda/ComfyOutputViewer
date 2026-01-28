@@ -101,6 +101,6 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
-- Added outside-click dismissal for toolbar popovers and reorganized the toolbar layout.
-- Displayed the semantic version next to the app title.
-- Bumped `package.json` version to 0.1.4 and documented the release in `CHANGELOG.md`.
+- Prevented toolbar popover dismiss clicks from selecting items underneath.
+- Stacked the title/source line above the toolbar while keeping the centered folder pill layout.
+- Bumped `package.json` version to 0.1.5 and documented the release in `CHANGELOG.md`.

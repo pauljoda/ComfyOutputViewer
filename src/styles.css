@@ -56,7 +56,7 @@ body {
 .top-bar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 14px 20px;
   background: var(--toolbar);
   backdrop-filter: blur(12px);
@@ -67,10 +67,11 @@ body {
 }
 
 .top-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 16px 24px;
-  align-items: center;
+  width: 100%;
+}
+
+.toolbar-row {
+  width: 100%;
 }
 
 .brand {

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-01-28
+
+### Changed
+- Prevented toolbar popover dismiss clicks from interacting with the gallery underneath.
+- Stacked the title/source row above the toolbar for a slimmer header layout.
+
 ## [0.1.4] - 2026-01-28
 
 ### Changed

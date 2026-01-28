@@ -75,6 +75,7 @@ export default function App() {
   const galleryRef = useRef<HTMLDivElement | null>(null);
   const toolPopoverRef = useRef<HTMLDivElement | null>(null);
   const toolButtonsRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [galleryWidth, setGalleryWidth] = useState(0);
   const [themeMode, setThemeMode] = useState<'system' | 'light' | 'dark'>(() => {
     const stored = window.localStorage.getItem('cov_theme');
@@ -179,17 +180,21 @@ export default function App() {
 
   useEffect(() => {
     if (!activeTool) return;
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+    const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (toolPopoverRef.current?.contains(target)) return;
       if (toolButtonsRef.current?.contains(target)) return;
+      if (toolbarRef.current?.contains(target)) {
+        setActiveTool(null);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
       setActiveTool(null);
     };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown, { capture: true });
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown, { capture: true });
     };
   }, [activeTool]);
 
@@ -376,8 +381,10 @@ export default function App() {
             </div>
             <div className="subtitle">{data.sourceDir || 'No source configured'}</div>
           </div>
+        </div>
 
-          <div className="toolbar">
+        <div className="toolbar-row">
+          <div className="toolbar" ref={toolbarRef}>
             <button
               className="tool-button"
               type="button"
