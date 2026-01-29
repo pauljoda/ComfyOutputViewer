@@ -128,6 +128,7 @@ export default function ImageModal({
       const wrapperRect = wrapper?.getBoundingClientRect();
       const contentRect = content?.getBoundingClientRect();
       const imgRect = img?.getBoundingClientRect();
+      const visualViewport = window.visualViewport;
       const state = stateOverride || lastStateRef.current || transformRef.current?.state;
       const format = (value?: number) =>
         Number.isFinite(value) ? Number(value).toFixed(2) : 'n/a';
@@ -142,6 +143,9 @@ export default function ImageModal({
         doc: `${format(document.documentElement.clientWidth)} x ${format(
           document.documentElement.clientHeight
         )}`,
+        visual: visualViewport
+          ? `${format(visualViewport.width)} x ${format(visualViewport.height)}`
+          : 'n/a',
         body: modalBody
           ? `${format(modalBody.getBoundingClientRect().width)} x ${format(
               modalBody.getBoundingClientRect().height
@@ -164,6 +168,7 @@ export default function ImageModal({
         client: img ? `${img.clientWidth} x ${img.clientHeight}` : 'n/a',
         complete: img ? String(img.complete) : 'n/a',
         base: baseWidth && baseHeight ? `${format(baseWidth)} x ${format(baseHeight)}` : 'n/a',
+        dpr: format(window.devicePixelRatio),
         scale: format(state?.scale),
         fitScale: format(fitScaleRef.current),
         minScale: format(minScale),
@@ -691,11 +696,20 @@ export default function ImageModal({
                   <div>Zoom debug</div>
                   <div>reason: {debugInfo.reason}</div>
                   <div>image: {debugInfo.image}</div>
+                  <div>viewport: {debugInfo.viewport}</div>
+                  <div>doc: {debugInfo.doc}</div>
+                  <div>visual: {debugInfo.visual}</div>
+                  <div>body: {debugInfo.body}</div>
+                  <div>stage: {debugInfo.stage}</div>
                   <div>wrapper: {debugInfo.wrapper}</div>
                   <div>content: {debugInfo.content}</div>
                   <div>imgRect: {debugInfo.imgRect}</div>
                   <div>natural: {debugInfo.natural}</div>
+                  <div>rendered: {debugInfo.rendered}</div>
+                  <div>client: {debugInfo.client}</div>
+                  <div>complete: {debugInfo.complete}</div>
                   <div>base: {debugInfo.base}</div>
+                  <div>dpr: {debugInfo.dpr}</div>
                   <div>scale: {debugInfo.scale}</div>
                   <div>fitScale: {debugInfo.fitScale}</div>
                   <div>minScale: {debugInfo.minScale}</div>

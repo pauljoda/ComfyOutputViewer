@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.11] - 2026-01-29
+
+### Added
+- Expanded modal zoom debug overlay with viewport and device pixel ratio diagnostics.
+
 ## [0.3.10] - 2026-01-29
 
 ### Fixed

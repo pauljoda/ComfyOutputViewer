@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Expanded modal zoom debug overlay with viewport and device pixel ratio diagnostics.
 - Attach modal zoom resize observers after the transform wrapper initializes for consistent prod sizing.
 - Expanded the modal zoom debug overlay with viewport sizing, image completion, and render metrics.
 - Added an optional modal zoom debug overlay to inspect wrapper/image sizing in production builds.
