@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Recomputed modal zoom fit from natural image sizes and let zoom content size to the image for consistent initial fit.
 - Fit modal images to the viewport on load and relaxed minimum zoom to prevent cropped tall images in production builds.
 - Expanded the README with Nix flake usage and detailed runtime configuration guidance.
 - Added a Nix flake with a NixOS module and systemd service options for deployment.

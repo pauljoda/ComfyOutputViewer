@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2026-01-29
+
+### Fixed
+- Recomputed modal zoom fit from natural image sizes and kept zoom content sized to the image for reliable initial fit.
+
 ## [0.3.5] - 2026-01-29
 
 ### Fixed
