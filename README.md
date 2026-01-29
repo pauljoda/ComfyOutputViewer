@@ -2,6 +2,14 @@
 
 A simple local-only React + TypeScript gallery for ComfyUI outputs. It copies images from a read-only output folder into a local working directory where you can favorite and organize them.
 
+Supports ratings, tags, hiding, and blacklisting images from import. 
+
+![screenshot1](screenshots/screenshot1.png)
+
+![screenshot2](screenshots/screenshot2.png)
+
+
+
 ## Requirements
 - Node.js 20+
 - npm (or another Node package manager)
