@@ -1,6 +1,8 @@
 { config, lib, pkgs, ... }:
 let
   cfg = config.services.comfy-output-viewer;
+  # Check if using the default dataDir (managed by StateDirectory)
+  useStateDirectory = cfg.dataDir == "/var/lib/comfy-output-viewer";
 in
 {
   options.services.comfy-output-viewer = {
@@ -89,26 +91,25 @@ in
       ${cfg.user} = {
         isSystemUser = true;
         group = cfg.group;
-        home = cfg.dataDir;
-        createHome = true;
       };
     };
 
-    systemd.tmpfiles.rules = [
+    # Only use tmpfiles for custom dataDir paths; StateDirectory handles the default
+    systemd.tmpfiles.rules = lib.mkIf (!useStateDirectory) [
       "d ${cfg.dataDir} 0750 ${cfg.user} ${cfg.group} - -"
       "d ${cfg.dataDir}/.thumbs 0750 ${cfg.user} ${cfg.group} - -"
     ];
 
     systemd.services.comfy-output-viewer = {
       description = "Comfy Output Viewer";
-      after = [ "network.target" ];
+      after = [ "network.target" "local-fs.target" ];
       wantedBy = [ "multi-user.target" ];
       environment =
         {
           NODE_ENV = "production";
           SERVER_PORT = toString cfg.port;
-          COMFY_OUTPUT_DIR = toString cfg.outputDir;
-          DATA_DIR = toString cfg.dataDir;
+          COMFY_OUTPUT_DIR = cfg.outputDir;
+          DATA_DIR = cfg.dataDir;
           THUMB_MAX = toString cfg.thumbMax;
           THUMB_QUALITY = toString cfg.thumbQuality;
         }
@@ -119,8 +120,33 @@ in
       serviceConfig = {
         ExecStart = "${cfg.package}/bin/comfy-output-viewer";
         Restart = "on-failure";
+        RestartSec = "5s";
         User = cfg.user;
         Group = cfg.group;
+        WorkingDirectory = cfg.dataDir;
+
+        # Security hardening
+        NoNewPrivileges = true;
+        ProtectSystem = "strict";
+        # Use read-only instead of true to allow reading outputDir from /home paths
+        ProtectHome = "read-only";
+        PrivateTmp = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectControlGroups = true;
+        RestrictNamespaces = true;
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        PrivateDevices = true;
+
+        # Allow read-write access to data directory
+        # Note: outputDir is read via normal filesystem access; the app gracefully
+        # handles the case where outputDir doesn't exist yet
+        ReadWritePaths = [ cfg.dataDir ];
+      } // lib.optionalAttrs useStateDirectory {
+        # Use StateDirectory for the default path
+        StateDirectory = "comfy-output-viewer";
+        StateDirectoryMode = "0750";
       };
     };
 
