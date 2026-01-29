@@ -1,10 +1,14 @@
-import type { TouchEvent } from 'react';
+import type { SyntheticEvent, TouchEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
 import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
+
+const DEFAULT_MIN_SCALE = 0.5;
+const FIT_WIDTH_RATIO = 0.92;
+const FIT_HEIGHT_RATIO = 0.78;
 
 type ImageModalProps = {
   image: ImageItem;
@@ -52,6 +56,7 @@ export default function ImageModal({
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
   const [swipeIncoming, setSwipeIncoming] = useState(false);
+  const [minScale, setMinScale] = useState(DEFAULT_MIN_SCALE);
 
   const handlePrev = () => {
     onPrev();
@@ -89,10 +94,33 @@ export default function ImageModal({
     transformRef.current?.resetTransform();
   };
 
-  const handleImageLoad = () => {
-    transformRef.current?.resetTransform(0);
-    transformRef.current?.centerView(1, 0);
-    scaleRef.current = 1;
+  const applyFitScale = (img: HTMLImageElement) => {
+    const wrapper = transformRef.current?.instance.wrapperComponent;
+    const currentScale = transformRef.current?.state.scale ?? 1;
+    if (!wrapper) return;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const nodeRect = img.getBoundingClientRect();
+    const nodeWidth = nodeRect.width / currentScale;
+    const nodeHeight = nodeRect.height / currentScale;
+    if (!wrapperRect.width || !wrapperRect.height || !nodeWidth || !nodeHeight) return;
+    const fitScale = Math.min(
+      (wrapperRect.width * FIT_WIDTH_RATIO) / nodeWidth,
+      (wrapperRect.height * FIT_HEIGHT_RATIO) / nodeHeight,
+      1
+    );
+    const nextMinScale = Math.min(DEFAULT_MIN_SCALE, fitScale);
+    setMinScale(nextMinScale);
+    window.setTimeout(() => {
+      transformRef.current?.zoomToElement(img, fitScale, 0);
+      scaleRef.current = fitScale;
+    }, 0);
+  };
+
+  const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const img = event.currentTarget;
+    window.requestAnimationFrame(() => {
+      applyFitScale(img);
+    });
   };
 
   const tagQuery = normalizeTagInput(tagInput);
@@ -191,8 +219,8 @@ export default function ImageModal({
     scaleRef.current = 1;
     isPanningRef.current = false;
     isPinchingRef.current = false;
+    setMinScale(DEFAULT_MIN_SCALE);
     transformRef.current?.resetTransform(0);
-    transformRef.current?.centerView(1, 0);
     setSwipeIncoming(true);
     const timer = window.setTimeout(() => {
       setSwipeIncoming(false);
@@ -236,7 +264,7 @@ export default function ImageModal({
         key={image.id}
         ref={transformRef}
         initialScale={1}
-        minScale={0.5}
+        minScale={minScale}
         maxScale={6}
         centerOnInit
         centerZoomedOut

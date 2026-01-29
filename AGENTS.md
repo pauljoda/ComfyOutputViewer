@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Fit modal images to the viewport on load and relaxed minimum zoom to prevent cropped tall images in production builds.
 - Expanded the README with Nix flake usage and detailed runtime configuration guidance.
 - Added a Nix flake with a NixOS module and systemd service options for deployment.
 - Restored card overlay buttons to the correct corner layout with rating in the bottom-left.

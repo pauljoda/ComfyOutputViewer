@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2026-01-29
+
+### Fixed
+- Fit modal images to the viewport and relax minimum zoom on load to prevent cropped tall images.
+
 ## [0.3.4] - 2026-01-29
 
 ### Changed
