@@ -310,14 +310,10 @@ export default function App() {
       )
     }));
     try {
-      await Promise.all(
-        selectedIds.map((id) =>
-          api('/api/favorite', {
-            method: 'POST',
-            body: JSON.stringify({ path: id, value: true })
-          })
-        )
-      );
+      await api('/api/favorite/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ paths: selectedIds, value: true })
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorites');
     }
@@ -332,14 +328,10 @@ export default function App() {
       )
     }));
     try {
-      await Promise.all(
-        selectedIds.map((id) =>
-          api('/api/hidden', {
-            method: 'POST',
-            body: JSON.stringify({ path: id, value: true })
-          })
-        )
-      );
+      await api('/api/hidden/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ paths: selectedIds, value: true })
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
@@ -348,25 +340,24 @@ export default function App() {
   const handleBulkTag = async (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized || !selectedCount) return;
-    const nextTagsById = new Map<string, string[]>();
+    const updates = data.images
+      .filter((item) => selectedIdSet.has(item.id))
+      .map((item) => ({ path: item.id, tags: normalizeTags([...item.tags, normalized]) }));
+    const updateMap = new Map(updates.map((entry) => [entry.path, entry.tags]));
     setData((prev) => ({
       ...prev,
       images: prev.images.map((item) => {
-        if (!selectedIdSet.has(item.id)) return item;
-        const nextTags = normalizeTags([...item.tags, normalized]);
-        nextTagsById.set(item.id, nextTags);
+        const nextTags = updateMap.get(item.id);
+        if (!nextTags) return item;
         return { ...item, tags: nextTags };
       })
     }));
+    if (updates.length === 0) return;
     try {
-      await Promise.all(
-        Array.from(nextTagsById.entries()).map(([id, tags]) =>
-          api('/api/tags', {
-            method: 'POST',
-            body: JSON.stringify({ path: id, tags })
-          })
-        )
-      );
+      await api('/api/tags/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ updates })
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
     }

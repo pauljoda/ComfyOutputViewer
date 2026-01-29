@@ -18,6 +18,11 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Added multi-select mode with bulk tag, hide, and favorite actions plus selection highlights.
 
+## [0.2.4] - 2026-01-28
+
+### Fixed
+- Batched multi-select updates so bulk tag/hide/favorite actions update metadata without overwriting other entries.
+
 ## [0.2.0] - 2026-01-28
 
 ### Added

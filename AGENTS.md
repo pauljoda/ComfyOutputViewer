@@ -111,3 +111,4 @@ If a request is purely informational and makes no changes, do not commit.
 - Normalized tag data on load and while building tag counts to keep tag filters populated.
 - Added visible tag suggestion chips in filter and modal editors and reduced modal drag-dismiss behavior.
 - Added multi-select mode with bulk tag/hide/favorite actions and selection styling.
+- Batched bulk tag/hide/favorite updates to avoid metadata overwrites during multi-select actions.

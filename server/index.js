@@ -74,6 +74,28 @@ app.post('/api/favorite', async (req, res) => {
   }
 });
 
+app.post('/api/favorite/bulk', async (req, res) => {
+  try {
+    const { paths, value } = req.body || {};
+    if (!Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).send('Missing paths');
+    }
+    const db = await readDb();
+    for (const relPath of paths) {
+      if (typeof relPath !== 'string' || !relPath) continue;
+      if (value) {
+        db.favorites[relPath] = true;
+      } else {
+        delete db.favorites[relPath];
+      }
+    }
+    await writeDb(db);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update favorites');
+  }
+});
+
 app.post('/api/hidden', async (req, res) => {
   try {
     const { path: relPath, value } = req.body || {};
@@ -83,6 +105,28 @@ app.post('/api/hidden', async (req, res) => {
       db.hidden[relPath] = true;
     } else {
       delete db.hidden[relPath];
+    }
+    await writeDb(db);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update hidden state');
+  }
+});
+
+app.post('/api/hidden/bulk', async (req, res) => {
+  try {
+    const { paths, value } = req.body || {};
+    if (!Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).send('Missing paths');
+    }
+    const db = await readDb();
+    for (const relPath of paths) {
+      if (typeof relPath !== 'string' || !relPath) continue;
+      if (value) {
+        db.hidden[relPath] = true;
+      } else {
+        delete db.hidden[relPath];
+      }
     }
     await writeDb(db);
     res.json({ ok: true });
@@ -104,6 +148,29 @@ app.post('/api/tags', async (req, res) => {
     }
     await writeDb(db);
     res.json({ ok: true, tags: normalized });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update tags');
+  }
+});
+
+app.post('/api/tags/bulk', async (req, res) => {
+  try {
+    const { updates } = req.body || {};
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).send('Missing updates');
+    }
+    const db = await readDb();
+    for (const update of updates) {
+      if (!update || typeof update.path !== 'string' || !update.path) continue;
+      const normalized = normalizeTags(update.tags);
+      if (normalized.length) {
+        db.tags[update.path] = normalized;
+      } else {
+        delete db.tags[update.path];
+      }
+    }
+    await writeDb(db);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update tags');
   }
