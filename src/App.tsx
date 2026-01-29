@@ -46,12 +46,16 @@ export default function App() {
   const [showUntagged, setShowUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [minRating, setMinRating] = useState<number>(() => {
-    const stored = Number(window.localStorage.getItem(STORAGE_KEYS.ratingMin));
-    return Number.isFinite(stored) ? clamp(Math.round(stored), 0, 5) : 0;
+    const stored = window.localStorage.getItem(STORAGE_KEYS.ratingMin);
+    if (stored === null) return 0;
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 5) : 0;
   });
   const [maxRating, setMaxRating] = useState<number>(() => {
-    const stored = Number(window.localStorage.getItem(STORAGE_KEYS.ratingMax));
-    return Number.isFinite(stored) ? clamp(Math.round(stored), 0, 5) : 5;
+    const stored = window.localStorage.getItem(STORAGE_KEYS.ratingMax);
+    if (stored === null) return 5;
+    const parsed = Number(stored);
+    return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 5) : 5;
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);

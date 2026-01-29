@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-01-29
+
+### Changed
+- Defaulted rating filters to Any/Any and added rating chips on gallery cards.
+
 ## [0.3.0] - 2026-01-29
 
 ### Added
