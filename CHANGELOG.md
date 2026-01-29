@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.13] - 2026-01-29
+
+### Fixed
+- Constrained modal images to the stage with inline sizing to avoid oversized initial renders in production.
+
 ## [0.3.12] - 2026-01-29
 
 ### Fixed

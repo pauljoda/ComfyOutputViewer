@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Constrained modal images to the stage with inline sizing to avoid oversized initial renders in production.
 - Forced the modal zoom wrapper to fill the stage so production builds don't lock to image dimensions.
 - Expanded modal zoom debug overlay with viewport and device pixel ratio diagnostics.
 - Attach modal zoom resize observers after the transform wrapper initializes for consistent prod sizing.

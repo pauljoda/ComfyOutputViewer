@@ -690,6 +690,7 @@ export default function ImageModal({
                     className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
                     src={image.url}
                     alt={image.name}
+                    style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
                     onLoad={handleImageLoad}
                     ref={handleImageRef}
                   />
