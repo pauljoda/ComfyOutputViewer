@@ -9,7 +9,8 @@ import { normalizeTagInput } from '../utils/tags';
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.92;
 const FIT_HEIGHT_RATIO = 0.78;
-const MAX_FIT_ATTEMPTS = 8;
+const MAX_FIT_ATTEMPTS = 12;
+const FIT_EPSILON = 0.01;
 
 type ImageModalProps = {
   image: ImageItem;
@@ -94,11 +95,17 @@ export default function ImageModal({
   };
 
   const handleResetZoom = () => {
-    transformRef.current?.centerView(fitScaleRef.current, 0);
+    const img = imageRef.current;
+    if (img) {
+      transformRef.current?.zoomToElement(img, fitScaleRef.current, 0);
+      return;
+    }
+    transformRef.current?.resetTransform(0);
   };
 
   const applyFitScale = (img: HTMLImageElement, attempt = 0) => {
     const wrapper = transformRef.current?.instance.wrapperComponent;
+    const currentScale = transformRef.current?.state.scale ?? 1;
     if (!wrapper || !img) {
       if (attempt < MAX_FIT_ATTEMPTS) {
         window.requestAnimationFrame(() => applyFitScale(img, attempt + 1));
@@ -106,24 +113,26 @@ export default function ImageModal({
       return;
     }
     const wrapperRect = wrapper.getBoundingClientRect();
-    const naturalWidth = img.naturalWidth || img.width;
-    const naturalHeight = img.naturalHeight || img.height;
-    if (!wrapperRect.width || !wrapperRect.height || !naturalWidth || !naturalHeight) {
+    const nodeRect = img.getBoundingClientRect();
+    const baseWidth = nodeRect.width / currentScale || img.naturalWidth || img.width;
+    const baseHeight = nodeRect.height / currentScale || img.naturalHeight || img.height;
+    if (!wrapperRect.width || !wrapperRect.height || !baseWidth || !baseHeight) {
       if (attempt < MAX_FIT_ATTEMPTS) {
         window.requestAnimationFrame(() => applyFitScale(img, attempt + 1));
       }
       return;
     }
     const fitScale = Math.min(
-      (wrapperRect.width * FIT_WIDTH_RATIO) / naturalWidth,
-      (wrapperRect.height * FIT_HEIGHT_RATIO) / naturalHeight,
+      (wrapperRect.width * FIT_WIDTH_RATIO) / baseWidth,
+      (wrapperRect.height * FIT_HEIGHT_RATIO) / baseHeight,
       1
     );
+    if (Math.abs(fitScale - fitScaleRef.current) < FIT_EPSILON) return;
     const nextMinScale = Math.min(DEFAULT_MIN_SCALE, fitScale);
     setMinScale(nextMinScale);
     fitScaleRef.current = fitScale;
     window.requestAnimationFrame(() => {
-      transformRef.current?.centerView(fitScale, 0);
+      transformRef.current?.zoomToElement(img, fitScale, 0);
       scaleRef.current = fitScale;
     });
   };
@@ -240,6 +249,23 @@ export default function ImageModal({
     return () => window.clearTimeout(timer);
   }, [image.id]);
 
+  useEffect(() => {
+    const wrapper = transformRef.current?.instance.wrapperComponent;
+    const img = imageRef.current;
+    if (!wrapper || !img || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(() => applyFitScale(img));
+    });
+    observer.observe(wrapper);
+    observer.observe(img);
+    return () => {
+      observer.disconnect();
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [image.id]);
+
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { x: event.clientX, y: event.clientY };
     dragMovedRef.current = false;
@@ -278,8 +304,8 @@ export default function ImageModal({
         initialScale={1}
         minScale={minScale}
         maxScale={6}
-        centerOnInit
-        centerZoomedOut
+        centerOnInit={false}
+        centerZoomedOut={false}
         limitToBounds={false}
         panning={{ velocityDisabled: true }}
         wheel={{ step: 0.2 }}

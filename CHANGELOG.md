@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2026-01-29
+
+### Fixed
+- Refit modal zoom after wrapper/image resizes to keep initial desktop zoom contained.
+
 ## [0.3.6] - 2026-01-29
 
 ### Fixed
