@@ -64,6 +64,7 @@ export default function ImageModal({
   const debugRafRef = useRef(0);
   const [debugInfo, setDebugInfo] = useState<null | Record<string, string>>(null);
   const lastStateRef = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
+  const [transformReady, setTransformReady] = useState(false);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -333,21 +334,37 @@ export default function ImageModal({
   }, [image.id]);
 
   useEffect(() => {
-    const wrapper = transformRef.current?.instance.wrapperComponent;
-    const img = imageRef.current;
-    if (!wrapper || !img || typeof ResizeObserver === 'undefined') return;
+    if (!transformReady || typeof ResizeObserver === 'undefined') return;
     let raf = 0;
-    const observer = new ResizeObserver(() => {
-      if (raf) window.cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(() => applyFitScale(img));
-    });
-    observer.observe(wrapper);
-    observer.observe(img);
-    return () => {
-      observer.disconnect();
-      if (raf) window.cancelAnimationFrame(raf);
+    let observer: ResizeObserver | null = null;
+    let cancelled = false;
+
+    const attachObserver = (attempt = 0) => {
+      if (cancelled) return;
+      const wrapper = transformRef.current?.instance.wrapperComponent;
+      const img = imageRef.current;
+      if (!wrapper || !img) {
+        if (attempt < MAX_FIT_ATTEMPTS * 4) {
+          raf = window.requestAnimationFrame(() => attachObserver(attempt + 1));
+        }
+        return;
+      }
+      observer = new ResizeObserver(() => {
+        if (raf) window.cancelAnimationFrame(raf);
+        raf = window.requestAnimationFrame(() => applyFitScale(img));
+      });
+      observer.observe(wrapper);
+      observer.observe(img);
+      scheduleDebugUpdate('observer-attached');
     };
-  }, [image.id]);
+
+    attachObserver();
+    return () => {
+      cancelled = true;
+      if (raf) window.cancelAnimationFrame(raf);
+      observer?.disconnect();
+    };
+  }, [image.id, transformReady]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { x: event.clientX, y: event.clientY };
@@ -410,6 +427,10 @@ export default function ImageModal({
           scaleRef.current = state.scale;
           lastStateRef.current = state;
           scheduleDebugUpdate('transform', state);
+        }}
+        onInit={() => {
+          setTransformReady(true);
+          scheduleDebugUpdate('init');
         }}
       >
         <>
