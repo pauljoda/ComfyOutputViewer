@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.11] - 2026-01-29
+
+### Changed
+- Added a download button to the modal toolbar and ensured zoom/position reset on image load with a centered pop-in.
+
 ## [0.2.10] - 2026-01-29
 
 ### Changed

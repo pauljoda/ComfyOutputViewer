@@ -76,6 +76,11 @@ export default function ImageModal({
     transformRef.current?.resetTransform();
   };
 
+  const handleImageLoad = () => {
+    transformRef.current?.centerView(1, 0);
+    scaleRef.current = 1;
+  };
+
   const tagQuery = normalizeTagInput(tagInput);
   const suggestions = useMemo(
     () =>
@@ -164,14 +169,15 @@ export default function ImageModal({
 
     if (absY > absX * axisRatio) {
       lastSwipeAtRef.current = Date.now();
-      lastSwipeDirRef.current = null;
       handleClose();
     }
   };
 
   useEffect(() => {
-    transformRef.current?.resetTransform(0);
     scaleRef.current = 1;
+    isPanningRef.current = false;
+    isPinchingRef.current = false;
+    transformRef.current?.centerView(1, 0);
     setSwipeIncoming(true);
     const timer = window.setTimeout(() => {
       setSwipeIncoming(false);
@@ -212,6 +218,7 @@ export default function ImageModal({
   return (
     <div className="modal" role="dialog" aria-modal="true">
       <TransformWrapper
+        key={image.id}
         ref={transformRef}
         initialScale={1}
         minScale={0.5}
@@ -299,6 +306,38 @@ export default function ImageModal({
                     />
                   </svg>
                 </button>
+                <a
+                  className="tool-button"
+                  href={image.url}
+                  download={image.name}
+                  title="Download"
+                  aria-label="Download"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5v9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M8 10l4 4 4-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M5 19h14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </a>
                 <button
                   className="tool-button danger"
                   type="button"
@@ -414,6 +453,7 @@ export default function ImageModal({
                     className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
                     src={image.url}
                     alt={image.name}
+                    onLoad={handleImageLoad}
                   />
                 </TransformComponent>
               </div>
