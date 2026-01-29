@@ -45,6 +45,7 @@ type TopBarProps = {
   onRemoveFilterTag: (tag: string) => void;
   onClearFilterTags: () => void;
   onExitUntagged: () => void;
+  onGoHome: () => void;
 };
 
 const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
@@ -84,7 +85,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onAddFilterTag,
       onRemoveFilterTag,
       onClearFilterTags,
-      onExitUntagged
+      onExitUntagged,
+      onGoHome
     },
     ref
   ) => {
@@ -112,12 +114,14 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     return (
       <header className="top-bar" ref={ref} onPointerDown={handlePointerDown}>
         <div className="top-row">
-          <div className="brand">
-            <div className="title">
-              Comfy Output Viewer <span className="version">v{version}</span>
+          <button className="brand-button" type="button" onClick={onGoHome} title="All images">
+            <div className="brand">
+              <div className="title">
+                Comfy Output Viewer <span className="version">v{version}</span>
+              </div>
+              <div className="subtitle">{sourceDir || 'No source configured'}</div>
             </div>
-            <div className="subtitle">{sourceDir || 'No source configured'}</div>
-          </div>
+          </button>
         </div>
 
         <div className="toolbar-row">

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.7] - 2026-01-28
+
+### Added
+- Made the header title area clickable to reset filters back to all images.
+
 ## [0.2.6] - 2026-01-28
 
 ### Added

@@ -260,6 +260,14 @@ export default function App() {
     setShowUntagged(true);
   };
 
+  const handleGoHome = () => {
+    setSelectedTags([]);
+    setShowUntagged(false);
+    setFavoritesOnly(false);
+    setActiveTool(null);
+    setDrawerOpen(false);
+  };
+
   const handleToggleMultiSelect = () => {
     setMultiSelect((prev) => {
       const next = !prev;
@@ -533,6 +541,7 @@ export default function App() {
         onRemoveFilterTag={handleRemoveSelectedTag}
         onClearFilterTags={handleClearSelectedTags}
         onExitUntagged={handleSelectAllImages}
+        onGoHome={handleGoHome}
       />
 
       {activeTool && (
