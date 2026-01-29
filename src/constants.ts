@@ -9,5 +9,7 @@ export const STORAGE_KEYS = {
   columns: 'cov_columns',
   tileFit: 'cov_tile_fit',
   hideHidden: 'cov_hide_hidden',
-  sort: 'cov_sort'
+  sort: 'cov_sort',
+  ratingMin: 'cov_rating_min',
+  ratingMax: 'cov_rating_max'
 } as const;

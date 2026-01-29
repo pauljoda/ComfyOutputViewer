@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-01-29
+
+### Added
+- Added 5-star ratings with detail-view controls, bulk rating actions, and rating-based filtering/sorting.
+
+### Changed
+- Refined the multi-select bulk action layout to accommodate rating controls.
+- Swapped favorite icons to a pink heart in the grid and detail toolbar.
+
 ## [0.2.12] - 2026-01-29
 
 ### Changed

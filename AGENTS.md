@@ -109,6 +109,8 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Added 5-star ratings with modal and bulk controls, rating-based filters/sort, and persisted rating metadata.
+- Swapped favorite icons to pink hearts and refreshed multi-select bulk actions to include rating.
 - Added modal progress indicator and updated the tag drawer layout with bottom-pinned actions.
 - Added a modal download button and ensured zoom/position reset on image load with a centered pop-in.
 - Removed the modal filename caption, reset zoom on image change, and simplified the swipe transition.

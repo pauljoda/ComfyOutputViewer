@@ -5,6 +5,7 @@ export type ImageItem = {
   thumbUrl?: string;
   favorite: boolean;
   hidden: boolean;
+  rating: number;
   tags: string[];
   createdMs: number;
   mtimeMs: number;
@@ -37,13 +38,15 @@ export type SortMode =
   | 'name-asc'
   | 'name-desc'
   | 'size-desc'
-  | 'size-asc';
+  | 'size-asc'
+  | 'rating-desc'
+  | 'rating-asc';
 
 export type ToolPanel = 'view' | 'filters' | 'search';
 
 export type ActiveTool = ToolPanel | null;
 
-export type ModalTool = 'tags' | null;
+export type ModalTool = 'tags' | 'rating' | null;
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -57,7 +60,9 @@ export const SORT_MODES: SortMode[] = [
   'name-asc',
   'name-desc',
   'size-desc',
-  'size-asc'
+  'size-asc',
+  'rating-desc',
+  'rating-asc'
 ];
 
 export const DEFAULT_SORT: SortMode = 'created-desc';

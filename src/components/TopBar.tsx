@@ -7,6 +7,7 @@ import type {
   TileFit,
   ToolPanel
 } from '../types';
+import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
 
 type TopBarProps = {
@@ -23,6 +24,8 @@ type TopBarProps = {
   themeMode: ThemeMode;
   favoritesOnly: boolean;
   hideHidden: boolean;
+  minRating: number;
+  maxRating: number;
   selectedTags: string[];
   availableTags: string[];
   showUntagged: boolean;
@@ -33,6 +36,7 @@ type TopBarProps = {
   onClearSelection: () => void;
   onBulkFavorite: () => void;
   onBulkHidden: () => void;
+  onBulkRating: (rating: number) => void;
   onBulkDelete: () => void;
   onBulkTag: (tag: string) => void;
   onColumnsChange: (value: number) => void;
@@ -41,6 +45,8 @@ type TopBarProps = {
   onThemeModeChange: (value: ThemeMode) => void;
   onFavoritesOnlyChange: (value: boolean) => void;
   onHideHiddenChange: (value: boolean) => void;
+  onMinRatingChange: (value: number) => void;
+  onMaxRatingChange: (value: number) => void;
   onAddFilterTag: (tag: string) => void;
   onRemoveFilterTag: (tag: string) => void;
   onClearFilterTags: () => void;
@@ -64,6 +70,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       themeMode,
       favoritesOnly,
       hideHidden,
+      minRating,
+      maxRating,
       selectedTags,
       availableTags,
       showUntagged,
@@ -74,6 +82,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onClearSelection,
       onBulkFavorite,
       onBulkHidden,
+      onBulkRating,
       onBulkDelete,
       onBulkTag,
       onColumnsChange,
@@ -82,6 +91,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onThemeModeChange,
       onFavoritesOnlyChange,
       onHideHiddenChange,
+      onMinRatingChange,
+      onMaxRatingChange,
       onAddFilterTag,
       onRemoveFilterTag,
       onClearFilterTags,
@@ -94,6 +105,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     const toolButtonsRef = useRef<HTMLDivElement | null>(null);
     const [tagInput, setTagInput] = React.useState('');
     const [bulkTagInput, setBulkTagInput] = React.useState('');
+    const [bulkRatingValue, setBulkRatingValue] = React.useState(0);
     const tagQuery = normalizeTagInput(tagInput);
     const filterSuggestions = availableTags.filter(
       (tag) => !selectedTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
@@ -102,6 +114,21 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     const bulkTagSuggestions = availableTags.filter(
       (tag) => !bulkTagQuery || tag.includes(bulkTagQuery)
     );
+    const ratingOptions = [0, 1, 2, 3, 4, 5];
+    const maxRatingOptions = [5, 4, 3, 2, 1, 0];
+    const formatMinLabel = (value: number) => (value === 0 ? 'Any' : `${value}+`);
+    const formatMaxLabel = (value: number) => (value === 5 ? 'Any' : `${value}`);
+
+    React.useEffect(() => {
+      if (!multiSelect || selectedCount === 0) {
+        setBulkRatingValue(0);
+      }
+    }, [multiSelect, selectedCount]);
+
+    const handleBulkRating = (rating: number) => {
+      setBulkRatingValue(rating);
+      onBulkRating(rating);
+    };
 
     const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
       if (!activeTool) return;
@@ -268,59 +295,74 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
               </button>
             </div>
             <div className="bulk-actions">
-              <button
-                className="button"
-                type="button"
-                onClick={onBulkFavorite}
-                disabled={selectedCount === 0}
-              >
-                Favorite all
-              </button>
-              <button
-                className="button"
-                type="button"
-                onClick={onBulkHidden}
-                disabled={selectedCount === 0}
-              >
-                Hide all
-              </button>
-              <button
-                className="button danger"
-                type="button"
-                onClick={onBulkDelete}
-                disabled={selectedCount === 0}
-              >
-                Remove selected
-              </button>
-              <div className="tag-input-row bulk-tag-input">
-                <input
-                  list="bulk-tag-suggestions"
-                  value={bulkTagInput}
-                  onChange={(event) => setBulkTagInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      if (bulkTagInput.trim() && selectedCount > 0) {
-                        onBulkTag(bulkTagInput);
-                        setBulkTagInput('');
-                      }
-                    }
-                  }}
-                  placeholder="Tag selected…"
-                  aria-label="Tag selected"
-                  disabled={selectedCount === 0}
-                />
+              <div className="bulk-actions-row">
                 <button
                   className="button"
                   type="button"
-                  onClick={() => {
-                    onBulkTag(bulkTagInput);
-                    setBulkTagInput('');
-                  }}
-                  disabled={!bulkTagInput.trim() || selectedCount === 0}
+                  onClick={onBulkFavorite}
+                  disabled={selectedCount === 0}
                 >
-                  Tag all
+                  Favorite
                 </button>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={onBulkHidden}
+                  disabled={selectedCount === 0}
+                >
+                  Hide
+                </button>
+                <div className="bulk-rating">
+                  <span className="bulk-action-label">Rate</span>
+                  <RatingStars
+                    value={bulkRatingValue}
+                    onChange={handleBulkRating}
+                    size="sm"
+                    disabled={selectedCount === 0}
+                    allowClear
+                    label="Rate selected images"
+                  />
+                </div>
+                <button
+                  className="button danger"
+                  type="button"
+                  onClick={onBulkDelete}
+                  disabled={selectedCount === 0}
+                >
+                  Remove
+                </button>
+              </div>
+              <div className="bulk-actions-row">
+                <div className="tag-input-row bulk-tag-input">
+                  <input
+                    list="bulk-tag-suggestions"
+                    value={bulkTagInput}
+                    onChange={(event) => setBulkTagInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        if (bulkTagInput.trim() && selectedCount > 0) {
+                          onBulkTag(bulkTagInput);
+                          setBulkTagInput('');
+                        }
+                      }
+                    }}
+                    placeholder="Tag selected…"
+                    aria-label="Tag selected"
+                    disabled={selectedCount === 0}
+                  />
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => {
+                      onBulkTag(bulkTagInput);
+                      setBulkTagInput('');
+                    }}
+                    disabled={!bulkTagInput.trim() || selectedCount === 0}
+                  >
+                    Tag all
+                  </button>
+                </div>
               </div>
             </div>
             {bulkTagSuggestions.length > 0 && selectedCount > 0 && (
@@ -394,6 +436,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     <option value="name-desc">Name (Z-A)</option>
                     <option value="size-desc">File size (largest)</option>
                     <option value="size-asc">File size (smallest)</option>
+                    <option value="rating-desc">Rating (high to low)</option>
+                    <option value="rating-asc">Rating (low to high)</option>
                   </select>
                 </label>
 
@@ -429,6 +473,34 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     onChange={(event) => onHideHiddenChange(event.target.checked)}
                   />
                   <span>Hide hidden</span>
+                </label>
+
+                <label className="control">
+                  <span>Min rating</span>
+                  <select
+                    value={minRating}
+                    onChange={(event) => onMinRatingChange(Number(event.target.value))}
+                  >
+                    {ratingOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {formatMinLabel(value)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="control">
+                  <span>Max rating</span>
+                  <select
+                    value={maxRating}
+                    onChange={(event) => onMaxRatingChange(Number(event.target.value))}
+                  >
+                    {maxRatingOptions.map((value) => (
+                      <option key={value} value={value}>
+                        {formatMaxLabel(value)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
 
                 <div className="tag-filter">

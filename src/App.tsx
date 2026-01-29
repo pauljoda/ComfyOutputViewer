@@ -45,6 +45,14 @@ export default function App() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showUntagged, setShowUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [minRating, setMinRating] = useState<number>(() => {
+    const stored = Number(window.localStorage.getItem(STORAGE_KEYS.ratingMin));
+    return Number.isFinite(stored) ? clamp(Math.round(stored), 0, 5) : 0;
+  });
+  const [maxRating, setMaxRating] = useState<number>(() => {
+    const stored = Number(window.localStorage.getItem(STORAGE_KEYS.ratingMax));
+    return Number.isFinite(stored) ? clamp(Math.round(stored), 0, 5) : 5;
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -86,7 +94,8 @@ export default function App() {
         ...response,
         images: response.images.map((image) => ({
           ...image,
-          tags: normalizeTags(image.tags)
+          tags: normalizeTags(image.tags),
+          rating: Number.isFinite(image.rating) ? clamp(Math.round(image.rating), 0, 5) : 0
         }))
       });
     } catch (err) {
@@ -129,6 +138,20 @@ export default function App() {
   }, [hideHidden]);
 
   useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.ratingMin, String(minRating));
+  }, [minRating]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.ratingMax, String(maxRating));
+  }, [maxRating]);
+
+  useEffect(() => {
+    if (minRating > maxRating) {
+      setMaxRating(minRating);
+    }
+  }, [minRating, maxRating]);
+
+  useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.sort, sortMode);
   }, [sortMode]);
 
@@ -168,10 +191,12 @@ export default function App() {
       selectedTags,
       showUntagged,
       favoritesOnly,
-      hideHidden
+      hideHidden,
+      minRating,
+      maxRating
     });
     return sortImages(filtered, sortMode);
-  }, [data.images, favoritesOnly, hideHidden, selectedTags, showUntagged, sortMode]);
+  }, [data.images, favoritesOnly, hideHidden, maxRating, minRating, selectedTags, showUntagged, sortMode]);
 
   const selectedIndex = selectedId
     ? filteredImages.findIndex((image) => image.id === selectedId)
@@ -226,6 +251,24 @@ export default function App() {
     }
   };
 
+  const handleUpdateRating = async (image: ImageItem, rating: number) => {
+    const nextRating = clamp(Math.round(rating), 0, 5);
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        item.id === image.id ? { ...item, rating: nextRating } : item
+      )
+    }));
+    try {
+      await api('/api/rating', {
+        method: 'POST',
+        body: JSON.stringify({ path: image.id, value: nextRating })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update rating');
+    }
+  };
+
   const handleAddSelectedTag = (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized) return;
@@ -241,6 +284,18 @@ export default function App() {
 
   const handleClearSelectedTags = () => {
     setSelectedTags([]);
+  };
+
+  const handleMinRatingChange = (value: number) => {
+    const nextValue = clamp(Math.round(value), 0, 5);
+    setMinRating(nextValue);
+    setMaxRating((prev) => (prev < nextValue ? nextValue : prev));
+  };
+
+  const handleMaxRatingChange = (value: number) => {
+    const nextValue = clamp(Math.round(value), 0, 5);
+    setMaxRating(nextValue);
+    setMinRating((prev) => (prev > nextValue ? nextValue : prev));
   };
 
   const handleToggleDrawerTag = (tag: string) => {
@@ -264,6 +319,8 @@ export default function App() {
     setSelectedTags([]);
     setShowUntagged(false);
     setFavoritesOnly(false);
+    setMinRating(0);
+    setMaxRating(5);
     setActiveTool(null);
     setDrawerOpen(false);
   };
@@ -371,6 +428,25 @@ export default function App() {
     }
   };
 
+  const handleBulkRating = async (rating: number) => {
+    if (!selectedCount) return;
+    const nextRating = clamp(Math.round(rating), 0, 5);
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        selectedIdSet.has(item.id) ? { ...item, rating: nextRating } : item
+      )
+    }));
+    try {
+      await api('/api/rating/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ paths: selectedIds, value: nextRating })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update ratings');
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (!selectedCount) return;
     const confirmed = window.confirm(
@@ -472,14 +548,31 @@ export default function App() {
 
   const currentFilterLabel = useMemo(() => {
     if (showUntagged) return 'Untagged';
-    if (selectedTags.length === 0) return 'All images';
-    const visible = selectedTags.slice(0, 2).join(' + ');
-    const overflow = selectedTags.length - 2;
-    if (overflow > 0) {
-      return `Tags: ${visible} +${overflow}`;
+    const extras: string[] = [];
+    if (favoritesOnly) {
+      extras.push('Favorites');
     }
-    return `Tags: ${visible}`;
-  }, [selectedTags, showUntagged]);
+    const hasMin = minRating > 0;
+    const hasMax = maxRating < 5;
+    if (hasMin || hasMax) {
+      if (hasMin && hasMax && minRating === maxRating) {
+        extras.push(`Rating ${minRating}`);
+      } else if (hasMin && !hasMax) {
+        extras.push(`Rating ${minRating}+`);
+      } else if (!hasMin && hasMax) {
+        extras.push(`Rating <=${maxRating}`);
+      } else {
+        extras.push(`Rating ${minRating}-${maxRating}`);
+      }
+    }
+    let base = 'All images';
+    if (selectedTags.length > 0) {
+      const visible = selectedTags.slice(0, 2).join(' + ');
+      const overflow = selectedTags.length - 2;
+      base = overflow > 0 ? `Tags: ${visible} +${overflow}` : `Tags: ${visible}`;
+    }
+    return extras.length > 0 ? `${base} / ${extras.join(' / ')}` : base;
+  }, [favoritesOnly, maxRating, minRating, selectedTags, showUntagged]);
   const effectiveColumns = columns > 0 ? columns : COLUMN_MIN;
   const tileSize = useMemo(() => {
     if (!galleryWidth) return TARGET_TILE_SIZE;
@@ -516,6 +609,8 @@ export default function App() {
         themeMode={themeMode}
         favoritesOnly={favoritesOnly}
         hideHidden={hideHidden}
+        minRating={minRating}
+        maxRating={maxRating}
         selectedTags={selectedTags}
         availableTags={availableTags}
         showUntagged={showUntagged}
@@ -529,6 +624,7 @@ export default function App() {
         onClearSelection={handleClearSelection}
         onBulkFavorite={handleBulkFavorite}
         onBulkHidden={handleBulkHidden}
+        onBulkRating={handleBulkRating}
         onBulkDelete={handleBulkDelete}
         onBulkTag={handleBulkTag}
         onColumnsChange={setColumns}
@@ -537,6 +633,8 @@ export default function App() {
         onThemeModeChange={setThemeMode}
         onFavoritesOnlyChange={setFavoritesOnly}
         onHideHiddenChange={setHideHidden}
+        onMinRatingChange={handleMinRatingChange}
+        onMaxRatingChange={handleMaxRatingChange}
         onAddFilterTag={handleAddSelectedTag}
         onRemoveFilterTag={handleRemoveSelectedTag}
         onClearFilterTags={handleClearSelectedTags}
@@ -602,8 +700,12 @@ export default function App() {
           onToggleTags={() =>
             setModalTool((current) => (current === 'tags' ? null : 'tags'))
           }
+          onToggleRating={() =>
+            setModalTool((current) => (current === 'rating' ? null : 'rating'))
+          }
           onToggleFavorite={() => handleToggleFavorite(selectedImage)}
           onToggleHidden={() => handleToggleHidden(selectedImage)}
+          onRate={(rating) => handleUpdateRating(selectedImage, rating)}
           onDelete={() => handleDeleteImage(selectedImage)}
           onClose={() => setSelectedId(null)}
           onPrev={movePrev}

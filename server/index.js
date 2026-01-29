@@ -32,6 +32,8 @@ const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.sqlite');
 const THUMB_MAX = Number(process.env.THUMB_MAX || 512);
 const THUMB_QUALITY = Number(process.env.THUMB_QUALITY || 72);
 const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 0);
+const RATING_MIN = 0;
+const RATING_MAX = 5;
 
 const isProd = process.env.NODE_ENV === 'production';
 const port = Number(process.env.SERVER_PORT || process.env.PORT || (isProd ? 8008 : 8009));
@@ -108,6 +110,30 @@ app.post('/api/hidden/bulk', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update hidden state');
+  }
+});
+
+app.post('/api/rating', async (req, res) => {
+  try {
+    const { path: relPath, value } = req.body || {};
+    if (!relPath) return res.status(400).send('Missing path');
+    setRating(relPath, normalizeRating(value));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update rating');
+  }
+});
+
+app.post('/api/rating/bulk', async (req, res) => {
+  try {
+    const { paths, value } = req.body || {};
+    if (!Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).send('Missing paths');
+    }
+    setBulkRating(paths, normalizeRating(value));
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update ratings');
   }
 });
 
@@ -219,7 +245,8 @@ function initDb() {
     CREATE TABLE IF NOT EXISTS meta (
       path TEXT PRIMARY KEY,
       favorite INTEGER NOT NULL DEFAULT 0,
-      hidden INTEGER NOT NULL DEFAULT 0
+      hidden INTEGER NOT NULL DEFAULT 0,
+      rating INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS tags (
       path TEXT NOT NULL,
@@ -231,18 +258,28 @@ function initDb() {
       created_at INTEGER NOT NULL
     );
   `);
+  ensureMetaColumn(database, 'rating', 'INTEGER NOT NULL DEFAULT 0');
   return database;
+}
+
+function ensureMetaColumn(database, columnName, definition) {
+  const columns = database.prepare('PRAGMA table_info(meta)').all();
+  if (columns.some((column) => column.name === columnName)) return;
+  database.exec(`ALTER TABLE meta ADD COLUMN ${columnName} ${definition};`);
 }
 
 function prepareStatements(database) {
   return {
-    selectMeta: database.prepare('SELECT path, favorite, hidden FROM meta'),
+    selectMeta: database.prepare('SELECT path, favorite, hidden, rating FROM meta'),
     selectTags: database.prepare('SELECT path, tag FROM tags ORDER BY path, tag'),
     upsertFavorite: database.prepare(
       'INSERT INTO meta (path, favorite) VALUES (?, ?) ON CONFLICT(path) DO UPDATE SET favorite = excluded.favorite'
     ),
     upsertHidden: database.prepare(
       'INSERT INTO meta (path, hidden) VALUES (?, ?) ON CONFLICT(path) DO UPDATE SET hidden = excluded.hidden'
+    ),
+    upsertRating: database.prepare(
+      'INSERT INTO meta (path, rating) VALUES (?, ?) ON CONFLICT(path) DO UPDATE SET rating = excluded.rating'
     ),
     deleteMeta: database.prepare('DELETE FROM meta WHERE path = ?'),
     deleteTagsByPath: database.prepare('DELETE FROM tags WHERE path = ?'),
@@ -271,6 +308,7 @@ function runTransaction(task) {
 function loadMetadata() {
   const favorites = new Map();
   const hidden = new Map();
+  const ratings = new Map();
   const tagsByPath = new Map();
   for (const row of statements.selectMeta.iterate()) {
     if (row.favorite) {
@@ -278,6 +316,9 @@ function loadMetadata() {
     }
     if (row.hidden) {
       hidden.set(row.path, true);
+    }
+    if (Number.isFinite(row.rating)) {
+      ratings.set(row.path, row.rating);
     }
   }
   for (const row of statements.selectTags.iterate()) {
@@ -288,7 +329,7 @@ function loadMetadata() {
       tagsByPath.set(row.path, [row.tag]);
     }
   }
-  return { favorites, hidden, tagsByPath };
+  return { favorites, hidden, ratings, tagsByPath };
 }
 
 function setFavorite(relPath, value) {
@@ -297,6 +338,10 @@ function setFavorite(relPath, value) {
 
 function setHidden(relPath, value) {
   statements.upsertHidden.run(relPath, value ? 1 : 0);
+}
+
+function setRating(relPath, value) {
+  statements.upsertRating.run(relPath, value);
 }
 
 function setBulkFavorite(paths, value) {
@@ -313,6 +358,15 @@ function setBulkHidden(paths, value) {
     for (const relPath of paths) {
       if (typeof relPath !== 'string' || !relPath) continue;
       statements.upsertHidden.run(relPath, value ? 1 : 0);
+    }
+  });
+}
+
+function setBulkRating(paths, value) {
+  runTransaction(() => {
+    for (const relPath of paths) {
+      if (typeof relPath !== 'string' || !relPath) continue;
+      statements.upsertRating.run(relPath, value);
     }
   });
 }
@@ -363,6 +417,12 @@ async function migrateLegacyDb() {
       for (const [relPath, value] of Object.entries(parsed.hidden || {})) {
         if (!value) continue;
         statements.upsertHidden.run(relPath, 1);
+      }
+      for (const [relPath, value] of Object.entries(parsed.ratings || {})) {
+        if (value === undefined || value === null) continue;
+        const rating = normalizeRating(value);
+        if (!rating) continue;
+        statements.upsertRating.run(relPath, rating);
       }
       for (const [relPath, tags] of Object.entries(parsed.tags || {})) {
         const normalized = normalizeTags(tags);
@@ -422,6 +482,7 @@ async function walkDir(currentDir, relDir, images, metadata) {
         thumbUrl,
         favorite: metadata.favorites.has(relPath),
         hidden: metadata.hidden.has(relPath),
+        rating: metadata.ratings.get(relPath) ?? 0,
         tags: metadata.tagsByPath.get(relPath) || [],
         createdMs,
         mtimeMs: stats.mtimeMs,
@@ -446,6 +507,13 @@ function normalizeTags(tags) {
   return Array.from(tagMap.values()).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
   );
+}
+
+function normalizeRating(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return RATING_MIN;
+  const rounded = Math.round(parsed);
+  return Math.max(RATING_MIN, Math.min(RATING_MAX, rounded));
 }
 
 function resolvePathWithinRoot(rootDir, relPath) {

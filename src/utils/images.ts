@@ -27,7 +27,9 @@ const SORTERS: Record<SortMode, (a: ImageItem, b: ImageItem) => number> = {
     return nameCompare === 0 ? 0 : -nameCompare;
   },
   'size-desc': (a, b) => b.size - a.size || compareByName(a, b),
-  'size-asc': (a, b) => a.size - b.size || compareByName(a, b)
+  'size-asc': (a, b) => a.size - b.size || compareByName(a, b),
+  'rating-desc': (a, b) => b.rating - a.rating || compareByName(a, b),
+  'rating-asc': (a, b) => a.rating - b.rating || compareByName(a, b)
 };
 
 export const sortImages = (images: ImageItem[], sortMode: SortMode) => {
@@ -41,10 +43,12 @@ export type ImageFilterOptions = {
   showUntagged: boolean;
   favoritesOnly: boolean;
   hideHidden: boolean;
+  minRating: number;
+  maxRating: number;
 };
 
 export const filterImages = (images: ImageItem[], options: ImageFilterOptions) => {
-  const { selectedTags, showUntagged, favoritesOnly, hideHidden } = options;
+  const { selectedTags, showUntagged, favoritesOnly, hideHidden, minRating, maxRating } = options;
   let result = images.slice();
   if (showUntagged) {
     result = result.filter((image) => image.tags.length === 0);
@@ -55,6 +59,9 @@ export const filterImages = (images: ImageItem[], options: ImageFilterOptions) =
   }
   if (favoritesOnly) {
     result = result.filter((image) => image.favorite);
+  }
+  if (Number.isFinite(minRating) || Number.isFinite(maxRating)) {
+    result = result.filter((image) => image.rating >= minRating && image.rating <= maxRating);
   }
   if (!showUntagged && selectedTags.length === 0 && hideHidden) {
     result = result.filter((image) => !image.hidden);

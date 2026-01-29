@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
+import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
 
 type ImageModalProps = {
@@ -13,8 +14,10 @@ type ImageModalProps = {
   availableTags: string[];
   onUpdateTags: (tags: string[]) => void;
   onToggleTags: () => void;
+  onToggleRating: () => void;
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
+  onRate: (rating: number) => void;
   onDelete: () => void;
   onClose: () => void;
   onPrev: () => void;
@@ -29,8 +32,10 @@ export default function ImageModal({
   availableTags,
   onUpdateTags,
   onToggleTags,
+  onToggleRating,
   onToggleFavorite,
   onToggleHidden,
+  onRate,
   onDelete,
   onClose,
   onPrev,
@@ -62,6 +67,10 @@ export default function ImageModal({
 
   const handleToggleTags = () => {
     onToggleTags();
+  };
+
+  const handleToggleRating = () => {
+    onToggleRating();
   };
 
   const handleDelete = () => {
@@ -283,12 +292,37 @@ export default function ImageModal({
                   #
                 </button>
                 <button
-                  className={image.favorite ? 'tool-button active' : 'tool-button'}
+                  className={image.favorite ? 'tool-button favorite active' : 'tool-button favorite'}
                   type="button"
                   onClick={onToggleFavorite}
                   title="Favorite"
                 >
-                  ★
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 20.5l-1.1-1C6 15 3 12.2 3 8.7 3 6 5 4 7.6 4c1.6 0 3.1.8 4 2.1C12.5 4.8 14 4 15.6 4 18.2 4 20 6 20 8.7c0 3.5-3 6.3-7.9 10.8L12 20.5z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className={
+                    modalTool === 'rating'
+                      ? 'tool-button rating-button active'
+                      : image.rating > 0
+                        ? 'tool-button rating-button rated'
+                        : 'tool-button rating-button'
+                  }
+                  type="button"
+                  onClick={handleToggleRating}
+                  title={image.rating > 0 ? `Rating ${image.rating}/5` : 'Rate'}
+                  aria-label={image.rating > 0 ? `Rating ${image.rating} of 5` : 'Rate'}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3.8l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" />
+                  </svg>
                 </button>
                 <button
                   className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
@@ -372,73 +406,89 @@ export default function ImageModal({
               </div>
             </div>
 
-            {modalTool === 'tags' && (
+            {modalTool && (
               <div className="modal-tool-popover">
-                <div className="tool-panel tag-editor">
-                  <div className="tag-chip-list">
-                    {image.tags.length === 0 && (
-                      <span className="tag-empty">No tags yet.</span>
-                    )}
-                    {image.tags.map((tag) => (
-                      <button
-                        key={tag}
-                        className="tag-chip"
-                        type="button"
-                        onClick={() => handleRemoveTag(tag)}
-                        title="Remove tag"
-                      >
-                        {tag}
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    ))}
-                  </div>
-                  <label className="control">
-                    <span>Add tag</span>
-                    <div className="tag-input-row">
-                      <input
-                        list={suggestionId}
-                        value={tagInput}
-                        onChange={(event) => setTagInput(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            handleAddTag();
-                          }
-                        }}
-                        placeholder="Type a tag…"
-                      />
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={handleAddTag}
-                        disabled={!tagInput.trim()}
-                      >
-                        Add
-                      </button>
-                    </div>
-                  </label>
-                  {suggestions.length > 0 && (
-                    <div className="tag-chip-list tag-suggestions">
-                      {suggestions.map((tag) => (
+                {modalTool === 'tags' && (
+                  <div className="tool-panel tag-editor">
+                    <div className="tag-chip-list">
+                      {image.tags.length === 0 && (
+                        <span className="tag-empty">No tags yet.</span>
+                      )}
+                      {image.tags.map((tag) => (
                         <button
                           key={tag}
                           className="tag-chip"
                           type="button"
-                          onClick={() => handleAddTagValue(tag)}
-                          title="Add tag"
+                          onClick={() => handleRemoveTag(tag)}
+                          title="Remove tag"
                         >
                           {tag}
+                          <span aria-hidden="true">×</span>
                         </button>
                       ))}
                     </div>
-                  )}
-                  <datalist id={suggestionId}>
-                    {suggestions.map((tag) => (
-                      <option key={tag} value={tag} />
-                    ))}
-                  </datalist>
-                  <div className="hint">Pinch to zoom, drag to pan.</div>
-                </div>
+                    <label className="control">
+                      <span>Add tag</span>
+                      <div className="tag-input-row">
+                        <input
+                          list={suggestionId}
+                          value={tagInput}
+                          onChange={(event) => setTagInput(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault();
+                              handleAddTag();
+                            }
+                          }}
+                          placeholder="Type a tag…"
+                        />
+                        <button
+                          className="button"
+                          type="button"
+                          onClick={handleAddTag}
+                          disabled={!tagInput.trim()}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </label>
+                    {suggestions.length > 0 && (
+                      <div className="tag-chip-list tag-suggestions">
+                        {suggestions.map((tag) => (
+                          <button
+                            key={tag}
+                            className="tag-chip"
+                            type="button"
+                            onClick={() => handleAddTagValue(tag)}
+                            title="Add tag"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <datalist id={suggestionId}>
+                      {suggestions.map((tag) => (
+                        <option key={tag} value={tag} />
+                      ))}
+                    </datalist>
+                    <div className="hint">Pinch to zoom, drag to pan.</div>
+                  </div>
+                )}
+                {modalTool === 'rating' && (
+                  <div className="tool-panel rating-panel">
+                    <span className="rating-panel-title">Rate this image</span>
+                    <RatingStars
+                      value={image.rating}
+                      onChange={onRate}
+                      allowClear
+                      label="Image rating"
+                    />
+                    <span className="hint">
+                      Click a star to rate. Click the same star to clear.
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
