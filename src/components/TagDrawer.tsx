@@ -39,11 +39,6 @@ export default function TagDrawer({
             Close
           </button>
         </div>
-        <div className="drawer-actions">
-          <button className="button" type="button" onClick={onSync}>
-            Sync
-          </button>
-        </div>
         <div className="drawer-content">
           <button
             type="button"
@@ -74,6 +69,11 @@ export default function TagDrawer({
               <span className="drawer-count">{count}</span>
             </button>
           ))}
+        </div>
+        <div className="drawer-footer">
+          <button className="button" type="button" onClick={onSync}>
+            Sync
+          </button>
         </div>
       </aside>
     </>

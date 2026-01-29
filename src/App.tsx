@@ -594,6 +594,8 @@ export default function App() {
       {selectedImage && (
         <ImageModal
           image={selectedImage}
+          index={selectedIndex}
+          total={filteredImages.length}
           modalTool={modalTool}
           availableTags={availableTags}
           onUpdateTags={(tags) => handleUpdateTags(selectedImage.id, tags)}

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.12] - 2026-01-29
+
+### Changed
+- Added a bottom bar progress indicator for the active image and reset zoom/position more aggressively on mobile.
+- Restyled the tag drawer with a sticky bottom action area and improved layout spacing.
+
 ## [0.2.11] - 2026-01-29
 
 ### Changed

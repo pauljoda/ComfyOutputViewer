@@ -557,23 +557,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 18px 10px;
+  padding: 18px 18px 12px;
   font-size: 16px;
   font-weight: 600;
-}
-
-.drawer-actions {
-  display: flex;
-  gap: 10px;
-  padding: 0 12px 12px;
+  border-bottom: 1px solid var(--card-border);
 }
 
 .drawer-content {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 12px 18px;
+  padding: 12px 12px 18px;
   overflow-y: auto;
+  flex: 1;
+}
+
+.drawer-footer {
+  padding: 12px 12px calc(16px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--card-border);
+  background: var(--card);
 }
 
 .drawer-item {
@@ -724,6 +726,21 @@ body {
   gap: 8px;
   align-items: center;
   flex-wrap: nowrap;
+}
+
+.modal-bottombar-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+}
+
+.modal-progress {
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245, 241, 234, 0.68);
+  font-variant-numeric: tabular-nums;
 }
 
 .modal-actions-primary {
@@ -998,6 +1015,11 @@ body {
 
   .modal-actions {
     gap: 6px;
+  }
+
+  .modal-progress {
+    font-size: 11px;
+    letter-spacing: 0.06em;
   }
 
 

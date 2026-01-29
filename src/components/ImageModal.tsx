@@ -7,6 +7,8 @@ import { normalizeTagInput } from '../utils/tags';
 
 type ImageModalProps = {
   image: ImageItem;
+  index: number;
+  total: number;
   modalTool: ModalTool;
   availableTags: string[];
   onUpdateTags: (tags: string[]) => void;
@@ -21,6 +23,8 @@ type ImageModalProps = {
 
 export default function ImageModal({
   image,
+  index,
+  total,
   modalTool,
   availableTags,
   onUpdateTags,
@@ -77,6 +81,7 @@ export default function ImageModal({
   };
 
   const handleImageLoad = () => {
+    transformRef.current?.resetTransform(0);
     transformRef.current?.centerView(1, 0);
     scaleRef.current = 1;
   };
@@ -177,6 +182,7 @@ export default function ImageModal({
     scaleRef.current = 1;
     isPanningRef.current = false;
     isPinchingRef.current = false;
+    transformRef.current?.resetTransform(0);
     transformRef.current?.centerView(1, 0);
     setSwipeIncoming(true);
     const timer = window.setTimeout(() => {
@@ -486,6 +492,9 @@ export default function ImageModal({
                     />
                   </svg>
                 </button>
+              </div>
+              <div className="modal-progress" aria-live="polite">
+                {total > 0 ? `${index + 1}/${total}` : ''}
               </div>
               <div className="modal-actions modal-actions-secondary">
                 <button className="tool-button" type="button" onClick={handleZoomOut} title="Zoom out">
