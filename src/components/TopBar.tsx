@@ -465,7 +465,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                       </button>
                     ))}
                   </div>
-                  <div className="tag-input-row">
+                  {/* <div className="tag-input-row">
                     <input
                       list="tag-filter-suggestions"
                       value={tagInput}
@@ -493,7 +493,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     >
                       Add
                     </button>
-                  </div>
+                  </div> */}
                   {filterSuggestions.length > 0 && (
                     <div className="tag-chip-list tag-suggestions">
                       {filterSuggestions.map((tag) => (
