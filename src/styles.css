@@ -632,11 +632,12 @@ body {
   flex-direction: column;
   z-index: 20;
   color: #f5f1ea;
+  --modal-bar-height: 58px;
 }
 
 .modal-topbar,
 .modal-bottombar {
-  min-height: 58px;
+  min-height: var(--modal-bar-height);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -669,7 +670,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .modal-title-group {
@@ -677,6 +678,7 @@ body {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 0 0 auto;
 }
 
 .modal-topbar .tool-button,
@@ -716,20 +718,11 @@ body {
   z-index: 3;
 }
 
-.modal-title {
-  font-size: 15px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: min(56vw, 520px);
-}
-
 .modal-actions {
   display: flex;
   gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .modal-actions-primary {
@@ -749,6 +742,22 @@ body {
   width: 100%;
   overflow: visible;
   min-height: 0;
+  position: relative;
+}
+
+.modal-caption {
+  position: absolute;
+  left: clamp(12px, 3vw, 20px);
+  bottom: calc(var(--modal-bar-height) + 12px + env(safe-area-inset-bottom));
+  max-width: min(72vw, 560px);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgba(245, 241, 234, 0.65);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 .zoom-wrapper,
@@ -957,6 +966,10 @@ body {
 }
 
 @media (max-width: 600px) {
+  .modal {
+    --modal-bar-height: 52px;
+  }
+
   .top-bar {
     padding: 14px;
   }
@@ -987,20 +1000,24 @@ body {
   .modal-topbar,
   .modal-bottombar {
     padding: 10px 12px;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .modal-title {
-    max-width: 52vw;
+  .modal-topbar .tool-button,
+  .modal-bottombar .tool-button {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
-  .modal-bottombar-row {
-    flex-direction: column;
-    align-items: stretch;
+  .modal-actions {
+    gap: 6px;
   }
 
-  .modal-bottombar-row .modal-actions {
-    justify-content: space-between;
+  .modal-caption {
+    bottom: calc(var(--modal-bar-height) + 8px + env(safe-area-inset-bottom));
+    max-width: 78vw;
+    font-size: 10px;
   }
 
   .modal-tool-popover {

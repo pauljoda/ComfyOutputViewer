@@ -1,6 +1,7 @@
 import type { TouchEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
 import { normalizeTagInput } from '../utils/tags';
 
@@ -39,6 +40,7 @@ export default function ImageModal({
   const isPanningRef = useRef(false);
   const isPinchingRef = useRef(false);
   const scaleRef = useRef(1);
+  const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
   const prevImageRef = useRef<ImageItem | null>(null);
@@ -66,6 +68,18 @@ export default function ImageModal({
 
   const handleDelete = () => {
     onDelete();
+  };
+
+  const handleZoomIn = () => {
+    transformRef.current?.zoomIn(0.35);
+  };
+
+  const handleZoomOut = () => {
+    transformRef.current?.zoomOut(0.35);
+  };
+
+  const handleResetZoom = () => {
+    transformRef.current?.resetTransform();
   };
 
   const tagQuery = normalizeTagInput(tagInput);
@@ -215,6 +229,7 @@ export default function ImageModal({
   return (
     <div className="modal" role="dialog" aria-modal="true">
       <TransformWrapper
+        ref={transformRef}
         initialScale={1}
         minScale={0.5}
         maxScale={6}
@@ -241,263 +256,266 @@ export default function ImageModal({
           scaleRef.current = state.scale;
         }}
       >
-        {({ zoomIn, zoomOut, resetTransform }) => (
-          <>
-            <div className="modal-topbar" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-topbar-row">
-                <div className="modal-title-group">
-                  <button
-                    className="tool-button modal-close"
-                    type="button"
-                    onClick={handleClose}
-                    title="Close"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M6 6l12 12M18 6l-12 12"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                  <div className="modal-title" title={image.name}>
-                    {image.name}
-                  </div>
-                </div>
-                <div className="modal-actions modal-actions-primary">
-                  <button
-                    className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
-                    type="button"
-                    onClick={handleToggleTags}
-                    title="Tags"
-                  >
-                    #
-                  </button>
-                  <button
-                    className={image.favorite ? 'tool-button active' : 'tool-button'}
-                    type="button"
-                    onClick={onToggleFavorite}
-                    title="Favorite"
-                  >
-                    ★
-                  </button>
-                  <button
-                    className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
-                    type="button"
-                    onClick={onToggleHidden}
-                    title="Hide"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                      />
-                      <path
-                        d="M4 4l16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    className="tool-button danger"
-                    type="button"
-                    onClick={handleDelete}
-                    title="Remove"
-                    aria-label="Remove"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 7h16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
+        <>
+          <div className="modal-topbar" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-topbar-row">
+              <div className="modal-title-group">
+                <button
+                  className="tool-button modal-close"
+                  type="button"
+                  onClick={handleClose}
+                  title="Close"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M6 6l12 12M18 6l-12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
               </div>
+              <div className="modal-actions modal-actions-primary">
+                <button
+                  className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
+                  type="button"
+                  onClick={handleToggleTags}
+                  title="Tags"
+                >
+                  #
+                </button>
+                <button
+                  className={image.favorite ? 'tool-button active' : 'tool-button'}
+                  type="button"
+                  onClick={onToggleFavorite}
+                  title="Favorite"
+                >
+                  ★
+                </button>
+                <button
+                  className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
+                  type="button"
+                  onClick={onToggleHidden}
+                  title="Hide"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="M4 4l16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="tool-button danger"
+                  type="button"
+                  onClick={handleDelete}
+                  title="Remove"
+                  aria-label="Remove"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 7h16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
 
-              {modalTool === 'tags' && (
-                <div className="modal-tool-popover">
-                  <div className="tool-panel tag-editor">
-                    <div className="tag-chip-list">
-                      {image.tags.length === 0 && (
-                        <span className="tag-empty">No tags yet.</span>
-                      )}
-                      {image.tags.map((tag) => (
+            {modalTool === 'tags' && (
+              <div className="modal-tool-popover">
+                <div className="tool-panel tag-editor">
+                  <div className="tag-chip-list">
+                    {image.tags.length === 0 && (
+                      <span className="tag-empty">No tags yet.</span>
+                    )}
+                    {image.tags.map((tag) => (
+                      <button
+                        key={tag}
+                        className="tag-chip"
+                        type="button"
+                        onClick={() => handleRemoveTag(tag)}
+                        title="Remove tag"
+                      >
+                        {tag}
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    ))}
+                  </div>
+                  <label className="control">
+                    <span>Add tag</span>
+                    <div className="tag-input-row">
+                      <input
+                        list={suggestionId}
+                        value={tagInput}
+                        onChange={(event) => setTagInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleAddTag();
+                          }
+                        }}
+                        placeholder="Type a tag…"
+                      />
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={handleAddTag}
+                        disabled={!tagInput.trim()}
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </label>
+                  {suggestions.length > 0 && (
+                    <div className="tag-chip-list tag-suggestions">
+                      {suggestions.map((tag) => (
                         <button
                           key={tag}
                           className="tag-chip"
                           type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          title="Remove tag"
+                          onClick={() => handleAddTagValue(tag)}
+                          title="Add tag"
                         >
                           {tag}
-                          <span aria-hidden="true">×</span>
                         </button>
                       ))}
                     </div>
-                    <label className="control">
-                      <span>Add tag</span>
-                      <div className="tag-input-row">
-                        <input
-                          list={suggestionId}
-                          value={tagInput}
-                          onChange={(event) => setTagInput(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              handleAddTag();
-                            }
-                          }}
-                          placeholder="Type a tag…"
-                        />
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={handleAddTag}
-                          disabled={!tagInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </label>
-                    {suggestions.length > 0 && (
-                      <div className="tag-chip-list tag-suggestions">
-                        {suggestions.map((tag) => (
-                          <button
-                            key={tag}
-                            className="tag-chip"
-                            type="button"
-                            onClick={() => handleAddTagValue(tag)}
-                            title="Add tag"
-                          >
-                            {tag}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <datalist id={suggestionId}>
-                      {suggestions.map((tag) => (
-                        <option key={tag} value={tag} />
-                      ))}
-                    </datalist>
-                    <div className="hint">Pinch to zoom, drag to pan.</div>
-                  </div>
+                  )}
+                  <datalist id={suggestionId}>
+                    {suggestions.map((tag) => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
+                  <div className="hint">Pinch to zoom, drag to pan.</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="modal-body"
+            onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+            onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+            onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+          >
+            <div className="modal-stage">
+              {swipeOutgoing && (
+                <div className={`modal-swipe-out ${swipeOutgoing.direction}`} aria-hidden="true">
+                  <img className="modal-image" src={swipeOutgoing.image.url} alt="" />
                 </div>
               )}
+              <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
+                <img
+                  className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
+                  src={image.url}
+                  alt={image.name}
+                />
+              </TransformComponent>
             </div>
+            <div className="modal-caption" title={image.name}>
+              {image.name}
+            </div>
+          </div>
 
-            <div
-              className="modal-body"
-              onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
-              onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
-              onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerEnd}
-              onPointerCancel={handlePointerEnd}
-            >
-              <div className="modal-stage">
-                {swipeOutgoing && (
-                  <div className={`modal-swipe-out ${swipeOutgoing.direction}`} aria-hidden="true">
-                    <img className="modal-image" src={swipeOutgoing.image.url} alt="" />
-                  </div>
-                )}
-                <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
-                  <img
-                    className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
-                    src={image.url}
-                    alt={image.name}
-                  />
-                </TransformComponent>
+          <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-bottombar-row">
+              <div className="modal-actions modal-actions-primary">
+                <button className="tool-button" type="button" onClick={handlePrev} title="Previous">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M15 6l-6 6 6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button className="tool-button" type="button" onClick={handleNext} title="Next">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M9 6l6 6-6 6"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="modal-actions modal-actions-secondary">
+                <button className="tool-button" type="button" onClick={handleZoomOut} title="Zoom out">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M5 12h14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button className="tool-button" type="button" onClick={handleZoomIn} title="Zoom in">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5v14M5 12h14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="tool-button"
+                  type="button"
+                  onClick={handleResetZoom}
+                  title="Reset"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
-
-            <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-bottombar-row">
-                <div className="modal-actions modal-actions-primary">
-                  <button className="tool-button" type="button" onClick={handlePrev} title="Previous">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M15 6l-6 6 6 6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button className="tool-button" type="button" onClick={handleNext} title="Next">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M9 6l6 6-6 6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div className="modal-actions modal-actions-secondary">
-                  <button className="tool-button" type="button" onClick={zoomOut} title="Zoom out">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M5 12h14"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                  <button className="tool-button" type="button" onClick={zoomIn} title="Zoom in">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M12 5v14M5 12h14"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </button>
-                  <button className="tool-button" type="button" onClick={resetTransform} title="Reset">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+          </div>
+        </>
       </TransformWrapper>
     </div>
   );

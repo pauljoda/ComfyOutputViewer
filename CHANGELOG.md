@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.9] - 2026-01-29
+
+### Changed
+- Kept modal action bars single-row on mobile and moved the filename into a subtle caption above the bottom bar.
+- Wired zoom controls directly to the transform ref for reliable button-based zooming.
+
 ## [0.2.8] - 2026-01-29
 
 ### Changed
