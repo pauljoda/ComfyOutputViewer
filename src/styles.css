@@ -742,22 +742,6 @@ body {
   width: 100%;
   overflow: visible;
   min-height: 0;
-  position: relative;
-}
-
-.modal-caption {
-  position: absolute;
-  left: clamp(12px, 3vw, 20px);
-  bottom: calc(var(--modal-bar-height) + 12px + env(safe-area-inset-bottom));
-  max-width: min(72vw, 560px);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: rgba(245, 241, 234, 0.65);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
 }
 
 .zoom-wrapper,
@@ -1014,11 +998,6 @@ body {
     gap: 6px;
   }
 
-  .modal-caption {
-    bottom: calc(var(--modal-bar-height) + 8px + env(safe-area-inset-bottom));
-    max-width: 78vw;
-    font-size: 10px;
-  }
 
   .modal-tool-popover {
     right: 12px;

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.10] - 2026-01-29
+
+### Changed
+- Removed the modal filename caption and reset zoom on image changes with a pop-in transition.
+- Updated the reset zoom icon for clearer intent.
+
 ## [0.2.9] - 2026-01-29
 
 ### Changed

@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Removed the modal filename caption, reset zoom on image change, and simplified the swipe transition.
 - Kept modal action bars single-row on mobile, moved the filename to a bottom-left caption, and wired zoom buttons to the transform ref.
 - Split the modal detail view into top action and bottom navigation/zoom bars with refreshed styling.
 - Replaced folder navigation with tag-based organization and filtering.

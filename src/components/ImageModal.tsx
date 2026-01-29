@@ -36,18 +36,12 @@ export default function ImageModal({
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
-  const lastSwipeDirRef = useRef<'left' | 'right' | null>(null);
   const isPanningRef = useRef(false);
   const isPinchingRef = useRef(false);
   const scaleRef = useRef(1);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
-  const prevImageRef = useRef<ImageItem | null>(null);
-  const [swipeOutgoing, setSwipeOutgoing] = useState<{
-    image: ImageItem;
-    direction: 'left' | 'right';
-  } | null>(null);
   const [swipeIncoming, setSwipeIncoming] = useState(false);
 
   const handlePrev = () => {
@@ -160,7 +154,6 @@ export default function ImageModal({
 
     if (absX > absY * axisRatio) {
       lastSwipeAtRef.current = Date.now();
-      lastSwipeDirRef.current = dx < 0 ? 'left' : 'right';
       if (dx < 0) {
         handleNext();
       } else {
@@ -177,24 +170,14 @@ export default function ImageModal({
   };
 
   useEffect(() => {
-    const previous = prevImageRef.current;
-    prevImageRef.current = image;
-    if (previous && previous.id !== image.id) {
-      const now = Date.now();
-      const recentSwipe = now - lastSwipeAtRef.current < 650;
-      const direction = lastSwipeDirRef.current;
-      if (recentSwipe && direction) {
-        setSwipeOutgoing({ image: previous, direction });
-        setSwipeIncoming(true);
-        const timer = window.setTimeout(() => {
-          setSwipeOutgoing(null);
-          setSwipeIncoming(false);
-        }, 280);
-        return () => window.clearTimeout(timer);
-      }
-    }
-    return undefined;
-  }, [image]);
+    transformRef.current?.resetTransform(0);
+    scaleRef.current = 1;
+    setSwipeIncoming(true);
+    const timer = window.setTimeout(() => {
+      setSwipeIncoming(false);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [image.id]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { x: event.clientX, y: event.clientY };
@@ -415,34 +398,26 @@ export default function ImageModal({
             )}
           </div>
 
-          <div
-            className="modal-body"
-            onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
-            onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
-            onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerEnd}
-            onPointerCancel={handlePointerEnd}
-          >
-            <div className="modal-stage">
-              {swipeOutgoing && (
-                <div className={`modal-swipe-out ${swipeOutgoing.direction}`} aria-hidden="true">
-                  <img className="modal-image" src={swipeOutgoing.image.url} alt="" />
-                </div>
-              )}
-              <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
-                <img
-                  className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
-                  src={image.url}
-                  alt={image.name}
-                />
-              </TransformComponent>
+            <div
+              className="modal-body"
+              onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+              onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+              onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
+            >
+              <div className="modal-stage">
+                <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
+                  <img
+                    className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
+                    src={image.url}
+                    alt={image.name}
+                  />
+                </TransformComponent>
+              </div>
             </div>
-            <div className="modal-caption" title={image.name}>
-              {image.name}
-            </div>
-          </div>
 
           <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>
             <div className="modal-bottombar-row">
@@ -503,10 +478,17 @@ export default function ImageModal({
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path
-                      d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
+                      d="M12 5a7 7 0 1 1-6.4 9.8"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.6"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M5 5v4h4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
