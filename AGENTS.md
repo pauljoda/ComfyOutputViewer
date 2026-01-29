@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Split the modal detail view into top action and bottom navigation/zoom bars with refreshed styling.
 - Replaced folder navigation with tag-based organization and filtering.
 - Added tag editing in the modal with create-or-select suggestions.
 - Introduced tag counts in the drawer plus an untagged view shortcut.

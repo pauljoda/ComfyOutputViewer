@@ -31,7 +31,6 @@ export default function ImageModal({
   onPrev,
   onNext
 }: ImageModalProps) {
-  const [overflowOpen, setOverflowOpen] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -50,27 +49,22 @@ export default function ImageModal({
   const [swipeIncoming, setSwipeIncoming] = useState(false);
 
   const handlePrev = () => {
-    setOverflowOpen(false);
     onPrev();
   };
 
   const handleNext = () => {
-    setOverflowOpen(false);
     onNext();
   };
 
   const handleClose = () => {
-    setOverflowOpen(false);
     onClose();
   };
 
   const handleToggleTags = () => {
-    setOverflowOpen(false);
     onToggleTags();
   };
 
   const handleDelete = () => {
-    setOverflowOpen(false);
     onDelete();
   };
 
@@ -249,48 +243,15 @@ export default function ImageModal({
       >
         {({ zoomIn, zoomOut, resetTransform }) => (
           <>
-            <div className="modal-toolbar" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-toolbar-row">
-                <div className="modal-title">{image.name}</div>
-                <div className="modal-actions modal-actions-primary">
-                  <button className="tool-button" type="button" onClick={handlePrev} title="Previous">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M15 6l-6 6 6 6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button className="tool-button" type="button" onClick={handleNext} title="Next">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M9 6l6 6-6 6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
+            <div className="modal-topbar" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-topbar-row">
+                <div className="modal-title-group">
                   <button
-                    className="tool-button modal-overflow-toggle"
+                    className="tool-button modal-close"
                     type="button"
-                    onClick={() => setOverflowOpen((open) => !open)}
-                    title="More actions"
-                    aria-expanded={overflowOpen}
+                    onClick={handleClose}
+                    title="Close"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="6" cy="12" r="1.6" fill="currentColor" />
-                      <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-                      <circle cx="18" cy="12" r="1.6" fill="currentColor" />
-                    </svg>
-                  </button>
-                  <button className="tool-button" type="button" onClick={handleClose} title="Close">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         d="M6 6l12 12M18 6l-12 12"
@@ -301,213 +262,76 @@ export default function ImageModal({
                       />
                     </svg>
                   </button>
-                </div>
-              </div>
-              <div className="modal-actions modal-actions-secondary">
-                <button className="tool-button" type="button" onClick={zoomOut} title="Zoom out">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M5 12h14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <button className="tool-button" type="button" onClick={zoomIn} title="Zoom in">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5v14M5 12h14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <button className="tool-button" type="button" onClick={resetTransform} title="Reset">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-                <button
-                  className={image.favorite ? 'tool-button active' : 'tool-button'}
-                  type="button"
-                  onClick={onToggleFavorite}
-                  title="Favorite"
-                >
-                  ★
-                </button>
-                <button
-                  className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
-                  type="button"
-                  onClick={onToggleHidden}
-                  title="Hide"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                    />
-                    <path
-                      d="M4 4l16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <button
-                  className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
-                  type="button"
-                  onClick={handleToggleTags}
-                  title="Tags"
-                >
-                  #
-                </button>
-                <button
-                  className="tool-button danger"
-                  type="button"
-                  onClick={handleDelete}
-                  title="Remove"
-                  aria-label="Remove"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M4 7h16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-
-              {overflowOpen && (
-                <div className="modal-overflow">
-                  <div className="modal-overflow-panel">
-                    <button className="tool-button" type="button" onClick={zoomOut} title="Zoom out">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M5 12h14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                    <button className="tool-button" type="button" onClick={zoomIn} title="Zoom in">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M12 5v14M5 12h14"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                    <button className="tool-button" type="button" onClick={resetTransform} title="Reset">
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      className={image.favorite ? 'tool-button active' : 'tool-button'}
-                      type="button"
-                      onClick={onToggleFavorite}
-                      title="Favorite"
-                    >
-                      ★
-                    </button>
-                    <button
-                      className={
-                        image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'
-                      }
-                      type="button"
-                      onClick={onToggleHidden}
-                      title="Hide"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                        />
-                        <path
-                          d="M4 4l16 16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
-                      type="button"
-                      onClick={handleToggleTags}
-                      title="Tags"
-                    >
-                      #
-                    </button>
-                    <button
-                      className="tool-button danger"
-                      type="button"
-                      onClick={handleDelete}
-                      title="Remove"
-                      aria-label="Remove"
-                    >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M4 7h16"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.6"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
+                  <div className="modal-title" title={image.name}>
+                    {image.name}
                   </div>
                 </div>
-              )}
+                <div className="modal-actions modal-actions-primary">
+                  <button
+                    className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
+                    type="button"
+                    onClick={handleToggleTags}
+                    title="Tags"
+                  >
+                    #
+                  </button>
+                  <button
+                    className={image.favorite ? 'tool-button active' : 'tool-button'}
+                    type="button"
+                    onClick={onToggleFavorite}
+                    title="Favorite"
+                  >
+                    ★
+                  </button>
+                  <button
+                    className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
+                    type="button"
+                    onClick={onToggleHidden}
+                    title="Hide"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
+                      <path
+                        d="M4 4l16 16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    className="tool-button danger"
+                    type="button"
+                    onClick={handleDelete}
+                    title="Remove"
+                    aria-label="Remove"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 7h16"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
 
               {modalTool === 'tags' && (
                 <div className="modal-tool-popover">
@@ -605,9 +429,71 @@ export default function ImageModal({
                 </TransformComponent>
               </div>
             </div>
-            <div className="modal-footer">
-              <div className="modal-filename" title={image.name}>
-                {image.name}
+
+            <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-bottombar-row">
+                <div className="modal-actions modal-actions-primary">
+                  <button className="tool-button" type="button" onClick={handlePrev} title="Previous">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M15 6l-6 6 6 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button className="tool-button" type="button" onClick={handleNext} title="Next">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M9 6l6 6-6 6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="modal-actions modal-actions-secondary">
+                  <button className="tool-button" type="button" onClick={zoomOut} title="Zoom out">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M5 12h14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                  <button className="tool-button" type="button" onClick={zoomIn} title="Zoom in">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 5v14M5 12h14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                  <button className="tool-button" type="button" onClick={resetTransform} title="Reset">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M8 6h4V2M8 6a8 8 0 1 0 2-2"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
           </>

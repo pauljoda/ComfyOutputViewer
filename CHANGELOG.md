@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.8] - 2026-01-29
+
+### Changed
+- Split the detail modal controls into dedicated top and bottom bars for actions and navigation/zoom.
+- Refined modal styling and spacing for a cleaner, mobile-friendly layout.
+
 ## [0.2.7] - 2026-01-28
 
 ### Added
