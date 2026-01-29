@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.2] - 2026-01-29
+
+### Changed
+- Restored card overlay actions to corner placement with rating in the bottom-left.
+
 ## [0.3.1] - 2026-01-29
 
 ### Changed

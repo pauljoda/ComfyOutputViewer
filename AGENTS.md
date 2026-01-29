@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Restored card overlay buttons to the correct corner layout with rating in the bottom-left.
 - Defaulted rating filters to Any/Any and added rating chips to gallery cards.
 - Added 5-star ratings with modal and bulk controls, rating-based filters/sort, and persisted rating metadata.
 - Swapped favorite icons to pink hearts and refreshed multi-select bulk actions to include rating.

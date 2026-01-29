@@ -581,19 +581,13 @@ body {
   border-color: rgba(211, 95, 59, 0.2);
 }
 
-.card-actions {
+.card-actions-top {
   display: flex;
   gap: 6px;
   width: 100%;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   pointer-events: auto;
-}
-
-.card-actions-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .card-action {
@@ -625,6 +619,7 @@ body {
   color: #f5f1ea;
   font-size: 12px;
   font-weight: 600;
+  align-self: flex-start;
 }
 
 .card-rating svg {
