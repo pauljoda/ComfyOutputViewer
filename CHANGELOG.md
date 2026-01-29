@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.9] - 2026-01-29
+
+### Added
+- Expanded the modal zoom debug overlay with viewport sizing, image completion, and render metrics.
+
 ## [0.3.8] - 2026-01-29
 
 ### Added

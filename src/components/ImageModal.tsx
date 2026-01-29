@@ -63,6 +63,7 @@ export default function ImageModal({
   const imageRef = useRef<HTMLImageElement | null>(null);
   const debugRafRef = useRef(0);
   const [debugInfo, setDebugInfo] = useState<null | Record<string, string>>(null);
+  const lastStateRef = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -110,7 +111,10 @@ export default function ImageModal({
     transformRef.current?.resetTransform(0);
   };
 
-  const scheduleDebugUpdate = (reason: string) => {
+  const scheduleDebugUpdate = (
+    reason: string,
+    stateOverride?: { scale: number; positionX: number; positionY: number }
+  ) => {
     if (!debugEnabled) return;
     if (debugRafRef.current) return;
     debugRafRef.current = window.requestAnimationFrame(() => {
@@ -118,10 +122,12 @@ export default function ImageModal({
       const wrapper = transformRef.current?.instance.wrapperComponent;
       const content = transformRef.current?.instance.contentComponent;
       const img = imageRef.current;
+      const modalBody = document.querySelector('.modal-body') as HTMLElement | null;
+      const modalStage = document.querySelector('.modal-stage') as HTMLElement | null;
       const wrapperRect = wrapper?.getBoundingClientRect();
       const contentRect = content?.getBoundingClientRect();
       const imgRect = img?.getBoundingClientRect();
-      const state = transformRef.current?.state;
+      const state = stateOverride || lastStateRef.current || transformRef.current?.state;
       const format = (value?: number) =>
         Number.isFinite(value) ? Number(value).toFixed(2) : 'n/a';
       const baseWidth =
@@ -131,6 +137,20 @@ export default function ImageModal({
       setDebugInfo({
         reason,
         image: image.name,
+        viewport: `${format(window.innerWidth)} x ${format(window.innerHeight)}`,
+        doc: `${format(document.documentElement.clientWidth)} x ${format(
+          document.documentElement.clientHeight
+        )}`,
+        body: modalBody
+          ? `${format(modalBody.getBoundingClientRect().width)} x ${format(
+              modalBody.getBoundingClientRect().height
+            )}`
+          : 'n/a',
+        stage: modalStage
+          ? `${format(modalStage.getBoundingClientRect().width)} x ${format(
+              modalStage.getBoundingClientRect().height
+            )}`
+          : 'n/a',
         wrapper: wrapperRect
           ? `${format(wrapperRect.width)} x ${format(wrapperRect.height)}`
           : 'n/a',
@@ -139,6 +159,9 @@ export default function ImageModal({
           : 'n/a',
         imgRect: imgRect ? `${format(imgRect.width)} x ${format(imgRect.height)}` : 'n/a',
         natural: img ? `${img.naturalWidth} x ${img.naturalHeight}` : 'n/a',
+        rendered: img ? `${img.width} x ${img.height}` : 'n/a',
+        client: img ? `${img.clientWidth} x ${img.clientHeight}` : 'n/a',
+        complete: img ? String(img.complete) : 'n/a',
         base: baseWidth && baseHeight ? `${format(baseWidth)} x ${format(baseHeight)}` : 'n/a',
         scale: format(state?.scale),
         fitScale: format(fitScaleRef.current),
@@ -190,6 +213,17 @@ export default function ImageModal({
       applyFitScale(img);
       scheduleDebugUpdate('load');
     });
+  };
+
+  const handleImageRef = (node: HTMLImageElement | null) => {
+    if (!node) return;
+    imageRef.current = node;
+    if (node.complete) {
+      window.requestAnimationFrame(() => {
+        applyFitScale(node);
+        scheduleDebugUpdate('ref-complete');
+      });
+    }
   };
 
   const tagQuery = normalizeTagInput(tagInput);
@@ -374,7 +408,8 @@ export default function ImageModal({
         }}
         onTransformed={(_, state) => {
           scaleRef.current = state.scale;
-          scheduleDebugUpdate('transform');
+          lastStateRef.current = state;
+          scheduleDebugUpdate('transform', state);
         }}
       >
         <>
@@ -626,6 +661,7 @@ export default function ImageModal({
                     src={image.url}
                     alt={image.name}
                     onLoad={handleImageLoad}
+                    ref={handleImageRef}
                   />
                 </TransformComponent>
               </div>
