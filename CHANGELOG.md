@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.15] - 2026-01-29
+
+### Added
+- Added a helper script to regenerate the Nix npm dependency hash and documented it in the workflow.
+
 ## [0.3.14] - 2026-01-29
 
 ### Fixed

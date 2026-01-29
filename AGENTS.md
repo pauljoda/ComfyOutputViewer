@@ -98,8 +98,9 @@ This is a living document. Keep it fully up to date with:
 
 Required steps before finishing any action (in order):
 1) Create a changelog entry in `CHANGELOG.md` (semantic versioning).
-2) Update this `AGENTS.md` with all changes and current projects.
-3) Add needed files to git, add non-needed files to `.gitignore`, and create a detailed commit.
+2) If npm dependencies or `package-lock.json` changed, run `scripts/update-npm-deps-hash.sh` and commit the updated `flake.nix`.
+3) Update this `AGENTS.md` with all changes and current projects.
+4) Add needed files to git, add non-needed files to `.gitignore`, and create a detailed commit.
 
 If a request is purely informational and makes no changes, do not commit.
 
@@ -109,6 +110,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Added `scripts/update-npm-deps-hash.sh` to refresh the Nix npm dependency hash and documented it in the workflow.
 - Forced the zoom content container to fill the stage so images respect max-height constraints.
 - Constrained modal images to the stage with inline sizing to avoid oversized initial renders in production.
 - Forced the modal zoom wrapper to fill the stage so production builds don't lock to image dimensions.
