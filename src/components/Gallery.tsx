@@ -7,13 +7,28 @@ type GalleryProps = {
   tileFit: TileFit;
   tileSize: number;
   columns: number;
+  multiSelect: boolean;
+  selectedIds: Set<string>;
   onSelectImage: (id: string) => void;
   onToggleFavorite: (image: ImageItem) => void;
   onToggleHidden: (image: ImageItem) => void;
 };
 
 const Gallery = React.forwardRef<HTMLElement, GalleryProps>(
-  ({ images, tileFit, tileSize, columns, onSelectImage, onToggleFavorite, onToggleHidden }, ref) => {
+  (
+    {
+      images,
+      tileFit,
+      tileSize,
+      columns,
+      multiSelect,
+      selectedIds,
+      onSelectImage,
+      onToggleFavorite,
+      onToggleHidden
+    },
+    ref
+  ) => {
     const [ratios, setRatios] = useState<Record<string, number>>({});
 
     const handleImageLoad = useCallback((id: string, element: HTMLImageElement) => {
@@ -52,6 +67,8 @@ const Gallery = React.forwardRef<HTMLElement, GalleryProps>(
             key={image.id}
             image={image}
             tileFit={tileFit}
+            selected={selectedIds.has(image.id)}
+            multiSelect={multiSelect}
             style={getContentStyle(image)}
             onSelect={() => onSelectImage(image.id)}
             onToggleFavorite={() => onToggleFavorite(image)}

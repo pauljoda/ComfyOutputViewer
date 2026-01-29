@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 - Exposed available tag suggestions as clickable chips in the filter and modal tag editors.
 - Prevented modal drag gestures from closing the detail view and limited swipe handling to touch devices.
 
+## [0.2.3] - 2026-01-28
+
+### Added
+- Added multi-select mode with bulk tag, hide, and favorite actions plus selection highlights.
+
 ## [0.2.0] - 2026-01-28
 
 ### Added

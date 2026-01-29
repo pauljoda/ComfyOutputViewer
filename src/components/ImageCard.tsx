@@ -4,6 +4,8 @@ import type { ImageItem, TileFit } from '../types';
 type ImageCardProps = {
   image: ImageItem;
   tileFit: TileFit;
+  selected: boolean;
+  multiSelect: boolean;
   style?: CSSProperties;
   onSelect: () => void;
   onToggleFavorite: () => void;
@@ -14,6 +16,8 @@ type ImageCardProps = {
 export default function ImageCard({
   image,
   tileFit,
+  selected,
+  multiSelect,
   style,
   onSelect,
   onToggleFavorite,
@@ -22,7 +26,9 @@ export default function ImageCard({
 }: ImageCardProps) {
   return (
     <button
-      className={`card ${tileFit} ${image.hidden ? 'hidden' : ''}`}
+      className={`card ${tileFit} ${image.hidden ? 'hidden' : ''} ${
+        selected ? 'selected' : ''
+      } ${multiSelect ? 'multi-select' : ''}`}
       type="button"
       onClick={onSelect}
       style={style}
@@ -42,6 +48,22 @@ export default function ImageCard({
         }}
       />
       <div className="card-overlay">
+        {multiSelect && (
+          <div className={selected ? 'card-select active' : 'card-select'} aria-hidden="true">
+            {selected && (
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6 12.5l3.2 3.2 8.2-8.4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+        )}
         <div className="card-actions">
           <button
             className={image.hidden ? 'card-action hide active' : 'card-action hide'}

@@ -45,6 +45,8 @@ export default function App() {
   const [showUntagged, setShowUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [multiSelect, setMultiSelect] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [modalTool, setModalTool] = useState<ModalTool>(null);
@@ -181,6 +183,12 @@ export default function App() {
     }
   }, [selectedImage]);
 
+  useEffect(() => {
+    if (!multiSelect) {
+      setSelectedIds([]);
+    }
+  }, [multiSelect]);
+
   const handleToggleFavorite = async (image: ImageItem) => {
     const nextValue = !image.favorite;
     setData((prev) => ({
@@ -251,6 +259,27 @@ export default function App() {
     setShowUntagged(true);
   };
 
+  const handleToggleMultiSelect = () => {
+    setMultiSelect((prev) => {
+      const next = !prev;
+      if (next) {
+        setSelectedId(null);
+        setActiveTool(null);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectedId = (imageId: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(imageId) ? prev.filter((id) => id !== imageId) : [...prev, imageId]
+    );
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds([]);
+  };
+
   const handleUpdateTags = async (imageId: string, nextTags: string[]) => {
     const normalized = normalizeTags(nextTags);
     setData((prev) => ({
@@ -264,6 +293,80 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({ path: imageId, tags: normalized })
       });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update tags');
+    }
+  };
+
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const selectedCount = selectedIds.length;
+
+  const handleBulkFavorite = async () => {
+    if (!selectedCount) return;
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        selectedIdSet.has(item.id) ? { ...item, favorite: true } : item
+      )
+    }));
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          api('/api/favorite', {
+            method: 'POST',
+            body: JSON.stringify({ path: id, value: true })
+          })
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update favorites');
+    }
+  };
+
+  const handleBulkHidden = async () => {
+    if (!selectedCount) return;
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) =>
+        selectedIdSet.has(item.id) ? { ...item, hidden: true } : item
+      )
+    }));
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          api('/api/hidden', {
+            method: 'POST',
+            body: JSON.stringify({ path: id, value: true })
+          })
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+    }
+  };
+
+  const handleBulkTag = async (value: string) => {
+    const normalized = normalizeTagInput(value);
+    if (!normalized || !selectedCount) return;
+    const nextTagsById = new Map<string, string[]>();
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) => {
+        if (!selectedIdSet.has(item.id)) return item;
+        const nextTags = normalizeTags([...item.tags, normalized]);
+        nextTagsById.set(item.id, nextTags);
+        return { ...item, tags: nextTags };
+      })
+    }));
+    try {
+      await Promise.all(
+        Array.from(nextTagsById.entries()).map(([id, tags]) =>
+          api('/api/tags', {
+            method: 'POST',
+            body: JSON.stringify({ path: id, tags })
+          })
+        )
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
     }
@@ -333,6 +436,14 @@ export default function App() {
     return Math.max(MIN_TILE_SIZE, Math.floor(available / effectiveColumns));
   }, [galleryWidth, effectiveColumns]);
 
+  const handleSelectImage = (imageId: string) => {
+    if (multiSelect) {
+      handleToggleSelectedId(imageId);
+    } else {
+      setSelectedId(imageId);
+    }
+  };
+
   return (
     <div
       className="app"
@@ -344,6 +455,8 @@ export default function App() {
         sourceDir={data.sourceDir}
         currentFilterLabel={currentFilterLabel}
         activeTool={activeTool}
+        multiSelect={multiSelect}
+        selectedCount={selectedCount}
         effectiveColumns={effectiveColumns}
         maxColumns={maxColumns}
         tileFit={tileFit}
@@ -360,6 +473,11 @@ export default function App() {
         }}
         onToggleTool={toggleTool}
         onDismissTool={() => setActiveTool(null)}
+        onToggleMultiSelect={handleToggleMultiSelect}
+        onClearSelection={handleClearSelection}
+        onBulkFavorite={handleBulkFavorite}
+        onBulkHidden={handleBulkHidden}
+        onBulkTag={handleBulkTag}
         onColumnsChange={setColumns}
         onTileFitChange={setTileFit}
         onSortModeChange={setSortMode}
@@ -412,7 +530,9 @@ export default function App() {
         tileFit={tileFit}
         tileSize={tileSize}
         columns={effectiveColumns}
-        onSelectImage={setSelectedId}
+        multiSelect={multiSelect}
+        selectedIds={selectedIdSet}
+        onSelectImage={handleSelectImage}
         onToggleFavorite={handleToggleFavorite}
         onToggleHidden={handleToggleHidden}
       />

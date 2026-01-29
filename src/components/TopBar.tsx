@@ -14,6 +14,8 @@ type TopBarProps = {
   sourceDir: string;
   currentFilterLabel: string;
   activeTool: ActiveTool;
+  multiSelect: boolean;
+  selectedCount: number;
   effectiveColumns: number;
   maxColumns: number;
   tileFit: TileFit;
@@ -27,6 +29,11 @@ type TopBarProps = {
   onOpenDrawer: () => void;
   onToggleTool: (tool: ToolPanel) => void;
   onDismissTool: () => void;
+  onToggleMultiSelect: () => void;
+  onClearSelection: () => void;
+  onBulkFavorite: () => void;
+  onBulkHidden: () => void;
+  onBulkTag: (tag: string) => void;
   onColumnsChange: (value: number) => void;
   onTileFitChange: (value: TileFit) => void;
   onSortModeChange: (value: SortMode) => void;
@@ -46,6 +53,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       sourceDir,
       currentFilterLabel,
       activeTool,
+      multiSelect,
+      selectedCount,
       effectiveColumns,
       maxColumns,
       tileFit,
@@ -59,6 +68,11 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onOpenDrawer,
       onToggleTool,
       onDismissTool,
+      onToggleMultiSelect,
+      onClearSelection,
+      onBulkFavorite,
+      onBulkHidden,
+      onBulkTag,
       onColumnsChange,
       onTileFitChange,
       onSortModeChange,
@@ -75,9 +89,14 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     const toolPopoverRef = useRef<HTMLDivElement | null>(null);
     const toolButtonsRef = useRef<HTMLDivElement | null>(null);
     const [tagInput, setTagInput] = React.useState('');
+    const [bulkTagInput, setBulkTagInput] = React.useState('');
     const tagQuery = normalizeTagInput(tagInput);
-    const tagSuggestions = availableTags.filter(
+    const filterSuggestions = availableTags.filter(
       (tag) => !selectedTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
+    );
+    const bulkTagQuery = normalizeTagInput(bulkTagInput);
+    const bulkTagSuggestions = availableTags.filter(
+      (tag) => !bulkTagQuery || tag.includes(bulkTagQuery)
     );
 
     const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
@@ -120,6 +139,46 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             </div>
 
             <div className="toolbar-actions" ref={toolButtonsRef}>
+              <button
+                className={multiSelect ? 'tool-button active' : 'tool-button'}
+                type="button"
+                onClick={onToggleMultiSelect}
+                aria-label="Multi-select"
+                title="Multi-select"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect
+                    x="4"
+                    y="4"
+                    width="7"
+                    height="7"
+                    rx="1.4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  />
+                  <rect
+                    x="13"
+                    y="4"
+                    width="7"
+                    height="7"
+                    rx="1.4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  />
+                  <rect
+                    x="4"
+                    y="13"
+                    width="7"
+                    height="7"
+                    rx="1.4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                  />
+                </svg>
+              </button>
               <button
                 className={activeTool === 'view' ? 'tool-button active' : 'tool-button'}
                 type="button"
@@ -187,6 +246,94 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             </div>
           </div>
         </div>
+
+        {multiSelect && (
+          <div className="bulk-row">
+            <div className="bulk-summary">
+              <span className="bulk-label">Multi-select</span>
+              <span className="bulk-count">{selectedCount} selected</span>
+              <button
+                className="ghost"
+                type="button"
+                onClick={onClearSelection}
+                disabled={selectedCount === 0}
+              >
+                Clear
+              </button>
+            </div>
+            <div className="bulk-actions">
+              <button
+                className="button"
+                type="button"
+                onClick={onBulkFavorite}
+                disabled={selectedCount === 0}
+              >
+                Favorite all
+              </button>
+              <button
+                className="button"
+                type="button"
+                onClick={onBulkHidden}
+                disabled={selectedCount === 0}
+              >
+                Hide all
+              </button>
+              <div className="tag-input-row bulk-tag-input">
+                <input
+                  list="bulk-tag-suggestions"
+                  value={bulkTagInput}
+                  onChange={(event) => setBulkTagInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      if (bulkTagInput.trim() && selectedCount > 0) {
+                        onBulkTag(bulkTagInput);
+                        setBulkTagInput('');
+                      }
+                    }
+                  }}
+                  placeholder="Tag selected…"
+                  aria-label="Tag selected"
+                  disabled={selectedCount === 0}
+                />
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => {
+                    onBulkTag(bulkTagInput);
+                    setBulkTagInput('');
+                  }}
+                  disabled={!bulkTagInput.trim() || selectedCount === 0}
+                >
+                  Tag all
+                </button>
+              </div>
+            </div>
+            {bulkTagSuggestions.length > 0 && selectedCount > 0 && (
+              <div className="tag-chip-list tag-suggestions">
+                {bulkTagSuggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    className="tag-chip"
+                    type="button"
+                    onClick={() => {
+                      onBulkTag(tag);
+                      setBulkTagInput('');
+                    }}
+                    title="Tag selected"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+            <datalist id="bulk-tag-suggestions">
+              {bulkTagSuggestions.map((tag) => (
+                <option key={tag} value={tag} />
+              ))}
+            </datalist>
+          </div>
+        )}
 
         {activeTool && (
           <div
@@ -333,9 +480,9 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                       Add
                     </button>
                   </div>
-                  {tagSuggestions.length > 0 && (
+                  {filterSuggestions.length > 0 && (
                     <div className="tag-chip-list tag-suggestions">
-                      {tagSuggestions.map((tag) => (
+                      {filterSuggestions.map((tag) => (
                         <button
                           key={tag}
                           className="tag-chip"
@@ -352,7 +499,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     </div>
                   )}
                   <datalist id="tag-filter-suggestions">
-                    {tagSuggestions.map((tag) => (
+                    {filterSuggestions.map((tag) => (
                       <option key={tag} value={tag} />
                     ))}
                   </datalist>
