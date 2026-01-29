@@ -2,8 +2,10 @@ import express from 'express';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
-import { existsSync } from 'fs';
+import { createHash } from 'crypto';
+import { createReadStream, existsSync } from 'fs';
 import dotenv from 'dotenv';
+import { DatabaseSync } from 'node:sqlite';
 
 dotenv.config();
 
@@ -25,7 +27,8 @@ const SOURCE_DIR = resolveDir(
 );
 const DATA_DIR = resolveDir(process.env.DATA_DIR || DEFAULT_DATA_DIR);
 const THUMB_DIR = path.join(DATA_DIR, '.thumbs');
-const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.json');
+const LEGACY_DB_PATH = path.join(DATA_DIR, '.comfy_viewer.json');
+const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.sqlite');
 const THUMB_MAX = Number(process.env.THUMB_MAX || 512);
 const THUMB_QUALITY = Number(process.env.THUMB_QUALITY || 72);
 const SYNC_INTERVAL_MS = Number(process.env.SYNC_INTERVAL_MS || 0);
@@ -40,13 +43,16 @@ app.use(express.json({ limit: '1mb' }));
 
 await ensureDir(DATA_DIR);
 await ensureDir(THUMB_DIR);
+const db = initDb();
+const statements = prepareStatements(db);
+await migrateLegacyDb();
 
 app.use('/images', express.static(DATA_DIR));
 
 app.get('/api/images', async (_req, res) => {
   try {
-    const db = await readDb();
-    const { images } = await listImages(DATA_DIR, db);
+    const metadata = loadMetadata();
+    const { images } = await listImages(DATA_DIR, metadata);
     res.json({
       images,
       sourceDir: SOURCE_DIR,
@@ -61,13 +67,7 @@ app.post('/api/favorite', async (req, res) => {
   try {
     const { path: relPath, value } = req.body || {};
     if (!relPath) return res.status(400).send('Missing path');
-    const db = await readDb();
-    if (value) {
-      db.favorites[relPath] = true;
-    } else {
-      delete db.favorites[relPath];
-    }
-    await writeDb(db);
+    setFavorite(relPath, Boolean(value));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update favorite');
@@ -80,16 +80,7 @@ app.post('/api/favorite/bulk', async (req, res) => {
     if (!Array.isArray(paths) || paths.length === 0) {
       return res.status(400).send('Missing paths');
     }
-    const db = await readDb();
-    for (const relPath of paths) {
-      if (typeof relPath !== 'string' || !relPath) continue;
-      if (value) {
-        db.favorites[relPath] = true;
-      } else {
-        delete db.favorites[relPath];
-      }
-    }
-    await writeDb(db);
+    setBulkFavorite(paths, Boolean(value));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update favorites');
@@ -100,13 +91,7 @@ app.post('/api/hidden', async (req, res) => {
   try {
     const { path: relPath, value } = req.body || {};
     if (!relPath) return res.status(400).send('Missing path');
-    const db = await readDb();
-    if (value) {
-      db.hidden[relPath] = true;
-    } else {
-      delete db.hidden[relPath];
-    }
-    await writeDb(db);
+    setHidden(relPath, Boolean(value));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update hidden state');
@@ -119,16 +104,7 @@ app.post('/api/hidden/bulk', async (req, res) => {
     if (!Array.isArray(paths) || paths.length === 0) {
       return res.status(400).send('Missing paths');
     }
-    const db = await readDb();
-    for (const relPath of paths) {
-      if (typeof relPath !== 'string' || !relPath) continue;
-      if (value) {
-        db.hidden[relPath] = true;
-      } else {
-        delete db.hidden[relPath];
-      }
-    }
-    await writeDb(db);
+    setBulkHidden(paths, Boolean(value));
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update hidden state');
@@ -139,14 +115,8 @@ app.post('/api/tags', async (req, res) => {
   try {
     const { path: relPath, tags } = req.body || {};
     if (!relPath) return res.status(400).send('Missing path');
-    const db = await readDb();
     const normalized = normalizeTags(tags);
-    if (normalized.length) {
-      db.tags[relPath] = normalized;
-    } else {
-      delete db.tags[relPath];
-    }
-    await writeDb(db);
+    setTagsForPath(relPath, normalized);
     res.json({ ok: true, tags: normalized });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update tags');
@@ -159,20 +129,34 @@ app.post('/api/tags/bulk', async (req, res) => {
     if (!Array.isArray(updates) || updates.length === 0) {
       return res.status(400).send('Missing updates');
     }
-    const db = await readDb();
-    for (const update of updates) {
-      if (!update || typeof update.path !== 'string' || !update.path) continue;
-      const normalized = normalizeTags(update.tags);
-      if (normalized.length) {
-        db.tags[update.path] = normalized;
-      } else {
-        delete db.tags[update.path];
-      }
-    }
-    await writeDb(db);
+    setBulkTags(updates);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update tags');
+  }
+});
+
+app.post('/api/delete', async (req, res) => {
+  try {
+    const { path: relPath } = req.body || {};
+    if (!relPath) return res.status(400).send('Missing path');
+    const result = await deleteImageByPath(relPath);
+    res.json(result);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to delete image');
+  }
+});
+
+app.post('/api/delete/bulk', async (req, res) => {
+  try {
+    const { paths } = req.body || {};
+    if (!Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).send('Missing paths');
+    }
+    const result = await deleteImagesByPath(paths);
+    res.json(result);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to delete images');
   }
 });
 
@@ -228,45 +212,194 @@ function isImageFile(fileName) {
   return IMAGE_EXTENSIONS.has(ext);
 }
 
-async function readDb() {
+function initDb() {
+  const database = new DatabaseSync(DB_PATH);
+  database.exec('PRAGMA journal_mode = WAL;');
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS meta (
+      path TEXT PRIMARY KEY,
+      favorite INTEGER NOT NULL DEFAULT 0,
+      hidden INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS tags (
+      path TEXT NOT NULL,
+      tag TEXT NOT NULL,
+      PRIMARY KEY (path, tag)
+    );
+    CREATE TABLE IF NOT EXISTS blacklist (
+      hash TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL
+    );
+  `);
+  return database;
+}
+
+function prepareStatements(database) {
+  return {
+    selectMeta: database.prepare('SELECT path, favorite, hidden FROM meta'),
+    selectTags: database.prepare('SELECT path, tag FROM tags ORDER BY path, tag'),
+    upsertFavorite: database.prepare(
+      'INSERT INTO meta (path, favorite) VALUES (?, ?) ON CONFLICT(path) DO UPDATE SET favorite = excluded.favorite'
+    ),
+    upsertHidden: database.prepare(
+      'INSERT INTO meta (path, hidden) VALUES (?, ?) ON CONFLICT(path) DO UPDATE SET hidden = excluded.hidden'
+    ),
+    deleteMeta: database.prepare('DELETE FROM meta WHERE path = ?'),
+    deleteTagsByPath: database.prepare('DELETE FROM tags WHERE path = ?'),
+    insertTag: database.prepare('INSERT OR IGNORE INTO tags (path, tag) VALUES (?, ?)'),
+    selectBlacklist: database.prepare('SELECT 1 FROM blacklist WHERE hash = ? LIMIT 1'),
+    insertBlacklist: database.prepare(
+      'INSERT OR IGNORE INTO blacklist (hash, created_at) VALUES (?, ?)'
+    ),
+    hasMeta: database.prepare('SELECT 1 FROM meta LIMIT 1'),
+    hasTags: database.prepare('SELECT 1 FROM tags LIMIT 1')
+  };
+}
+
+function runTransaction(task) {
+  db.exec('BEGIN');
   try {
-    const raw = await fs.readFile(DB_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    return {
-      favorites: parsed.favorites || {},
-      hidden: parsed.hidden || {},
-      tags: normalizeTagsByPath(parsed.tags || {})
-    };
-  } catch {
-    return { favorites: {}, hidden: {}, tags: {} };
+    const result = task();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
   }
 }
 
-async function writeDb(db) {
-  await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf8');
+function loadMetadata() {
+  const favorites = new Map();
+  const hidden = new Map();
+  const tagsByPath = new Map();
+  for (const row of statements.selectMeta.iterate()) {
+    if (row.favorite) {
+      favorites.set(row.path, true);
+    }
+    if (row.hidden) {
+      hidden.set(row.path, true);
+    }
+  }
+  for (const row of statements.selectTags.iterate()) {
+    const existing = tagsByPath.get(row.path);
+    if (existing) {
+      existing.push(row.tag);
+    } else {
+      tagsByPath.set(row.path, [row.tag]);
+    }
+  }
+  return { favorites, hidden, tagsByPath };
 }
 
-async function listImages(root, db) {
+function setFavorite(relPath, value) {
+  statements.upsertFavorite.run(relPath, value ? 1 : 0);
+}
+
+function setHidden(relPath, value) {
+  statements.upsertHidden.run(relPath, value ? 1 : 0);
+}
+
+function setBulkFavorite(paths, value) {
+  runTransaction(() => {
+    for (const relPath of paths) {
+      if (typeof relPath !== 'string' || !relPath) continue;
+      statements.upsertFavorite.run(relPath, value ? 1 : 0);
+    }
+  });
+}
+
+function setBulkHidden(paths, value) {
+  runTransaction(() => {
+    for (const relPath of paths) {
+      if (typeof relPath !== 'string' || !relPath) continue;
+      statements.upsertHidden.run(relPath, value ? 1 : 0);
+    }
+  });
+}
+
+function setTagsForPath(relPath, tags) {
+  runTransaction(() => {
+    statements.deleteTagsByPath.run(relPath);
+    for (const tag of tags) {
+      statements.insertTag.run(relPath, tag);
+    }
+  });
+}
+
+function setBulkTags(updates) {
+  runTransaction(() => {
+    for (const update of updates) {
+      if (!update || typeof update.path !== 'string' || !update.path) continue;
+      const normalized = normalizeTags(update.tags);
+      statements.deleteTagsByPath.run(update.path);
+      for (const tag of normalized) {
+        statements.insertTag.run(update.path, tag);
+      }
+    }
+  });
+}
+
+function addHashToBlacklist(hash) {
+  statements.insertBlacklist.run(hash, Date.now());
+}
+
+function isHashBlacklisted(hash) {
+  return Boolean(statements.selectBlacklist.get(hash));
+}
+
+async function migrateLegacyDb() {
+  if (!existsSync(LEGACY_DB_PATH)) return;
+  const hasMeta = statements.hasMeta.get();
+  const hasTags = statements.hasTags.get();
+  if (hasMeta || hasTags) return;
+  try {
+    const raw = await fs.readFile(LEGACY_DB_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    runTransaction(() => {
+      for (const [relPath, value] of Object.entries(parsed.favorites || {})) {
+        if (!value) continue;
+        statements.upsertFavorite.run(relPath, 1);
+      }
+      for (const [relPath, value] of Object.entries(parsed.hidden || {})) {
+        if (!value) continue;
+        statements.upsertHidden.run(relPath, 1);
+      }
+      for (const [relPath, tags] of Object.entries(parsed.tags || {})) {
+        const normalized = normalizeTags(tags);
+        if (!normalized.length) continue;
+        statements.deleteTagsByPath.run(relPath);
+        for (const tag of normalized) {
+          statements.insertTag.run(relPath, tag);
+        }
+      }
+    });
+    console.log('Migrated legacy JSON metadata into SQLite.');
+  } catch (err) {
+    console.warn('Failed to migrate legacy JSON metadata.', err);
+  }
+}
+
+async function listImages(root, metadata) {
   const images = [];
 
   if (!existsSync(root)) {
     return { images };
   }
 
-  await walkDir(root, '', images, db);
+  await walkDir(root, '', images, metadata);
 
   return { images };
 }
 
-async function walkDir(currentDir, relDir, images, db) {
+async function walkDir(currentDir, relDir, images, metadata) {
   const entries = await fs.readdir(currentDir, { withFileTypes: true });
   for (const entry of entries) {
-    if (entry.name === '.comfy_viewer.json') continue;
+    if (entry.name === '.comfy_viewer.json' || entry.name === '.comfy_viewer.sqlite') continue;
     if (entry.isDirectory() && entry.name === '.thumbs') continue;
     const entryPath = path.join(currentDir, entry.name);
     if (entry.isDirectory()) {
       const nextRel = relDir ? `${relDir}/${entry.name}` : entry.name;
-      await walkDir(entryPath, nextRel, images, db);
+      await walkDir(entryPath, nextRel, images, metadata);
     } else if (entry.isFile() && isImageFile(entry.name)) {
       const relPath = relDir ? `${relDir}/${entry.name}` : entry.name;
       const thumbRel = relDir
@@ -287,27 +420,15 @@ async function walkDir(currentDir, relDir, images, db) {
         name: entry.name,
         url: `/images/${encodeURI(relPath)}`,
         thumbUrl,
-        favorite: Boolean(db.favorites[relPath]),
-        hidden: Boolean(db.hidden[relPath]),
-        tags: db.tags[relPath] || [],
+        favorite: metadata.favorites.has(relPath),
+        hidden: metadata.hidden.has(relPath),
+        tags: metadata.tagsByPath.get(relPath) || [],
         createdMs,
         mtimeMs: stats.mtimeMs,
         size: stats.size
       });
     }
   }
-}
-
-function normalizeTagsByPath(tagsByPath) {
-  const normalized = {};
-  if (!tagsByPath || typeof tagsByPath !== 'object') return normalized;
-  for (const [relPath, tags] of Object.entries(tagsByPath)) {
-    const clean = normalizeTags(tags);
-    if (clean.length > 0) {
-      normalized[relPath] = clean;
-    }
-  }
-  return normalized;
 }
 
 function normalizeTags(tags) {
@@ -325,6 +446,85 @@ function normalizeTags(tags) {
   return Array.from(tagMap.values()).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
   );
+}
+
+function resolvePathWithinRoot(rootDir, relPath) {
+  const resolved = path.resolve(rootDir, relPath);
+  const relative = path.relative(rootDir, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('Invalid path');
+  }
+  return resolved;
+}
+
+function resolveDataPath(relPath) {
+  return resolvePathWithinRoot(DATA_DIR, relPath);
+}
+
+function resolveSourcePath(relPath) {
+  return resolvePathWithinRoot(SOURCE_DIR, relPath);
+}
+
+async function removeFileIfExists(filePath) {
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return;
+    throw err;
+  }
+}
+
+async function hashFile(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    const stream = createReadStream(filePath);
+    stream.on('error', reject);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+async function deleteImageByPath(relPath) {
+  const outcome = await deleteSingleImage(relPath);
+  return {
+    ok: true,
+    deleted: outcome.deleted ? 1 : 0,
+    blacklisted: outcome.blacklisted ? 1 : 0
+  };
+}
+
+async function deleteImagesByPath(paths) {
+  const results = [];
+  for (const relPath of paths) {
+    if (typeof relPath !== 'string' || !relPath) continue;
+    const outcome = await deleteSingleImage(relPath);
+    results.push(outcome);
+  }
+  const deleted = results.filter((entry) => entry.deleted).length;
+  const blacklisted = results.filter((entry) => entry.blacklisted).length;
+  return { ok: true, deleted, blacklisted };
+}
+
+async function deleteSingleImage(relPath) {
+  const dataPath = resolveDataPath(relPath);
+  const thumbPath = path.join(THUMB_DIR, `${relPath}.jpg`);
+  let hash;
+  if (existsSync(dataPath)) {
+    hash = await hashFile(dataPath);
+  } else {
+    const sourcePath = resolveSourcePath(relPath);
+    if (existsSync(sourcePath)) {
+      hash = await hashFile(sourcePath);
+    }
+  }
+  await removeFileIfExists(dataPath);
+  await removeFileIfExists(thumbPath);
+  if (hash) {
+    addHashToBlacklist(hash);
+  }
+  statements.deleteTagsByPath.run(relPath);
+  statements.deleteMeta.run(relPath);
+  return { ok: true, deleted: true, blacklisted: Boolean(hash) };
 }
 
 async function syncSourceToData() {
@@ -345,13 +545,16 @@ async function copyImages(sourceDir, targetDir, result, rel = '') {
       if (entry.name === '.thumbs') continue;
       await copyImages(sourcePath, targetDir, result, nextRel);
     } else if (entry.isFile() && isImageFile(entry.name)) {
+      result.scanned += 1;
       const targetPath = path.join(targetDir, nextRel);
       await ensureDir(path.dirname(targetPath));
-      let shouldCopy = true;
       const sourceStat = await fs.stat(sourcePath);
-      let targetStat = sourceStat;
+      let targetStat;
+      let targetExists = false;
+      let shouldCopy = true;
       try {
         targetStat = await fs.stat(targetPath);
+        targetExists = true;
         if (targetStat.mtimeMs >= sourceStat.mtimeMs && targetStat.size === sourceStat.size) {
           shouldCopy = false;
         }
@@ -359,12 +562,20 @@ async function copyImages(sourceDir, targetDir, result, rel = '') {
         shouldCopy = true;
       }
       if (shouldCopy) {
+        const hash = await hashFile(sourcePath);
+        if (isHashBlacklisted(hash)) {
+          await removeFileIfExists(targetPath);
+          await removeFileIfExists(path.join(THUMB_DIR, `${nextRel}.jpg`));
+          continue;
+        }
         await fs.copyFile(sourcePath, targetPath);
         result.copied += 1;
         targetStat = await fs.stat(targetPath);
+        targetExists = true;
       }
-      await ensureThumbnail(targetPath, nextRel, targetStat, result);
-      result.scanned += 1;
+      if (targetExists) {
+        await ensureThumbnail(targetPath, nextRel, targetStat, result);
+      }
     }
   }
 }

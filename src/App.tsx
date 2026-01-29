@@ -21,6 +21,7 @@ import {
   DEFAULT_SORT,
   type ActiveTool,
   type ApiResponse,
+  type DeleteResponse,
   type ImageItem,
   type ModalTool,
   type SortMode,
@@ -298,6 +299,31 @@ export default function App() {
     }
   };
 
+  const handleDeleteImage = async (image: ImageItem) => {
+    const confirmed = window.confirm(
+      `Remove "${image.name}"? It will be blacklisted from future syncs.`
+    );
+    if (!confirmed) return;
+    setSelectedId(null);
+    setModalTool(null);
+    setSelectedIds((prev) => prev.filter((id) => id !== image.id));
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.filter((item) => item.id !== image.id)
+    }));
+    try {
+      const response = await api<DeleteResponse>('/api/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path: image.id })
+      });
+      const suffix = response.blacklisted > 0 ? ' and blacklisted it from sync.' : '.';
+      setStatus(`Removed "${image.name}"${suffix}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete image');
+      await refresh();
+    }
+  };
+
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedCount = selectedIds.length;
 
@@ -539,6 +565,7 @@ export default function App() {
           }
           onToggleFavorite={() => handleToggleFavorite(selectedImage)}
           onToggleHidden={() => handleToggleHidden(selectedImage)}
+          onDelete={() => handleDeleteImage(selectedImage)}
           onClose={() => setSelectedId(null)}
           onPrev={movePrev}
           onNext={moveNext}

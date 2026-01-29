@@ -18,6 +18,7 @@ and managing images.
 - Hide hidden items on the All Images feed only.
 - Open a modal viewer with zoom/pan controls and toolbar actions.
 - Tag images with existing or newly created tags.
+- Remove images with a delete action that blacklists them from future syncs.
 
 ## Architecture
 
@@ -29,20 +30,23 @@ Responsibilities:
 - Serve image files from the data directory at `/images`.
 - Provide API endpoints for listing images, syncing, favorites, hidden state,
   and per-image tags.
-- Maintain a small JSON DB for metadata (favorites/hidden/tags).
+- Maintain a SQLite DB for metadata (favorites/hidden/tags) and hash blacklisting.
+- Uses Node's built-in `node:sqlite` module (experimental) for storage.
 - Generate thumbnails (if `sharp` is available).
 
 Important paths/config:
 - `COMFY_OUTPUT_DIR` or `OUTPUT_DIR`: source folder to sync from.
 - `DATA_DIR`: local data folder for images, thumbnails, and DB.
 - Thumbnails are stored in `.thumbs` under the data dir.
-- DB stored at `.comfy_viewer.json`.
+- DB stored at `.comfy_viewer.sqlite` (legacy `.comfy_viewer.json` migrates on boot).
 
 API endpoints:
 - `GET /api/images` -> `{ images, sourceDir, dataDir }`
 - `POST /api/favorite` -> `{ path, value }`
 - `POST /api/hidden` -> `{ path, value }`
 - `POST /api/tags` -> `{ path, tags }`
+- `POST /api/delete` -> `{ path }`
+- `POST /api/delete/bulk` -> `{ paths }`
 - `POST /api/sync` -> `{ scanned, copied, thumbnails? }`
 
 ### Client (Vite + React)
@@ -112,3 +116,5 @@ If a request is purely informational and makes no changes, do not commit.
 - Added visible tag suggestion chips in filter and modal editors and reduced modal drag-dismiss behavior.
 - Added multi-select mode with bulk tag/hide/favorite actions and selection styling.
 - Batched bulk tag/hide/favorite updates to avoid metadata overwrites during multi-select actions.
+- Switched metadata storage to SQLite with a JSON migration on startup.
+- Added modal delete action that blacklists image hashes to prevent re-sync.

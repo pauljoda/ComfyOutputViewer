@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.5] - 2026-01-28
+
+### Added
+- Switched metadata storage to SQLite with a migration from the legacy JSON DB.
+- Added a modal remove action that blacklists deleted images to prevent re-syncing.
+
+### Changed
+- Skip importing images whose hashes are blacklisted during sync.
+
 ## [0.2.1] - 2026-01-28
 
 ### Fixed

@@ -12,6 +12,7 @@ type ImageModalProps = {
   onToggleTags: () => void;
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
+  onDelete: () => void;
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -25,6 +26,7 @@ export default function ImageModal({
   onToggleTags,
   onToggleFavorite,
   onToggleHidden,
+  onDelete,
   onClose,
   onPrev,
   onNext
@@ -65,6 +67,11 @@ export default function ImageModal({
   const handleToggleTags = () => {
     setOverflowOpen(false);
     onToggleTags();
+  };
+
+  const handleDelete = () => {
+    setOverflowOpen(false);
+    onDelete();
   };
 
   const tagQuery = normalizeTagInput(tagInput);
@@ -369,6 +376,31 @@ export default function ImageModal({
                 >
                   #
                 </button>
+                <button
+                  className="tool-button danger"
+                  type="button"
+                  onClick={handleDelete}
+                  title="Remove"
+                  aria-label="Remove"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 7h16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
               </div>
 
               {overflowOpen && (
@@ -447,6 +479,31 @@ export default function ImageModal({
                       title="Tags"
                     >
                       #
+                    </button>
+                    <button
+                      className="tool-button danger"
+                      type="button"
+                      onClick={handleDelete}
+                      title="Remove"
+                      aria-label="Remove"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M4 7h16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </div>

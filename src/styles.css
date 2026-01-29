@@ -202,6 +202,11 @@ body {
   box-shadow: 0 10px 18px rgba(211, 95, 59, 0.18);
 }
 
+.tool-button.danger {
+  background: rgba(191, 79, 47, 0.18);
+  color: #b24a33;
+}
+
 .hamburger {
   width: 18px;
   height: 12px;
@@ -645,6 +650,12 @@ body {
   background: rgba(96, 24, 20, 0.65);
   color: #e2554f;
   box-shadow: 0 10px 18px rgba(96, 24, 20, 0.28);
+}
+
+.modal-toolbar .tool-button.danger {
+  background: rgba(96, 24, 20, 0.72);
+  color: #f06c5a;
+  box-shadow: 0 10px 18px rgba(96, 24, 20, 0.32);
 }
 
 .modal-overflow-toggle {

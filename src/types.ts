@@ -23,6 +23,12 @@ export type SyncResponse = {
   thumbnails?: number;
 };
 
+export type DeleteResponse = {
+  ok: boolean;
+  deleted: number;
+  blacklisted: number;
+};
+
 export type SortMode =
   | 'created-desc'
   | 'created-asc'
