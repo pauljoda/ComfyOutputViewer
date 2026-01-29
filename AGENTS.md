@@ -110,6 +110,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Fixed npmDepsHash mismatch in flake.nix to resolve Nix build errors (manually updated to sha256-gGHPHrhMb744d7YID7jHWHIAQ4rZeNQyWul258Ul9bM=).
 - Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.
 - Fixed the npm dependency hash update script to handle hash values containing slashes.
