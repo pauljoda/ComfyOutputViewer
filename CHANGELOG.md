@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-01-28
+
+### Fixed
+- Normalized tag data on load and while building tag counts so tag filters populate consistently.
+
 ## [0.2.0] - 2026-01-28
 
 ### Added

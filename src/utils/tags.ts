@@ -9,10 +9,12 @@ export type TagCount = {
 export const normalizeTagInput = (value: string) =>
   value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-export const normalizeTags = (tags: string[]) => {
+export const normalizeTags = (tags: unknown) => {
+  if (!Array.isArray(tags)) return [];
   const unique = new Set<string>();
-  for (const tag of tags) {
-    const normalized = normalizeTagInput(tag);
+  for (const entry of tags) {
+    if (typeof entry !== 'string') continue;
+    const normalized = normalizeTagInput(entry);
     if (!normalized) continue;
     unique.add(normalized);
   }
@@ -22,7 +24,7 @@ export const normalizeTags = (tags: string[]) => {
 export const buildTagCounts = (images: ImageItem[]) => {
   const counts = new Map<string, number>();
   for (const image of images) {
-    for (const tag of image.tags) {
+    for (const tag of normalizeTags(image.tags)) {
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }

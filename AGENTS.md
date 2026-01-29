@@ -108,3 +108,4 @@ If a request is purely informational and makes no changes, do not commit.
 - Introduced tag counts in the drawer plus an untagged view shortcut.
 - Updated server API and metadata storage to track tags per image.
 - Bumped `package.json` version to 0.2.0 and documented the release in `CHANGELOG.md`.
+- Normalized tag data on load and while building tag counts to keep tag filters populated.

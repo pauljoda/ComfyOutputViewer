@@ -79,7 +79,13 @@ export default function App() {
       setLoading(true);
       setError(null);
       const response = await api<ApiResponse>('/api/images');
-      setData(response);
+      setData({
+        ...response,
+        images: response.images.map((image) => ({
+          ...image,
+          tags: normalizeTags(image.tags)
+        }))
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load images');
     } finally {
