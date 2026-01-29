@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.12] - 2026-01-29
+
+### Fixed
+- Forced the modal zoom wrapper to fill the stage so production builds don't lock to image dimensions.
+
 ## [0.3.11] - 2026-01-29
 
 ### Added

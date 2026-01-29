@@ -681,7 +681,11 @@ export default function ImageModal({
               onPointerCancel={handlePointerEnd}
             >
               <div className="modal-stage">
-                <TransformComponent wrapperClass="zoom-wrapper" contentClass="zoom-content">
+                <TransformComponent
+                  wrapperClass="zoom-wrapper"
+                  contentClass="zoom-content"
+                  wrapperStyle={{ width: '100%', height: '100%' }}
+                >
                   <img
                     className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
                     src={image.url}
