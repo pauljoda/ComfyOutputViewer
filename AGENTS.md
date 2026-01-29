@@ -19,6 +19,7 @@ and managing images.
 - Open a modal viewer with zoom/pan controls and toolbar actions.
 - Tag images with existing or newly created tags.
 - Remove images with a delete action that blacklists them from future syncs.
+- Bulk-delete images in multi-select with the same blacklist behavior.
 
 ## Architecture
 
@@ -118,3 +119,4 @@ If a request is purely informational and makes no changes, do not commit.
 - Batched bulk tag/hide/favorite updates to avoid metadata overwrites during multi-select actions.
 - Switched metadata storage to SQLite with a JSON migration on startup.
 - Added modal delete action that blacklists image hashes to prevent re-sync.
+- Added bulk delete action for multi-select with blacklist-aware removal.

@@ -363,6 +363,33 @@ export default function App() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (!selectedCount) return;
+    const confirmed = window.confirm(
+      `Remove ${selectedCount} images? They will be blacklisted from future syncs.`
+    );
+    if (!confirmed) return;
+    const paths = [...selectedIds];
+    const selection = new Set(paths);
+    setSelectedIds([]);
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.filter((item) => !selection.has(item.id))
+    }));
+    try {
+      const response = await api<DeleteResponse>('/api/delete/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ paths })
+      });
+      const suffix =
+        response.blacklisted > 0 ? `; blacklisted ${response.blacklisted}.` : '.';
+      setStatus(`Removed ${response.deleted} images${suffix}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete images');
+      await refresh();
+    }
+  };
+
   const handleBulkTag = async (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized || !selectedCount) return;
@@ -494,6 +521,7 @@ export default function App() {
         onClearSelection={handleClearSelection}
         onBulkFavorite={handleBulkFavorite}
         onBulkHidden={handleBulkHidden}
+        onBulkDelete={handleBulkDelete}
         onBulkTag={handleBulkTag}
         onColumnsChange={setColumns}
         onTileFitChange={setTileFit}

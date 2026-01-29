@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.6] - 2026-01-28
+
+### Added
+- Added a bulk delete action in multi-select that blacklists removed images from sync.
+
 ## [0.2.5] - 2026-01-28
 
 ### Added

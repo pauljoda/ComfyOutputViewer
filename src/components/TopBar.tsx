@@ -33,6 +33,7 @@ type TopBarProps = {
   onClearSelection: () => void;
   onBulkFavorite: () => void;
   onBulkHidden: () => void;
+  onBulkDelete: () => void;
   onBulkTag: (tag: string) => void;
   onColumnsChange: (value: number) => void;
   onTileFitChange: (value: TileFit) => void;
@@ -72,6 +73,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onClearSelection,
       onBulkFavorite,
       onBulkHidden,
+      onBulkDelete,
       onBulkTag,
       onColumnsChange,
       onTileFitChange,
@@ -277,6 +279,14 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                 disabled={selectedCount === 0}
               >
                 Hide all
+              </button>
+              <button
+                className="button danger"
+                type="button"
+                onClick={onBulkDelete}
+                disabled={selectedCount === 0}
+              >
+                Remove selected
               </button>
               <div className="tag-input-row bulk-tag-input">
                 <input

@@ -295,6 +295,11 @@ body {
   box-shadow: 0 8px 20px rgba(211, 95, 59, 0.25);
 }
 
+.button.danger {
+  background: #a6402d;
+  box-shadow: 0 8px 20px rgba(166, 64, 45, 0.28);
+}
+
 .button:hover {
   transform: translateY(-1px);
 }
