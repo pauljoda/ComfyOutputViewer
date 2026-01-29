@@ -109,3 +109,4 @@ If a request is purely informational and makes no changes, do not commit.
 - Updated server API and metadata storage to track tags per image.
 - Bumped `package.json` version to 0.2.0 and documented the release in `CHANGELOG.md`.
 - Normalized tag data on load and while building tag counts to keep tag filters populated.
+- Added visible tag suggestion chips in filter and modal editors and reduced modal drag-dismiss behavior.

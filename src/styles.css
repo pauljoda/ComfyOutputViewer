@@ -801,6 +801,10 @@ body {
   gap: 6px;
 }
 
+.tag-suggestions {
+  margin-top: 4px;
+}
+
 .tag-chip {
   border: none;
   background: rgba(0, 0, 0, 0.08);

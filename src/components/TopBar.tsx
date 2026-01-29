@@ -7,6 +7,7 @@ import type {
   TileFit,
   ToolPanel
 } from '../types';
+import { normalizeTagInput } from '../utils/tags';
 
 type TopBarProps = {
   version: string;
@@ -74,6 +75,10 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     const toolPopoverRef = useRef<HTMLDivElement | null>(null);
     const toolButtonsRef = useRef<HTMLDivElement | null>(null);
     const [tagInput, setTagInput] = React.useState('');
+    const tagQuery = normalizeTagInput(tagInput);
+    const tagSuggestions = availableTags.filter(
+      (tag) => !selectedTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
+    );
 
     const handlePointerDown = (event: React.PointerEvent<HTMLElement>) => {
       if (!activeTool) return;
@@ -328,8 +333,26 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                       Add
                     </button>
                   </div>
+                  {tagSuggestions.length > 0 && (
+                    <div className="tag-chip-list tag-suggestions">
+                      {tagSuggestions.map((tag) => (
+                        <button
+                          key={tag}
+                          className="tag-chip"
+                          type="button"
+                          onClick={() => {
+                            onAddFilterTag(tag);
+                            setTagInput('');
+                          }}
+                          title="Add tag"
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <datalist id="tag-filter-suggestions">
-                    {availableTags.map((tag) => (
+                    {tagSuggestions.map((tag) => (
                       <option key={tag} value={tag} />
                     ))}
                   </datalist>

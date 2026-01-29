@@ -7,6 +7,12 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Normalized tag data on load and while building tag counts so tag filters populate consistently.
 
+## [0.2.2] - 2026-01-28
+
+### Fixed
+- Exposed available tag suggestions as clickable chips in the filter and modal tag editors.
+- Prevented modal drag gestures from closing the detail view and limited swipe handling to touch devices.
+
 ## [0.2.0] - 2026-01-28
 
 ### Added

@@ -38,6 +38,8 @@ export default function ImageModal({
   const isPanningRef = useRef(false);
   const isPinchingRef = useRef(false);
   const scaleRef = useRef(1);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragMovedRef = useRef(false);
   const prevImageRef = useRef<ImageItem | null>(null);
   const [swipeOutgoing, setSwipeOutgoing] = useState<{
     image: ImageItem;
@@ -65,17 +67,21 @@ export default function ImageModal({
     onToggleTags();
   };
 
+  const tagQuery = normalizeTagInput(tagInput);
   const suggestions = useMemo(
-    () => availableTags.filter((tag) => !image.tags.includes(tag)),
-    [availableTags, image.tags]
+    () =>
+      availableTags.filter(
+        (tag) => !image.tags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
+      ),
+    [availableTags, image.tags, tagQuery]
   );
 
   useEffect(() => {
     setTagInput('');
   }, [image.id]);
 
-  const handleAddTag = () => {
-    const normalized = normalizeTagInput(tagInput);
+  const handleAddTagValue = (value: string) => {
+    const normalized = normalizeTagInput(value);
     if (!normalized) return;
     if (image.tags.includes(normalized)) {
       setTagInput('');
@@ -85,11 +91,19 @@ export default function ImageModal({
     setTagInput('');
   };
 
+  const handleAddTag = () => {
+    handleAddTagValue(tagInput);
+  };
+
   const handleRemoveTag = (tag: string) => {
     onUpdateTags(image.tags.filter((entry) => entry !== tag));
   };
 
   const suggestionId = 'tag-suggestions-modal';
+  const swipeEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  }, []);
 
   const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length !== 1) return;
@@ -166,6 +180,36 @@ export default function ImageModal({
     }
     return undefined;
   }, [image]);
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    dragMovedRef.current = false;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.hypot(dx, dy) > 6) {
+      dragMovedRef.current = true;
+    }
+  };
+
+  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (Date.now() - lastSwipeAtRef.current < 350) {
+      dragStartRef.current = null;
+      dragMovedRef.current = false;
+      return;
+    }
+    const moved = dragMovedRef.current;
+    dragStartRef.current = null;
+    dragMovedRef.current = false;
+    if (moved) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.zoom-wrapper')) return;
+    handleClose();
+  };
 
   return (
     <div className="modal" role="dialog" aria-modal="true">
@@ -453,6 +497,21 @@ export default function ImageModal({
                         </button>
                       </div>
                     </label>
+                    {suggestions.length > 0 && (
+                      <div className="tag-chip-list tag-suggestions">
+                        {suggestions.map((tag) => (
+                          <button
+                            key={tag}
+                            className="tag-chip"
+                            type="button"
+                            onClick={() => handleAddTagValue(tag)}
+                            title="Add tag"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <datalist id={suggestionId}>
                       {suggestions.map((tag) => (
                         <option key={tag} value={tag} />
@@ -466,18 +525,13 @@ export default function ImageModal({
 
             <div
               className="modal-body"
-              onTouchStart={handleSwipeStart}
-              onTouchMove={handleSwipeMove}
-              onTouchEnd={handleSwipeEnd}
-              onClick={(event) => {
-                if (Date.now() - lastSwipeAtRef.current < 350) {
-                  return;
-                }
-                const target = event.target as HTMLElement;
-                if (target.tagName !== 'IMG') {
-                  handleClose();
-                }
-              }}
+              onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+              onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+              onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerEnd}
+              onPointerCancel={handlePointerEnd}
             >
               <div className="modal-stage">
                 {swipeOutgoing && (
