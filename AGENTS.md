@@ -110,6 +110,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.
 - Fixed the npm dependency hash update script to handle hash values containing slashes.
 - Added `scripts/update-npm-deps-hash.sh` to refresh the Nix npm dependency hash and documented it in the workflow.
