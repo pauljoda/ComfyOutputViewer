@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Forced the zoom content container to fill the stage so images respect max-height constraints.
 - Constrained modal images to the stage with inline sizing to avoid oversized initial renders in production.
 - Forced the modal zoom wrapper to fill the stage so production builds don't lock to image dimensions.
 - Expanded modal zoom debug overlay with viewport and device pixel ratio diagnostics.

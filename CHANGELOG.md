@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.14] - 2026-01-29
+
+### Fixed
+- Forced the zoom content container to fill the stage so images respect max-height constraints.
+
 ## [0.3.13] - 2026-01-29
 
 ### Fixed

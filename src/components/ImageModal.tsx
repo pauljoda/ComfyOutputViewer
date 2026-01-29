@@ -685,6 +685,7 @@ export default function ImageModal({
                   wrapperClass="zoom-wrapper"
                   contentClass="zoom-content"
                   wrapperStyle={{ width: '100%', height: '100%' }}
+                  contentStyle={{ width: '100%', height: '100%' }}
                 >
                   <img
                     className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
