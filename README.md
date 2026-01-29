@@ -4,6 +4,10 @@ A simple local-only React + TypeScript gallery for ComfyUI outputs. It copies im
 
 Supports ratings, tags, hiding, and blacklisting images from import. 
 
+![screenshot1](screenshots/screenshot1.png)
+
+![screenshot2](screenshots/screenshot2.png)
+
 
 
 ## Requirements
