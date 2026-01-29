@@ -110,6 +110,8 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Updated the Nix npm dependency hash for the latest npm lockfile.
+- Fixed the npm dependency hash update script to handle hash values containing slashes.
 - Added `scripts/update-npm-deps-hash.sh` to refresh the Nix npm dependency hash and documented it in the workflow.
 - Forced the zoom content container to fill the stage so images respect max-height constraints.
 - Constrained modal images to the stage with inline sizing to avoid oversized initial renders in production.

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.16] - 2026-01-29
+
+### Fixed
+- Updated the Nix npm dependency hash after dependency changes.
+- Hardened the npm dependency hash update script to handle hashes with slashes.
+
 ## [0.3.15] - 2026-01-29
 
 ### Added

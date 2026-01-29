@@ -18,12 +18,12 @@ fi
 restore_expr="$original_expr"
 restore_hash() {
   if [[ -n "${restore_expr:-}" ]]; then
-    perl -0pi -e "s/npmDepsHash = .*?;/npmDepsHash = ${restore_expr};/s" "$flake_file"
+    perl -0pi -e "s~npmDepsHash = .*?;~npmDepsHash = ${restore_expr};~s" "$flake_file"
   fi
 }
 trap restore_hash EXIT
 
-perl -0pi -e 's/npmDepsHash = .*?;/npmDepsHash = lib.fakeSha256;/s' "$flake_file"
+perl -0pi -e 's~npmDepsHash = .*?;~npmDepsHash = lib.fakeSha256;~s' "$flake_file"
 
 echo "computing npmDepsHash via nix build..."
 if output=$(nix build .#comfy-output-viewer --no-link 2>&1); then
@@ -38,7 +38,7 @@ if [[ -z "$got_hash" ]]; then
   exit 1
 fi
 
-perl -0pi -e "s/npmDepsHash = .*?;/npmDepsHash = \"$got_hash\";/s" "$flake_file"
+perl -0pi -e "s~npmDepsHash = .*?;~npmDepsHash = \"$got_hash\";~s" "$flake_file"
 restore_expr=""
 
 echo "updated npmDepsHash to $got_hash"
