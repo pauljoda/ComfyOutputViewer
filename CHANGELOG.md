@@ -7,6 +7,11 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Restored card overlay actions to corner placement with rating in the bottom-left.
 
+## [0.3.3] - 2026-01-29
+
+### Added
+- Added a Nix flake with a NixOS module and systemd service options for deployment.
+
 ## [0.3.1] - 2026-01-29
 
 ### Changed
