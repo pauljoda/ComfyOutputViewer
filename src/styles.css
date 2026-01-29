@@ -958,6 +958,24 @@ body {
   overflow: visible;
 }
 
+.modal-debug {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 6;
+  max-width: min(90vw, 360px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(8, 8, 8, 0.78);
+  color: #f5f1ea;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  line-height: 1.35;
+  pointer-events: none;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+}
+
 .modal-swipe-out {
   position: absolute;
   inset: 0;

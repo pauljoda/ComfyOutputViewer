@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.8] - 2026-01-29
+
+### Added
+- Added an optional modal zoom debug overlay to inspect wrapper/image sizing in production builds.
+
 ## [0.3.7] - 2026-01-29
 
 ### Fixed

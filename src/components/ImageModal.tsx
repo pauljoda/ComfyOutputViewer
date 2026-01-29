@@ -61,6 +61,13 @@ export default function ImageModal({
   const [swipeIncoming, setSwipeIncoming] = useState(false);
   const [minScale, setMinScale] = useState(DEFAULT_MIN_SCALE);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const debugRafRef = useRef(0);
+  const [debugInfo, setDebugInfo] = useState<null | Record<string, string>>(null);
+  const debugEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('debug') === '1' || window.localStorage.getItem('comfy_debug') === '1';
+  }, []);
 
   const handlePrev = () => {
     onPrev();
@@ -103,6 +110,44 @@ export default function ImageModal({
     transformRef.current?.resetTransform(0);
   };
 
+  const scheduleDebugUpdate = (reason: string) => {
+    if (!debugEnabled) return;
+    if (debugRafRef.current) return;
+    debugRafRef.current = window.requestAnimationFrame(() => {
+      debugRafRef.current = 0;
+      const wrapper = transformRef.current?.instance.wrapperComponent;
+      const content = transformRef.current?.instance.contentComponent;
+      const img = imageRef.current;
+      const wrapperRect = wrapper?.getBoundingClientRect();
+      const contentRect = content?.getBoundingClientRect();
+      const imgRect = img?.getBoundingClientRect();
+      const state = transformRef.current?.state;
+      const format = (value?: number) =>
+        Number.isFinite(value) ? Number(value).toFixed(2) : 'n/a';
+      const baseWidth =
+        imgRect && state?.scale ? imgRect.width / state.scale : img?.naturalWidth;
+      const baseHeight =
+        imgRect && state?.scale ? imgRect.height / state.scale : img?.naturalHeight;
+      setDebugInfo({
+        reason,
+        image: image.name,
+        wrapper: wrapperRect
+          ? `${format(wrapperRect.width)} x ${format(wrapperRect.height)}`
+          : 'n/a',
+        content: contentRect
+          ? `${format(contentRect.width)} x ${format(contentRect.height)}`
+          : 'n/a',
+        imgRect: imgRect ? `${format(imgRect.width)} x ${format(imgRect.height)}` : 'n/a',
+        natural: img ? `${img.naturalWidth} x ${img.naturalHeight}` : 'n/a',
+        base: baseWidth && baseHeight ? `${format(baseWidth)} x ${format(baseHeight)}` : 'n/a',
+        scale: format(state?.scale),
+        fitScale: format(fitScaleRef.current),
+        minScale: format(minScale),
+        transformScale: format(scaleRef.current)
+      });
+    });
+  };
+
   const applyFitScale = (img: HTMLImageElement, attempt = 0) => {
     const wrapper = transformRef.current?.instance.wrapperComponent;
     const currentScale = transformRef.current?.state.scale ?? 1;
@@ -134,13 +179,17 @@ export default function ImageModal({
     window.requestAnimationFrame(() => {
       transformRef.current?.zoomToElement(img, fitScale, 0);
       scaleRef.current = fitScale;
+      scheduleDebugUpdate('fit');
     });
   };
 
   const handleImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;
     imageRef.current = img;
-    window.requestAnimationFrame(() => applyFitScale(img));
+    window.requestAnimationFrame(() => {
+      applyFitScale(img);
+      scheduleDebugUpdate('load');
+    });
   };
 
   const tagQuery = normalizeTagInput(tagInput);
@@ -325,6 +374,7 @@ export default function ImageModal({
         }}
         onTransformed={(_, state) => {
           scaleRef.current = state.scale;
+          scheduleDebugUpdate('transform');
         }}
       >
         <>
@@ -579,6 +629,22 @@ export default function ImageModal({
                   />
                 </TransformComponent>
               </div>
+              {debugEnabled && debugInfo && (
+                <div className="modal-debug">
+                  <div>Zoom debug</div>
+                  <div>reason: {debugInfo.reason}</div>
+                  <div>image: {debugInfo.image}</div>
+                  <div>wrapper: {debugInfo.wrapper}</div>
+                  <div>content: {debugInfo.content}</div>
+                  <div>imgRect: {debugInfo.imgRect}</div>
+                  <div>natural: {debugInfo.natural}</div>
+                  <div>base: {debugInfo.base}</div>
+                  <div>scale: {debugInfo.scale}</div>
+                  <div>fitScale: {debugInfo.fitScale}</div>
+                  <div>minScale: {debugInfo.minScale}</div>
+                  <div>refScale: {debugInfo.transformScale}</div>
+                </div>
+              )}
             </div>
 
           <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>

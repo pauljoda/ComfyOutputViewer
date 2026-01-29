@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 ## Recent Changes
 
+- Added an optional modal zoom debug overlay to inspect wrapper/image sizing in production builds.
 - Refit modal zoom after wrapper/image resizes to keep initial desktop zoom contained.
 - Recomputed modal zoom fit from natural image sizes and let zoom content size to the image for consistent initial fit.
 - Fit modal images to the viewport on load and relaxed minimum zoom to prevent cropped tall images in production builds.
