@@ -30,7 +30,16 @@
           };
           npmDepsHash = "sha256-wDmbuw7j8jeeirK29pid/dk86NT1otjRkUNcdvhRFwY=";
           npmBuildScript = "build";
-          nativeBuildInputs = [ pkgs.makeWrapper ];
+          # Required for building sharp from source
+          nativeBuildInputs = with pkgs; [ makeWrapper pkg-config python3 ];
+          buildInputs = with pkgs; [
+            vips       # Image processing library for sharp
+            glib       # Required by vips
+          ];
+          # Ensure sharp rebuilds with system vips instead of using prebuilt binaries
+          preBuild = ''
+            export npm_config_build_from_source=true
+          '';
           installPhase = ''
             runHook preInstall
             appDir=$out/lib/comfy-output-viewer
