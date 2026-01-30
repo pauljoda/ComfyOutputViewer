@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.30] - 2026-01-30
+
+### Fixed
+- Removed extra modal topbar padding on mobile Safari and hide the prompt info icon when no metadata exists.
+
 ## [0.3.29] - 2026-01-30
 
 ### Fixed

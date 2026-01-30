@@ -835,7 +835,7 @@ body {
 
 .modal-topbar {
   top: 0;
-  padding-top: max(12px, env(safe-area-inset-top));
+  padding-top: 12px;
 }
 
 .modal-bottombar {
@@ -1245,7 +1245,7 @@ body {
   }
 
   .modal-topbar {
-    padding-top: max(10px, env(safe-area-inset-top));
+    padding-top: 10px;
   }
 
   .modal-topbar .tool-button,

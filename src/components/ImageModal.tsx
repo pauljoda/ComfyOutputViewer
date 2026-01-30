@@ -74,27 +74,45 @@ export default function ImageModal({
   const [promptData, setPromptData] = useState<PromptData | null>(null);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
+  const [promptAvailable, setPromptAvailable] = useState(false);
 
-  // Load prompt data when prompt tool is opened
-  useEffect(() => {
-    if (modalTool === 'prompt') {
-      loadPromptData();
-    }
-  }, [modalTool, image.id]);
-
-  const loadPromptData = async () => {
+  const loadPromptData = async (signal?: AbortSignal) => {
     try {
       setPromptLoading(true);
       setPromptError(null);
-      const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`);
+      const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
+        signal
+      });
       setPromptData(data);
+      setPromptAvailable(true);
     } catch (err) {
-      setPromptError(err instanceof Error ? err.message : 'No prompt data found');
+      if (signal?.aborted) return;
+      setPromptAvailable(false);
       setPromptData(null);
+      if (modalTool === 'prompt') {
+        setPromptError(err instanceof Error ? err.message : 'No prompt data found');
+      }
     } finally {
-      setPromptLoading(false);
+      if (!signal?.aborted) {
+        setPromptLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPromptAvailable(false);
+    setPromptData(null);
+    setPromptError(null);
+    loadPromptData(controller.signal);
+    return () => controller.abort();
+  }, [image.id]);
+
+  useEffect(() => {
+    if (modalTool === 'prompt' && promptAvailable && !promptData && !promptLoading) {
+      loadPromptData();
+    }
+  }, [modalTool, promptAvailable, promptData, promptLoading]);
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -573,32 +591,34 @@ export default function ImageModal({
                     <path d="M12 3.8l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" />
                   </svg>
                 </button>
-                <button
-                  className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
-                  type="button"
-                  onClick={onTogglePrompt}
-                  title="View prompt"
-                  aria-label="View prompt data"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                    />
-                    <path
-                      d="M12 10v6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="12" cy="7" r="1.2" fill="currentColor" />
-                  </svg>
-                </button>
+                {promptAvailable && (
+                  <button
+                    className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
+                    type="button"
+                    onClick={onTogglePrompt}
+                    title="View prompt"
+                    aria-label="View prompt data"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
+                      <path
+                        d="M12 10v6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      />
+                      <circle cx="12" cy="7" r="1.2" fill="currentColor" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
                   type="button"
@@ -764,7 +784,7 @@ export default function ImageModal({
                     </span>
                   </div>
                 )}
-                {modalTool === 'prompt' && (
+                {modalTool === 'prompt' && promptAvailable && (
                   <div className="tool-panel prompt-panel">
                     <span className="prompt-panel-title">Generation JSON</span>
                     {promptLoading && <p className="prompt-loading">Loading...</p>}
