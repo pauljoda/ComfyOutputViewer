@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.20] - 2026-01-30
+
+### Fixed
+- Ensured workflow runs only overwrite inputs defined as configurable, leaving all other node values untouched.
+
 ## [0.3.19] - 2026-01-30
 
 ### Added

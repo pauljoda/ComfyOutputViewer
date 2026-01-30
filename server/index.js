@@ -417,20 +417,24 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     }
 
     // Create the prompt JSON by modifying the workflow's API JSON
-    const apiJson = JSON.parse(workflowRow.api_json);
+    const promptJson = JSON.parse(workflowRow.api_json);
 
-    // Apply input values
+    // Apply input values only for defined workflow inputs.
+    const workflowInputIds = new Set(workflowInputs.map((input) => input.id));
     const inputValuesMap = new Map();
     if (Array.isArray(inputValues)) {
       for (const iv of inputValues) {
-        inputValuesMap.set(iv.inputId, iv.value);
+        if (workflowInputIds.has(iv.inputId)) {
+          inputValuesMap.set(iv.inputId, iv.value);
+        }
       }
     }
 
     for (const input of workflowInputs) {
+      if (!inputValuesMap.has(input.id)) continue;
       const value = inputValuesMap.get(input.id);
-      if (value !== undefined && apiJson[input.node_id]) {
-        apiJson[input.node_id].inputs[input.input_key] =
+      if (promptJson[input.node_id]) {
+        promptJson[input.node_id].inputs[input.input_key] =
           input.input_type === 'number' || input.input_type === 'seed'
             ? Number(value)
             : value;
@@ -462,7 +466,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: apiJson,
+          prompt: promptJson,
           client_id: clientId
         })
       });
