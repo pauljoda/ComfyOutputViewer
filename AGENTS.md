@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Bumped the app version to 0.4.0 for the Workflows page release and refreshed npmDepsHash after the lockfile update.
 - Resolved merge conflict markers in metadata files to restore valid JSON for Nix builds.
 - Stored workflow output hashes to hide blacklisted outputs and removed deleted outputs from job logs immediately.
 - Defaulted the workflows page to open the first available workflow and hid job output thumbnails for deleted images.

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-01-30
+
+### Added
+- Released the new Workflows page for importing and running ComfyUI workflows.
+
 ## [0.3.39] - 2026-01-30
 
 ### Fixed
