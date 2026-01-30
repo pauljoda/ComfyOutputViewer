@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-01-30
+
+### Added
+- Added a new Workflows page for importing and executing ComfyUI API JSON workflows.
+- Implemented React Router for navigation between Gallery and Workflows pages.
+- Created workflow import wizard that parses ComfyUI API JSON and lets users configure input nodes.
+- Added workflow runner form with support for text, number, seed, and image input types.
+- Integrated job execution against ComfyUI server with status polling and automatic image download.
+- Added job history view with status indicators (pending, running, completed, failed).
+- Created image picker modal for selecting existing synced images as workflow inputs.
+- Added prompt metadata viewing in the image modal to see input parameters used for generation.
+- New database tables: workflows, workflow_inputs, jobs, job_inputs, job_outputs, image_prompts.
+- New API endpoints for workflow CRUD, job execution, and prompt metadata retrieval.
+- Environment variable `COMFY_API_URL` for configuring ComfyUI server connection (default: http://127.0.0.1:8188).
+
 ## [0.3.17] - 2026-01-29
 
 ### Fixed

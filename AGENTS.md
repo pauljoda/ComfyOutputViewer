@@ -39,6 +39,7 @@ Responsibilities:
 Important paths/config:
 - `COMFY_OUTPUT_DIR` or `OUTPUT_DIR`: source folder to sync from.
 - `DATA_DIR`: local data folder for images, thumbnails, and DB.
+- `COMFY_API_URL`: ComfyUI server URL (default: http://127.0.0.1:8188).
 - Thumbnails are stored in `.thumbs` under the data dir.
 - DB stored at `.comfy_viewer.sqlite` (legacy `.comfy_viewer.json` migrates on boot).
 
@@ -50,12 +51,22 @@ API endpoints:
 - `POST /api/delete` -> `{ path }`
 - `POST /api/delete/bulk` -> `{ paths }`
 - `POST /api/sync` -> `{ scanned, copied, thumbnails? }`
+- `GET /api/workflows` -> list all workflows
+- `POST /api/workflows` -> create workflow with inputs
+- `GET /api/workflows/:id` -> get workflow with inputs and jobs
+- `PUT /api/workflows/:id` -> update workflow
+- `DELETE /api/workflows/:id` -> delete workflow
+- `POST /api/workflows/:id/run` -> execute workflow against ComfyUI
+- `GET /api/jobs/:id` -> get job status and outputs
+- `GET /api/images/:path/prompt` -> get prompt metadata for an image
 
 ### Client (Vite + React)
-Entry: `src/App.tsx`
+Entry: `src/main.tsx` (React Router setup), `src/App.tsx` (layout shell)
+Pages: `src/pages/GalleryPage.tsx`, `src/pages/WorkflowsPage.tsx`
 Component modules live in `src/components`, with shared hooks/utilities in `src/hooks`, `src/utils`, and `src/lib`.
 
 Key UI features:
+- App navigation with Gallery and Workflows tabs.
 - Top toolbar with icon buttons and a single active tool popover.
 - Drawer navigation for tag filters sorted by image count, plus an untagged view.
 - Image grid:
@@ -64,8 +75,14 @@ Key UI features:
     by natural image ratio, tiled via flex-wrap.
 - Favorites and hidden toggles on cards and modal toolbar.
 - Hide hidden items on All Images only; tag filters show hidden items.
-- Zoom/pan modal for selected image.
+- Zoom/pan modal for selected image with prompt metadata viewing.
 - Modal tag editor with add/remove controls.
+- Workflows page:
+  - Workflow list sidebar with import/delete actions.
+  - JSON import wizard with node selection for configuring inputs.
+  - Workflow runner form with text, number, seed, and image input fields.
+  - Image picker modal for selecting existing synced images.
+  - Job history with status indicators and output image previews.
 
 Key client behaviors:
 - LocalStorage persists theme, columns per row, display mode,
@@ -107,9 +124,20 @@ If a request is purely informational and makes no changes, do not commit.
 ## Current Projects
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
+- Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
 
+- **v0.4.0**: Added Workflows page for importing and executing ComfyUI API JSON workflows.
+  - React Router integration with Gallery and Workflows navigation.
+  - Workflow import wizard parsing ComfyUI JSON with configurable input nodes.
+  - Runner form with text, number, seed, and image input types.
+  - Job execution with status polling and automatic image download.
+  - Image picker modal for selecting existing synced images.
+  - Prompt metadata viewing in image modal.
+  - New database tables: workflows, workflow_inputs, jobs, job_inputs, job_outputs, image_prompts.
+  - New API endpoints for workflow CRUD, job execution, and prompt metadata.
+  - COMFY_API_URL environment variable for ComfyUI server configuration.
 - Fixed npmDepsHash mismatch in flake.nix to resolve Nix build errors (manually updated to sha256-gGHPHrhMb744d7YID7jHWHIAQ4rZeNQyWul258Ul9bM=).
 - Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.
