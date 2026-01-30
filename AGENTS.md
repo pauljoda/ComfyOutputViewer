@@ -109,11 +109,13 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Removed the extra mobile top bar offset so the gallery toolbar sits flush under the tab bar.
 - Fixed the mobile gallery top bar offset so it sits below the new tab navigation.
 - Added workflow job output thumbnails that open in the full image modal, plus per-output metadata loading.
 - Stored workflow run inputs as JSON for the modal info panel and displayed custom input labels with system label subtitles.
 - Added workflow deletion controls and enforced SQLite foreign-key cascades for workflow/job cleanup.
 - Updated the Nix npm dependency hash after the package-lock version bump.
+- Refreshed the Nix npm dependency hash after the latest version bump.
 - Removed the redundant hamburger toggle inside the workflow drawer header.
 - Added a websocket connection fallback so job polling continues when live updates drop.
 - Added a debug prompt JSON preview in workflow runs and a toggleable workflow list drawer with a sleek run button.

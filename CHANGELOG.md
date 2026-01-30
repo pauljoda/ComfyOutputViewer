@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.27] - 2026-01-30
+
+### Fixed
+- Removed the extra top bar offset so the gallery toolbar sits flush under the tab bar on mobile.
+
 ## [0.3.26] - 2026-01-30
 
 ### Added

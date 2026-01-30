@@ -141,7 +141,7 @@ body {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--card-border);
   position: sticky;
-  top: var(--app-nav-height, 0px);
+  top: 0;
   z-index: 9;
 }
 
