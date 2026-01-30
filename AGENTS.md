@@ -127,7 +127,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
-<<<<<<< HEAD
+- Bumped the app version to 0.4.0 for the Workflows page release and refreshed npmDepsHash after the lockfile update.
+- Resolved merge conflict markers in metadata files to restore valid JSON for Nix builds.
 - Stored workflow output hashes to hide blacklisted outputs and removed deleted outputs from job logs immediately.
 - Defaulted the workflows page to open the first available workflow and hid job output thumbnails for deleted images.
 - Added a close button to the prompt metadata overlay and filtered deleted output thumbnails from workflow job logs.
@@ -166,19 +167,6 @@ If a request is purely informational and makes no changes, do not commit.
 - Swapped workflow import to a right-side editor panel with an edit mode toggle for updating inputs later.
 - Moved the gallery home action to the top tab bar title and removed the gallery header title/theme selector (theme now in filters).
 - Updated the npm deps hash script to use an SRI-compatible placeholder hash and refreshed npmDepsHash after adding ws.
-=======
-
-- **v0.4.0**: Added Workflows page for importing and executing ComfyUI API JSON workflows.
-  - React Router integration with Gallery and Workflows navigation.
-  - Workflow import wizard parsing ComfyUI JSON with configurable input nodes.
-  - Runner form with text, number, seed, and image input types.
-  - Job execution with status polling and automatic image download.
-  - Image picker modal for selecting existing synced images.
-  - Prompt metadata viewing in image modal.
-  - New database tables: workflows, workflow_inputs, jobs, job_inputs, job_outputs, image_prompts.
-  - New API endpoints for workflow CRUD, job execution, and prompt metadata.
-  - COMFY_API_URL environment variable for ComfyUI server configuration.
->>>>>>> 13ff65bc7550e2f29f1778c0f04f47e483be67f4
 - Fixed npmDepsHash mismatch in flake.nix to resolve Nix build errors (manually updated to sha256-gGHPHrhMb744d7YID7jHWHIAQ4rZeNQyWul258Ul9bM=).
 - Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.
