@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.28] - 2026-01-30
+
+### Fixed
+- Reduced the modal top bar offset so the image detail toolbar aligns to the top on mobile.
+- Fallback to saving workflow outputs into the data directory when the source output path is not writable.
+
 ## [0.3.27] - 2026-01-30
 
 ### Fixed

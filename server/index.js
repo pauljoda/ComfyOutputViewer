@@ -686,10 +686,39 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
             const imagePath = imgInfo.subfolder
               ? path.join(imgInfo.subfolder, imgInfo.filename)
               : imgInfo.filename;
-            const fullPath = path.join(SOURCE_DIR, imagePath);
+            const sourcePath = path.join(SOURCE_DIR, imagePath);
+            const dataPath = path.join(DATA_DIR, imagePath);
+            let wroteToSource = false;
+            let wroteToData = false;
 
-            await ensureDir(path.dirname(fullPath));
-            await fs.writeFile(fullPath, imageBuffer);
+            try {
+              await ensureDir(path.dirname(sourcePath));
+              await fs.writeFile(sourcePath, imageBuffer);
+              wroteToSource = true;
+            } catch (err) {
+              if (err && (err.code === 'EACCES' || err.code === 'EPERM')) {
+                try {
+                  await ensureDir(path.dirname(dataPath));
+                  await fs.writeFile(dataPath, imageBuffer);
+                  wroteToData = true;
+                  const stats = await fs.stat(dataPath);
+                  await ensureThumbnail(dataPath, imagePath, stats, {
+                    scanned: 0,
+                    copied: 0,
+                    thumbnails: 0
+                  });
+                } catch (innerErr) {
+                  console.error('Failed to save output image to data dir:', innerErr);
+                }
+              } else {
+                throw err;
+              }
+            }
+
+            const outputExists = wroteToSource || wroteToData || existsSync(sourcePath) || existsSync(dataPath);
+            if (!outputExists) {
+              continue;
+            }
 
             // Record the output
             statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now);
