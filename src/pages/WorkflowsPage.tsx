@@ -523,9 +523,6 @@ function WorkflowDetail({
     <div className="workflow-detail">
       <div className="workflow-header">
         <div className="workflow-header-main">
-          <button className="ghost" onClick={onBack}>
-            Back
-          </button>
           <h2>{workflow.name}</h2>
         </div>
         <div className="workflow-header-actions">
