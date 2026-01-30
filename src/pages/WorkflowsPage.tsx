@@ -10,7 +10,7 @@ export default function WorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [panelMode, setPanelMode] = useState<'import' | 'edit' | null>(null);
+  const [importMode, setImportMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
   const loadWorkflows = useCallback(async () => {
@@ -41,7 +41,7 @@ export default function WorkflowsPage() {
   useEffect(() => {
     if (!selectedWorkflow && editMode) {
       setEditMode(false);
-      setPanelMode(null);
+      setImportMode(false);
     }
   }, [editMode, selectedWorkflow]);
 
@@ -55,23 +55,17 @@ export default function WorkflowsPage() {
 
   const handleEditModeChange = (value: boolean) => {
     setEditMode(value);
-    setPanelMode(value ? 'edit' : null);
   };
 
   const handleOpenImport = () => {
-    setPanelMode('import');
-    setEditMode(false);
-  };
-
-  const handleEditorClose = () => {
-    setPanelMode(null);
+    setImportMode(true);
     setEditMode(false);
   };
 
   const handleEditorSaved = (result: { id?: number; mode: 'import' | 'edit' }) => {
     loadWorkflows();
     if (result.mode === 'import') {
-      setPanelMode(null);
+      setImportMode(false);
       setEditMode(false);
       if (result.id) {
         navigate(`/workflows/${result.id}`);
@@ -81,7 +75,7 @@ export default function WorkflowsPage() {
 
   return (
     <div className="workflows-page">
-      <div className={`workflows-layout ${panelMode ? 'with-editor' : ''}`}>
+      <div className="workflows-layout">
         <aside className="workflows-sidebar">
           <div className="workflows-sidebar-header">
             <h2>Workflows</h2>
@@ -116,7 +110,14 @@ export default function WorkflowsPage() {
         </aside>
 
         <main className="workflows-main">
-          {!selectedWorkflow ? (
+          {importMode ? (
+            <WorkflowEditorPanel
+              mode="import"
+              workflow={null}
+              onClose={() => setImportMode(false)}
+              onSaved={handleEditorSaved}
+            />
+          ) : !selectedWorkflow ? (
             <div className="workflows-placeholder">
               <h3>Select a workflow</h3>
               <p>Choose a workflow from the sidebar or import a new one to get started.</p>
@@ -127,20 +128,10 @@ export default function WorkflowsPage() {
               onBack={handleBackToList}
               editMode={editMode}
               onEditModeChange={handleEditModeChange}
+              onSaved={handleEditorSaved}
             />
           )}
         </main>
-
-        {panelMode && (
-          <aside className="workflows-editor">
-            <WorkflowEditorPanel
-              mode={panelMode}
-              workflow={panelMode === 'edit' ? selectedWorkflow : null}
-              onClose={handleEditorClose}
-              onSaved={handleEditorSaved}
-            />
-          </aside>
-        )}
       </div>
     </div>
   );
@@ -151,9 +142,10 @@ type WorkflowDetailProps = {
   onBack: () => void;
   editMode: boolean;
   onEditModeChange: (value: boolean) => void;
+  onSaved: (result: { id?: number; mode: 'import' | 'edit' }) => void;
 };
 
-function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange }: WorkflowDetailProps) {
+function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved }: WorkflowDetailProps) {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -257,13 +249,16 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange }: Workfl
           </button>
           <h2>{workflow.name}</h2>
         </div>
-        <label className="toggle workflow-edit-toggle">
+        <label className="switch">
           <input
             type="checkbox"
             checked={editMode}
             onChange={(event) => onEditModeChange(event.target.checked)}
           />
-          <span>Edit Mode</span>
+          <span className="switch-track">
+            <span className="switch-thumb" />
+          </span>
+          <span className="switch-label">Edit Mode</span>
         </label>
       </div>
 
@@ -273,9 +268,12 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange }: Workfl
 
       {editMode ? (
         <section className="workflow-edit-section">
-          <p className="workflow-edit-hint">
-            Edit mode is active. Adjust inputs and labels in the panel on the right, then save.
-          </p>
+          <WorkflowEditorPanel
+            mode="edit"
+            workflow={workflow}
+            onClose={() => onEditModeChange(false)}
+            onSaved={onSaved}
+          />
         </section>
       ) : (
         <section className="workflow-inputs-section">
@@ -736,6 +734,26 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
     return 'unknown';
   };
 
+  const sortedNodes = React.useMemo(() => {
+    if (mode !== 'edit') {
+      return nodes;
+    }
+    const selectedSet = new Set(selectedInputs.map((input) => `${input.nodeId}:${input.inputKey}`));
+    return nodes
+      .map((node, index) => ({
+        node,
+        index,
+        hasSelected: Object.keys(node.inputs).some((key) => selectedSet.has(`${node.id}:${key}`))
+      }))
+      .sort((a, b) => {
+        if (a.hasSelected === b.hasSelected) {
+          return a.index - b.index;
+        }
+        return a.hasSelected ? -1 : 1;
+      })
+      .map((entry) => entry.node);
+  }, [mode, nodes, selectedInputs]);
+
   return (
     <div className="workflow-editor-panel">
       <div className="workflow-editor-header">
@@ -808,10 +826,23 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
               )}
 
               <div className="nodes-list">
-                {nodes.map((node) => {
-                  const textInputs = Object.entries(node.inputs).filter(
-                    ([, value]) => inferInputType(value) !== 'connection'
+                {sortedNodes.map((node) => {
+                  const selectedSet = new Set(
+                    selectedInputs.map((input) => `${input.nodeId}:${input.inputKey}`)
                   );
+                  const textInputs = Object.entries(node.inputs)
+                    .filter(([, value]) => inferInputType(value) !== 'connection')
+                    .sort(([keyA], [keyB]) => {
+                      if (mode !== 'edit') {
+                        return 0;
+                      }
+                      const selectedA = selectedSet.has(`${node.id}:${keyA}`);
+                      const selectedB = selectedSet.has(`${node.id}:${keyB}`);
+                      if (selectedA === selectedB) {
+                        return 0;
+                      }
+                      return selectedA ? -1 : 1;
+                    });
                   if (textInputs.length === 0) return null;
 
                   return (

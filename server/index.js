@@ -329,6 +329,7 @@ app.put('/api/workflows/:id', async (req, res) => {
     // Replace inputs
     if (Array.isArray(inputs)) {
       runTransaction(() => {
+        statements.deleteJobInputsByWorkflowId.run(workflowId);
         statements.deleteWorkflowInputs.run(workflowId);
         for (let i = 0; i < inputs.length; i++) {
           const input = inputs[i];
@@ -865,6 +866,9 @@ function prepareStatements(database) {
     selectWorkflowInputs: database.prepare('SELECT id, workflow_id, node_id, node_title, input_key, input_type, label, default_value, sort_order FROM workflow_inputs WHERE workflow_id = ? ORDER BY sort_order'),
     insertWorkflowInput: database.prepare('INSERT INTO workflow_inputs (workflow_id, node_id, node_title, input_key, input_type, label, default_value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
     deleteWorkflowInputs: database.prepare('DELETE FROM workflow_inputs WHERE workflow_id = ?'),
+    deleteJobInputsByWorkflowId: database.prepare(
+      'DELETE FROM job_inputs WHERE input_id IN (SELECT id FROM workflow_inputs WHERE workflow_id = ?)'
+    ),
     // Job statements
     selectJobsByWorkflow: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE workflow_id = ? ORDER BY created_at DESC LIMIT 50'),
     selectJobById: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE id = ?'),

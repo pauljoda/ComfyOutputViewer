@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.19] - 2026-01-30
+
+### Added
+- Added an in-place workflow edit view with selected inputs sorted to the top and a modern toggle switch.
+
+### Changed
+- Swapped the workflow editor back to an in-place layout instead of a side panel.
+
+### Fixed
+- Removed the workflow input FK failure by clearing stale job input references during workflow updates.
+
 ## [0.3.18] - 2026-01-30
 
 ### Added

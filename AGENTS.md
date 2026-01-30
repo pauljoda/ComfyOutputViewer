@@ -109,6 +109,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Swapped workflow edit mode to an in-place editor view with a modern toggle and sorted selected inputs to the top.
+- Fixed workflow input deletions by clearing job input references to avoid foreign key errors.
 - Added WebSocket job updates with generating indicators for workflow runs.
 - Swapped workflow import to a right-side editor panel with an edit mode toggle for updating inputs later.
 - Moved the gallery home action to the top tab bar title and removed the gallery header title/theme selector (theme now in filters).
