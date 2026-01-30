@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.26] - 2026-01-30
+
+### Added
+- Added clickable workflow job output thumbnails that open the image viewer from the jobs list.
+- Added an info (prompt JSON) panel for workflow-generated images in the modal.
+- Added a workflow delete action in the workflow detail header.
+
+### Changed
+- Displayed custom workflow input labels as primary with system labels as a smaller subtitle.
+- Included thumbnail URLs in workflow job output payloads for lighter previews.
+
+### Fixed
+- Corrected the mobile gallery top bar positioning under the tab navigation bar.
+
 ## [0.3.25] - 2026-01-30
 
 ### Changed

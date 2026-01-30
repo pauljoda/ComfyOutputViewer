@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import ImageModal from '../components/ImageModal';
 import { api } from '../lib/api';
-import type { Workflow, WorkflowInput, Job } from '../types';
+import type { Workflow, WorkflowInput, Job, JobOutput, ImageItem, ModalTool } from '../types';
 
 export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
@@ -72,6 +73,21 @@ export default function WorkflowsPage() {
 
   const handleEditModeChange = (value: boolean) => {
     setEditMode(value);
+  };
+
+  const handleDeleteWorkflow = async (workflow: Workflow) => {
+    const confirmed = window.confirm(`Delete "${workflow.name}"? This will remove its jobs too.`);
+    if (!confirmed) return;
+    try {
+      await api(`/api/workflows/${workflow.id}`, { method: 'DELETE' });
+      if (selectedWorkflow?.id === workflow.id) {
+        navigate('/workflows');
+        setSelectedWorkflow(null);
+      }
+      await loadWorkflows();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete workflow');
+    }
   };
 
   const handleOpenImport = () => {
@@ -170,6 +186,7 @@ export default function WorkflowsPage() {
               editMode={editMode}
               onEditModeChange={handleEditModeChange}
               onSaved={handleEditorSaved}
+              onDelete={handleDeleteWorkflow}
               showDebug={showDebug}
             />
           )}
@@ -193,6 +210,7 @@ type WorkflowDetailProps = {
   editMode: boolean;
   onEditModeChange: (value: boolean) => void;
   onSaved: (result: { id?: number; mode: 'import' | 'edit' }) => void;
+  onDelete: (workflow: Workflow) => void;
   showDebug: boolean;
 };
 
@@ -202,6 +220,7 @@ function WorkflowDetail({
   editMode,
   onEditModeChange,
   onSaved,
+  onDelete,
   showDebug
 }: WorkflowDetailProps) {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
@@ -211,6 +230,10 @@ function WorkflowDetail({
   const [error, setError] = useState<string | null>(null);
   const [jobClock, setJobClock] = useState(() => Date.now());
   const [wsConnected, setWsConnected] = useState(false);
+  const [outputCache, setOutputCache] = useState<Record<string, ImageItem>>({});
+  const [outputPaths, setOutputPaths] = useState<string[]>([]);
+  const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
+  const [outputTool, setOutputTool] = useState<ModalTool>(null);
 
   useEffect(() => {
     loadWorkflowDetails();
@@ -242,6 +265,46 @@ function WorkflowDetail({
       console.error('Failed to load jobs:', err);
     }
   }, [workflow.id]);
+
+  const buildFallbackImage = useCallback((imagePath: string): ImageItem => {
+    const name = imagePath.split('/').pop() || imagePath;
+    return {
+      id: imagePath,
+      name,
+      url: `/images/${encodeURI(imagePath)}`,
+      favorite: false,
+      hidden: false,
+      rating: 0,
+      tags: [],
+      createdMs: 0,
+      mtimeMs: 0,
+      size: 0
+    };
+  }, []);
+
+  const loadOutputImage = useCallback(async (imagePath: string) => {
+    if (outputCache[imagePath]) return;
+    try {
+      const image = await api<ImageItem>(`/api/images/${encodeURIComponent(imagePath)}`);
+      setOutputCache((prev) => ({ ...prev, [imagePath]: image }));
+    } catch (err) {
+      setOutputCache((prev) => {
+        if (prev[imagePath]) return prev;
+        return { ...prev, [imagePath]: buildFallbackImage(imagePath) };
+      });
+    }
+  }, [buildFallbackImage, outputCache]);
+
+  const loadOutputImages = useCallback(async (paths: string[]) => {
+    await Promise.all(paths.map((path) => loadOutputImage(path)));
+  }, [loadOutputImage]);
+
+  const updateOutputCache = useCallback((imagePath: string, updater: (image: ImageItem) => ImageItem) => {
+    setOutputCache((prev) => {
+      const current = prev[imagePath] ?? buildFallbackImage(imagePath);
+      return { ...prev, [imagePath]: updater(current) };
+    });
+  }, [buildFallbackImage]);
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -306,6 +369,12 @@ function WorkflowDetail({
     return () => window.clearInterval(interval);
   }, [hasActiveJobs, loadJobs, wsConnected]);
 
+  useEffect(() => {
+    if (selectedOutputPath) {
+      setOutputTool(null);
+    }
+  }, [selectedOutputPath]);
+
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   };
@@ -327,6 +396,108 @@ function WorkflowDetail({
       setError(err instanceof Error ? err.message : 'Failed to run workflow');
     } finally {
       setRunning(false);
+    }
+  };
+
+  const handleOpenOutput = async (job: Job, output: JobOutput) => {
+    const paths = job.outputs?.map((item) => item.imagePath) ?? [output.imagePath];
+    setOutputPaths(paths);
+    setSelectedOutputPath(output.imagePath);
+    setOutputTool(null);
+    await loadOutputImages(paths);
+  };
+
+  const selectedOutputIndex = selectedOutputPath ? outputPaths.indexOf(selectedOutputPath) : -1;
+  const selectedOutputImage = selectedOutputPath
+    ? outputCache[selectedOutputPath] ?? buildFallbackImage(selectedOutputPath)
+    : null;
+
+  useEffect(() => {
+    if (selectedOutputPath) {
+      loadOutputImage(selectedOutputPath);
+    }
+  }, [selectedOutputPath, loadOutputImage]);
+
+  const outputTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    Object.values(outputCache).forEach((image) => {
+      image.tags.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+  }, [outputCache]);
+
+  const handleOutputFavorite = async () => {
+    if (!selectedOutputImage) return;
+    const nextValue = !selectedOutputImage.favorite;
+    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, favorite: nextValue }));
+    try {
+      await api('/api/favorite', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedOutputImage.id, value: nextValue })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update favorite');
+    }
+  };
+
+  const handleOutputHidden = async () => {
+    if (!selectedOutputImage) return;
+    const nextValue = !selectedOutputImage.hidden;
+    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, hidden: nextValue }));
+    try {
+      await api('/api/hidden', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedOutputImage.id, value: nextValue })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+    }
+  };
+
+  const handleOutputRating = async (rating: number) => {
+    if (!selectedOutputImage) return;
+    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, rating }));
+    try {
+      await api('/api/rating', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedOutputImage.id, value: rating })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update rating');
+    }
+  };
+
+  const handleOutputTags = async (tags: string[]) => {
+    if (!selectedOutputImage) return;
+    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, tags }));
+    try {
+      await api('/api/tags', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedOutputImage.id, tags })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update tags');
+    }
+  };
+
+  const handleOutputDelete = async () => {
+    if (!selectedOutputImage) return;
+    const confirmed = window.confirm('Remove this image from the library?');
+    if (!confirmed) return;
+    try {
+      await api('/api/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedOutputImage.id })
+      });
+      setOutputCache((prev) => {
+        const next = { ...prev };
+        delete next[selectedOutputImage.id];
+        return next;
+      });
+      setOutputPaths((prev) => prev.filter((path) => path !== selectedOutputImage.id));
+      setSelectedOutputPath(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete image');
     }
   };
 
@@ -357,17 +528,26 @@ function WorkflowDetail({
           </button>
           <h2>{workflow.name}</h2>
         </div>
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={editMode}
-            onChange={(event) => onEditModeChange(event.target.checked)}
-          />
-          <span className="switch-track">
-            <span className="switch-thumb" />
-          </span>
-          <span className="switch-label">Edit Mode</span>
-        </label>
+        <div className="workflow-header-actions">
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={editMode}
+              onChange={(event) => onEditModeChange(event.target.checked)}
+            />
+            <span className="switch-track">
+              <span className="switch-thumb" />
+            </span>
+            <span className="switch-label">Edit Mode</span>
+          </label>
+          <button
+            className="ghost danger"
+            type="button"
+            onClick={() => onDelete(workflow)}
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       {workflow.description && (
@@ -390,63 +570,72 @@ function WorkflowDetail({
             <p className="inputs-empty">No inputs configured for this workflow.</p>
           ) : (
             <div className="workflow-inputs-form">
-              {inputs.map((input) => (
-                <div key={input.id} className="workflow-input-field">
-                  <label htmlFor={`input-${input.id}`}>{input.label}</label>
-                  {input.inputType === 'text' ? (
-                    <textarea
-                      id={`input-${input.id}`}
-                      value={inputValues[input.id] || ''}
-                      onChange={(e) => handleInputChange(input.id, e.target.value)}
-                      placeholder={`Enter ${input.label.toLowerCase()}`}
-                      rows={3}
-                    />
-                  ) : input.inputType === 'number' ? (
-                    <input
-                      id={`input-${input.id}`}
-                      type="number"
-                      value={inputValues[input.id] || ''}
-                      onChange={(e) => handleInputChange(input.id, e.target.value)}
-                      placeholder={`Enter ${input.label.toLowerCase()}`}
-                    />
-                  ) : input.inputType === 'seed' ? (
-                    <div className="seed-input">
+              {inputs.map((input) => {
+                const displayLabel = input.label?.trim() || input.inputKey;
+                const showSystemLabel = displayLabel !== input.inputKey;
+                return (
+                  <div key={input.id} className="workflow-input-field">
+                    <label htmlFor={`input-${input.id}`}>
+                      <span className="workflow-input-label-main">{displayLabel}</span>
+                      {showSystemLabel && (
+                        <span className="workflow-input-label-sub">{input.inputKey}</span>
+                      )}
+                    </label>
+                    {input.inputType === 'text' ? (
+                      <textarea
+                        id={`input-${input.id}`}
+                        value={inputValues[input.id] || ''}
+                        onChange={(e) => handleInputChange(input.id, e.target.value)}
+                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
+                        rows={3}
+                      />
+                    ) : input.inputType === 'number' ? (
                       <input
                         id={`input-${input.id}`}
                         type="number"
                         value={inputValues[input.id] || ''}
                         onChange={(e) => handleInputChange(input.id, e.target.value)}
-                        placeholder="Seed value"
+                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
                       />
-                      <button
-                        type="button"
-                        className="ghost"
-                        onClick={() =>
-                          handleInputChange(
-                            input.id,
-                            String(Math.floor(Math.random() * 2147483647))
-                          )
-                        }
-                      >
-                        Random
-                      </button>
-                    </div>
-                  ) : input.inputType === 'image' ? (
-                    <ImageInputField
-                      value={inputValues[input.id] || ''}
-                      onChange={(value) => handleInputChange(input.id, value)}
-                    />
-                  ) : (
-                    <input
-                      id={`input-${input.id}`}
-                      type="text"
-                      value={inputValues[input.id] || ''}
-                      onChange={(e) => handleInputChange(input.id, e.target.value)}
-                      placeholder={`Enter ${input.label.toLowerCase()}`}
-                    />
-                  )}
-                </div>
-              ))}
+                    ) : input.inputType === 'seed' ? (
+                      <div className="seed-input">
+                        <input
+                          id={`input-${input.id}`}
+                          type="number"
+                          value={inputValues[input.id] || ''}
+                          onChange={(e) => handleInputChange(input.id, e.target.value)}
+                          placeholder="Seed value"
+                        />
+                        <button
+                          type="button"
+                          className="ghost"
+                          onClick={() =>
+                            handleInputChange(
+                              input.id,
+                              String(Math.floor(Math.random() * 2147483647))
+                            )
+                          }
+                        >
+                          Random
+                        </button>
+                      </div>
+                    ) : input.inputType === 'image' ? (
+                      <ImageInputField
+                        value={inputValues[input.id] || ''}
+                        onChange={(value) => handleInputChange(input.id, value)}
+                      />
+                    ) : (
+                      <input
+                        id={`input-${input.id}`}
+                        type="text"
+                        value={inputValues[input.id] || ''}
+                        onChange={(e) => handleInputChange(input.id, e.target.value)}
+                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -474,11 +663,49 @@ function WorkflowDetail({
         ) : (
           <div className="jobs-list">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} now={jobClock} />
+              <JobCard key={job.id} job={job} now={jobClock} onOpenOutput={handleOpenOutput} />
             ))}
           </div>
         )}
       </section>
+
+      {selectedOutputImage && (
+        <ImageModal
+          image={selectedOutputImage}
+          index={Math.max(0, selectedOutputIndex)}
+          total={outputPaths.length || 1}
+          modalTool={outputTool}
+          availableTags={outputTags}
+          onUpdateTags={handleOutputTags}
+          onToggleTags={() =>
+            setOutputTool((current) => (current === 'tags' ? null : 'tags'))
+          }
+          onToggleRating={() =>
+            setOutputTool((current) => (current === 'rating' ? null : 'rating'))
+          }
+          onTogglePrompt={() =>
+            setOutputTool((current) => (current === 'prompt' ? null : 'prompt'))
+          }
+          onToggleFavorite={handleOutputFavorite}
+          onToggleHidden={handleOutputHidden}
+          onRate={handleOutputRating}
+          onDelete={handleOutputDelete}
+          onClose={() => {
+            setSelectedOutputPath(null);
+            setOutputTool(null);
+          }}
+          onPrev={() => {
+            if (selectedOutputIndex > 0) {
+              setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
+            }
+          }}
+          onNext={() => {
+            if (selectedOutputIndex >= 0 && selectedOutputIndex < outputPaths.length - 1) {
+              setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -605,9 +832,10 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
 type JobCardProps = {
   job: Job;
   now: number;
+  onOpenOutput: (job: Job, output: JobOutput) => void;
 };
 
-function JobCard({ job, now }: JobCardProps) {
+function JobCard({ job, now, onOpenOutput }: JobCardProps) {
   const isGenerating = job.status === 'pending' || job.status === 'queued' || job.status === 'running';
   const statusClass =
     job.status === 'completed'
@@ -642,12 +870,18 @@ function JobCard({ job, now }: JobCardProps) {
       {job.outputs && job.outputs.length > 0 && (
         <div className="job-outputs">
           {job.outputs.map((output, index) => (
-            <img
+            <button
               key={index}
-              src={`/images/${output.imagePath}`}
-              alt={`Output ${index + 1}`}
+              type="button"
               className="job-output-thumb"
-            />
+              onClick={() => onOpenOutput(job, output)}
+              title="Open in viewer"
+            >
+              <img
+                src={output.thumbUrl || `/images/${encodeURI(output.imagePath)}`}
+                alt={`Output ${index + 1}`}
+              />
+            </button>
           ))}
         </div>
       )}
@@ -779,7 +1013,7 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
           nodeId,
           inputKey,
           inputType,
-          label: `${inputKey} (Node ${nodeId})`
+          label: inputKey
         }
       ];
     });
@@ -1023,8 +1257,9 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
                                     onChange={(e) =>
                                       handleUpdateInputLabel(node.id, key, e.target.value)
                                     }
-                                    placeholder="Label"
+                                    placeholder="Custom label (optional)"
                                   />
+                                  <span className="input-system-label">System label: {key}</span>
                                   <select
                                     value={selected?.inputType || inferred}
                                     onChange={(e) =>

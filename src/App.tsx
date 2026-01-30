@@ -3,6 +3,7 @@ import { Outlet, NavLink, Link } from 'react-router-dom';
 import packageJson from '../package.json';
 import { STORAGE_KEYS } from './constants';
 import type { ThemeMode } from './types';
+import { useElementSize } from './hooks/useElementSize';
 
 export default function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
@@ -13,6 +14,7 @@ export default function App() {
     return 'system';
   });
   const [goHomeSignal, setGoHomeSignal] = useState(0);
+  const { ref: navRef, height: navHeight } = useElementSize<HTMLElement>();
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.theme, themeMode);
@@ -39,8 +41,8 @@ export default function App() {
   };
 
   return (
-    <div className="app">
-      <nav className="app-nav">
+    <div className="app" style={{ '--app-nav-height': `${navHeight}px` } as React.CSSProperties}>
+      <nav className="app-nav" ref={navRef}>
         <Link className="app-nav-brand" to="/" onClick={handleGoHome} title="All images">
           <span className="app-nav-title">ComfyUI Viewer</span>
           <span className="app-nav-version">v{packageJson.version}</span>

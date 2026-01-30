@@ -289,13 +289,15 @@ app.post('/api/workflows', async (req, res) => {
       runTransaction(() => {
         for (let i = 0; i < inputs.length; i++) {
           const input = inputs[i];
+          const label = typeof input.label === 'string' ? input.label.trim() : '';
+          const storedLabel = label || input.inputKey;
           statements.insertWorkflowInput.run(
             workflowId,
             input.nodeId,
             input.nodeTitle || null,
             input.inputKey,
             input.inputType,
-            input.label,
+            storedLabel,
             input.defaultValue || null,
             i
           );
@@ -333,13 +335,15 @@ app.put('/api/workflows/:id', async (req, res) => {
         statements.deleteWorkflowInputs.run(workflowId);
         for (let i = 0; i < inputs.length; i++) {
           const input = inputs[i];
+          const label = typeof input.label === 'string' ? input.label.trim() : '';
+          const storedLabel = label || input.inputKey;
           statements.insertWorkflowInput.run(
             workflowId,
             input.nodeId,
             input.nodeTitle || null,
             input.inputKey,
             input.inputType,
-            input.label,
+            storedLabel,
             input.defaultValue || null,
             i
           );
@@ -377,7 +381,8 @@ app.get('/api/workflows/:id/jobs', async (req, res) => {
           jobId: outputRow.job_id,
           imagePath: outputRow.image_path,
           comfyFilename: outputRow.comfy_filename,
-          createdAt: outputRow.created_at
+          createdAt: outputRow.created_at,
+          thumbUrl: getThumbUrl(outputRow.image_path)
         });
       }
       jobs.push({
@@ -512,7 +517,8 @@ function buildJobPayload(jobId) {
       jobId: outputRow.job_id,
       imagePath: outputRow.image_path,
       comfyFilename: outputRow.comfy_filename,
-      createdAt: outputRow.created_at
+      createdAt: outputRow.created_at,
+      thumbUrl: getThumbUrl(outputRow.image_path)
     });
   }
 
@@ -583,6 +589,21 @@ app.get('/api/images/:path(*)/prompt', async (req, res) => {
     });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to get prompt data');
+  }
+});
+
+// Get metadata for a single image
+app.get('/api/images/:path(*)', async (req, res) => {
+  try {
+    const imagePath = req.params.path;
+    const metadata = loadMetadata();
+    const image = await buildImageItem(imagePath, metadata);
+    if (!image) {
+      return res.status(404).send('Image not found');
+    }
+    res.json(image);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get image');
   }
 });
 
@@ -674,13 +695,37 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
             statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now);
 
             // Save prompt data for this image
-            const promptData = {
-              workflowInputs: workflowInputs.map(wi => ({
-                label: wi.label,
-                inputType: wi.input_type,
-                value: inputValuesMap.get(wi.id)
-              })).filter(wi => wi.value !== undefined)
-            };
+            const inputs = workflowInputs
+              .map((wi) => {
+                const rawValue = inputValuesMap.get(wi.id);
+                if (rawValue === undefined) return null;
+                const userLabel = typeof wi.label === 'string' ? wi.label.trim() : '';
+                const systemLabel = wi.input_key;
+                const label = userLabel || systemLabel;
+                const numericValue = Number(rawValue);
+                const value =
+                  wi.input_type === 'number' || wi.input_type === 'seed'
+                    ? Number.isFinite(numericValue)
+                      ? numericValue
+                      : rawValue
+                    : rawValue;
+                return {
+                  label,
+                  systemLabel,
+                  inputType: wi.input_type,
+                  value
+                };
+              })
+              .filter(Boolean);
+            const inputJson = {};
+            for (const input of inputs) {
+              const hasSystemLabel =
+                input.systemLabel && input.systemLabel !== input.label;
+              inputJson[input.label] = hasSystemLabel
+                ? { value: input.value, systemLabel: input.systemLabel }
+                : input.value;
+            }
+            const promptData = { inputs, inputJson };
             statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
 
           } catch (imgErr) {
@@ -763,6 +808,7 @@ function isImageFile(fileName) {
 function initDb() {
   const database = new DatabaseSync(DB_PATH);
   database.exec('PRAGMA journal_mode = WAL;');
+  database.exec('PRAGMA foreign_keys = ON;');
   database.exec(`
     CREATE TABLE IF NOT EXISTS meta (
       path TEXT PRIMARY KEY,
@@ -1061,13 +1107,7 @@ async function walkDir(currentDir, relDir, images, metadata) {
       await walkDir(entryPath, nextRel, images, metadata);
     } else if (entry.isFile() && isImageFile(entry.name)) {
       const relPath = relDir ? `${relDir}/${entry.name}` : entry.name;
-      const thumbRel = relDir
-        ? `${relDir}/${entry.name}.jpg`
-        : `${entry.name}.jpg`;
-      const thumbPath = path.join(THUMB_DIR, thumbRel);
-      const thumbUrl = existsSync(thumbPath)
-        ? `/images/.thumbs/${encodeURI(thumbRel)}`
-        : undefined;
+      const thumbUrl = getThumbUrl(relPath);
       const stats = await fs.stat(entryPath);
       const createdMs = Number.isFinite(stats.birthtimeMs) && stats.birthtimeMs > 0
         ? stats.birthtimeMs
@@ -1089,6 +1129,36 @@ async function walkDir(currentDir, relDir, images, metadata) {
       });
     }
   }
+}
+
+function getThumbUrl(relPath) {
+  const thumbRel = `${relPath}.jpg`;
+  const thumbPath = path.join(THUMB_DIR, thumbRel);
+  return existsSync(thumbPath) ? `/images/.thumbs/${encodeURI(thumbRel)}` : undefined;
+}
+
+async function buildImageItem(relPath, metadata) {
+  const fullPath = resolveDataPath(relPath);
+  if (!existsSync(fullPath)) return null;
+  const stats = await fs.stat(fullPath);
+  const createdMs = Number.isFinite(stats.birthtimeMs) && stats.birthtimeMs > 0
+    ? stats.birthtimeMs
+    : Number.isFinite(stats.ctimeMs) && stats.ctimeMs > 0
+      ? stats.ctimeMs
+      : stats.mtimeMs;
+  return {
+    id: relPath,
+    name: path.basename(relPath),
+    url: `/images/${encodeURI(relPath)}`,
+    thumbUrl: getThumbUrl(relPath),
+    favorite: metadata.favorites.has(relPath),
+    hidden: metadata.hidden.has(relPath),
+    rating: metadata.ratings.get(relPath) ?? 0,
+    tags: metadata.tagsByPath.get(relPath) || [],
+    createdMs,
+    mtimeMs: stats.mtimeMs,
+    size: stats.size
+  };
 }
 
 function normalizeTags(tags) {

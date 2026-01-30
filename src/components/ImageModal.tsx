@@ -7,16 +7,23 @@ import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
 import { api } from '../lib/api';
 
+type PromptInput = {
+  label: string;
+  systemLabel?: string;
+  inputType?: string;
+  value: unknown;
+};
+
+type PromptPayload = {
+  workflowInputs?: PromptInput[];
+  inputs?: PromptInput[];
+  inputJson?: Record<string, unknown>;
+};
+
 type PromptData = {
   imagePath: string;
   jobId: number | null;
-  promptData: {
-    workflowInputs: Array<{
-      label: string;
-      inputType: string;
-      value: string;
-    }>;
-  };
+  promptData: PromptPayload;
   createdAt: number;
 };
 
@@ -280,6 +287,31 @@ export default function ImageModal({
       ),
     [availableTags, image.tags, tagQuery]
   );
+
+  const promptInputs = useMemo<PromptInput[]>(() => {
+    if (!promptData?.promptData) return [];
+    if (Array.isArray(promptData.promptData.inputs)) {
+      return promptData.promptData.inputs;
+    }
+    if (Array.isArray(promptData.promptData.workflowInputs)) {
+      return promptData.promptData.workflowInputs;
+    }
+    return [];
+  }, [promptData]);
+
+  const promptJson = useMemo(() => {
+    if (!promptData?.promptData) return null;
+    if (promptData.promptData.inputJson) {
+      return promptData.promptData.inputJson;
+    }
+    if (promptInputs.length === 0) return null;
+    const next = {} as Record<string, unknown>;
+    promptInputs.forEach((input) => {
+      const key = input.label || input.systemLabel || 'input';
+      next[key] = input.value;
+    });
+    return next;
+  }, [promptData, promptInputs]);
 
   useEffect(() => {
     setTagInput('');
@@ -549,13 +581,22 @@ export default function ImageModal({
                   aria-label="View prompt data"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
                     <path
-                      d="M4 6h16M4 12h16M4 18h10"
+                      d="M12 10v6"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="1.7"
                       strokeLinecap="round"
                     />
+                    <circle cx="12" cy="7" r="1.2" fill="currentColor" />
                   </svg>
                 </button>
                 <button
@@ -725,20 +766,13 @@ export default function ImageModal({
                 )}
                 {modalTool === 'prompt' && (
                   <div className="tool-panel prompt-panel">
-                    <span className="prompt-panel-title">Generation Inputs</span>
+                    <span className="prompt-panel-title">Generation JSON</span>
                     {promptLoading && <p className="prompt-loading">Loading...</p>}
                     {promptError && <p className="prompt-error">{promptError}</p>}
-                    {promptData && promptData.promptData.workflowInputs.length > 0 && (
-                      <div className="prompt-inputs">
-                        {promptData.promptData.workflowInputs.map((input, idx) => (
-                          <div key={idx} className="prompt-input-item">
-                            <span className="prompt-input-label">{input.label}</span>
-                            <span className="prompt-input-value">{input.value}</span>
-                          </div>
-                        ))}
-                      </div>
+                    {promptJson && (
+                      <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
                     )}
-                    {promptData && promptData.promptData.workflowInputs.length === 0 && (
+                    {!promptJson && promptData && (
                       <p className="prompt-empty">No input data recorded.</p>
                     )}
                     {promptData && (

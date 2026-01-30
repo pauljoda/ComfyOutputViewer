@@ -141,7 +141,7 @@ body {
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--card-border);
   position: sticky;
-  top: 0;
+  top: var(--app-nav-height, 0px);
   z-index: 9;
 }
 
@@ -404,7 +404,7 @@ body {
 
 .tool-scrim {
   position: fixed;
-  top: var(--top-bar-height, 0px);
+  top: calc(var(--app-nav-height, 0px) + var(--top-bar-height, 0px));
   left: 0;
   right: 0;
   bottom: 0;
@@ -1504,6 +1504,21 @@ body {
   gap: 16px;
 }
 
+.workflow-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ghost.danger {
+  color: #b24a33;
+  background: rgba(191, 79, 47, 0.14);
+}
+
+.ghost.danger:hover {
+  box-shadow: 0 8px 18px rgba(183, 56, 47, 0.2);
+}
+
 .switch {
   display: inline-flex;
   align-items: center;
@@ -1607,8 +1622,25 @@ body {
 }
 
 .workflow-input-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-size: 13px;
   font-weight: 500;
+  color: var(--muted);
+}
+
+.workflow-input-label-main {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.workflow-input-label-sub {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -1859,11 +1891,30 @@ body {
 }
 
 .job-output-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 80px;
   height: 80px;
-  object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--card-border);
+  background: var(--card);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.job-output-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.job-output-thumb:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
 }
 
 /* Modal */
@@ -2101,6 +2152,8 @@ body {
 
 .input-config {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--card-border);
@@ -2124,6 +2177,14 @@ body {
   background: var(--card);
   color: var(--ink);
   font-size: 13px;
+}
+
+.input-system-label {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 /* Image Picker Modal */
@@ -2243,6 +2304,18 @@ body {
   color: #f5f1ea;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.prompt-json {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f1ea;
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 240px;
+  overflow: auto;
 }
 
 @media (max-width: 900px) {

@@ -110,6 +110,7 @@ export type JobOutput = {
   imagePath: string;
   comfyFilename?: string;
   createdAt: number;
+  thumbUrl?: string;
 };
 
 export type JobInputValue = {
