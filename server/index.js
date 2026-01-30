@@ -512,14 +512,16 @@ function buildJobPayload(jobId) {
 
   const outputs = [];
   for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
+    const outputHash = outputRow.output_hash;
     outputs.push({
       id: outputRow.id,
       jobId: outputRow.job_id,
       imagePath: outputRow.image_path,
       comfyFilename: outputRow.comfy_filename,
       createdAt: outputRow.created_at,
+      outputHash,
       thumbUrl: getThumbUrl(outputRow.image_path),
-      exists: outputExists(outputRow.image_path)
+      exists: outputExists(outputRow.image_path, outputHash)
     });
   }
 
@@ -561,7 +563,10 @@ function broadcastJobUpdate(jobId) {
   }
 }
 
-function outputExists(imagePath) {
+function outputExists(imagePath, outputHash) {
+  if (outputHash && isHashBlacklisted(outputHash)) {
+    return false;
+  }
   const dataPath = resolveDataPath(imagePath);
   return existsSync(dataPath);
 }
@@ -709,6 +714,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
             if (!imageResponse.ok) continue;
 
             const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
             const imagePath = imgInfo.subfolder
               ? path.join(imgInfo.subfolder, imgInfo.filename)
               : imgInfo.filename;
@@ -747,7 +753,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
             }
 
             // Record the output
-            statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now);
+            statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
 
             // Save prompt data for this image
             const inputs = workflowInputs
@@ -921,7 +927,8 @@ function initDb() {
       job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
       image_path TEXT NOT NULL,
       comfy_filename TEXT,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      output_hash TEXT
     );
     CREATE TABLE IF NOT EXISTS image_prompts (
       image_path TEXT PRIMARY KEY,
@@ -931,6 +938,7 @@ function initDb() {
     );
   `);
   ensureMetaColumn(database, 'rating', 'INTEGER NOT NULL DEFAULT 0');
+  ensureJobOutputColumn(database, 'output_hash', 'TEXT');
   return database;
 }
 
@@ -938,6 +946,12 @@ function ensureMetaColumn(database, columnName, definition) {
   const columns = database.prepare('PRAGMA table_info(meta)').all();
   if (columns.some((column) => column.name === columnName)) return;
   database.exec(`ALTER TABLE meta ADD COLUMN ${columnName} ${definition};`);
+}
+
+function ensureJobOutputColumn(database, columnName, definition) {
+  const columns = database.prepare('PRAGMA table_info(job_outputs)').all();
+  if (columns.some((column) => column.name === columnName)) return;
+  database.exec(`ALTER TABLE job_outputs ADD COLUMN ${columnName} ${definition};`);
 }
 
 function prepareStatements(database) {
@@ -986,8 +1000,8 @@ function prepareStatements(database) {
     selectJobInputs: database.prepare('SELECT ji.id, ji.job_id, ji.input_id, ji.value, wi.label, wi.input_type, wi.input_key FROM job_inputs ji JOIN workflow_inputs wi ON ji.input_id = wi.id WHERE ji.job_id = ?'),
     insertJobInput: database.prepare('INSERT INTO job_inputs (job_id, input_id, value) VALUES (?, ?, ?)'),
     // Job output statements
-    selectJobOutputs: database.prepare('SELECT id, job_id, image_path, comfy_filename, created_at FROM job_outputs WHERE job_id = ?'),
-    insertJobOutput: database.prepare('INSERT INTO job_outputs (job_id, image_path, comfy_filename, created_at) VALUES (?, ?, ?, ?)'),
+    selectJobOutputs: database.prepare('SELECT id, job_id, image_path, comfy_filename, created_at, output_hash FROM job_outputs WHERE job_id = ?'),
+    insertJobOutput: database.prepare('INSERT INTO job_outputs (job_id, image_path, comfy_filename, created_at, output_hash) VALUES (?, ?, ?, ?, ?)'),
     // Image prompt statements
     selectImagePrompt: database.prepare('SELECT image_path, job_id, prompt_data, created_at FROM image_prompts WHERE image_path = ?'),
     insertImagePrompt: database.prepare('INSERT OR REPLACE INTO image_prompts (image_path, job_id, prompt_data, created_at) VALUES (?, ?, ?, ?)')

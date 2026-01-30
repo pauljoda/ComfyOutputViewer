@@ -111,6 +111,7 @@ export type JobOutput = {
   comfyFilename?: string;
   createdAt: number;
   thumbUrl?: string;
+  outputHash?: string;
   exists?: boolean;
 };
 

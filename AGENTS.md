@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Stored workflow output hashes to hide blacklisted outputs and removed deleted outputs from job logs immediately.
 - Defaulted the workflows page to open the first available workflow and hid job output thumbnails for deleted images.
 - Added a close button to the prompt metadata overlay and filtered deleted output thumbnails from workflow job logs.
 - Persisted workflow prefill payloads in session storage to restore input values when navigating from the gallery.

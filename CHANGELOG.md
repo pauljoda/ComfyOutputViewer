@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.38] - 2026-01-30
+
+### Fixed
+- Stored output hashes for workflow job images and hid outputs that match blacklisted hashes.
+- Removed deleted outputs from job logs immediately after deletion.
+
 ## [0.3.37] - 2026-01-30
 
 ### Fixed

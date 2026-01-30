@@ -610,6 +610,12 @@ function WorkflowDetail({
         method: 'POST',
         body: JSON.stringify({ path: selectedOutputImage.id })
       });
+      setJobs((prev) =>
+        prev.map((job) => ({
+          ...job,
+          outputs: job.outputs?.filter((output) => output.imagePath !== selectedOutputImage.id)
+        }))
+      );
       setOutputCache((prev) => {
         const next = { ...prev };
         delete next[selectedOutputImage.id];
