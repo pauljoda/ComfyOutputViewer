@@ -1599,14 +1599,6 @@ body {
   align-items: center;
   gap: 12px;
 }
-
-.workflow-generating {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
 .workflow-error {
   margin-top: 12px;
   padding: 10px 12px;
@@ -1700,6 +1692,12 @@ body {
   margin-bottom: 8px;
 }
 
+.job-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .job-status {
   display: inline-flex;
   align-items: center;
@@ -1740,6 +1738,11 @@ body {
 }
 
 .job-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.job-duration {
   font-size: 12px;
   color: var(--muted);
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Workflow, WorkflowInput, Job } from '../types';
@@ -151,6 +151,7 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobClock, setJobClock] = useState(() => Date.now());
 
   useEffect(() => {
     loadWorkflowDetails();
@@ -174,14 +175,14 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
     }
   };
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const response = await api<{ jobs: Job[] }>(`/api/workflows/${workflow.id}/jobs`);
       setJobs(response.jobs);
     } catch (err) {
       console.error('Failed to load jobs:', err);
     }
-  };
+  }, [workflow.id]);
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -212,6 +213,27 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
     };
   }, [workflow.id]);
 
+  const hasActiveJobs = useMemo(
+    () => jobs.some((job) => job.status === 'pending' || job.status === 'queued' || job.status === 'running'),
+    [jobs]
+  );
+
+  useEffect(() => {
+    if (!hasActiveJobs) return;
+    const interval = window.setInterval(() => {
+      setJobClock(Date.now());
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveJobs]);
+
+  useEffect(() => {
+    if (!hasActiveJobs) return;
+    const interval = window.setInterval(() => {
+      loadJobs();
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [hasActiveJobs, loadJobs]);
+
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   };
@@ -235,10 +257,6 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
       setRunning(false);
     }
   };
-
-  const activeJobCount = jobs.filter((job) =>
-    job.status === 'pending' || job.status === 'queued' || job.status === 'running'
-  ).length;
 
   return (
     <div className="workflow-detail">
@@ -346,12 +364,6 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
             <button className="button" onClick={handleRun} disabled={running}>
               {running ? 'Running...' : 'Run Workflow'}
             </button>
-            {activeJobCount > 0 && (
-              <div className="workflow-generating" role="status" aria-live="polite">
-                <span className="job-spinner" aria-hidden="true" />
-                Generating...
-              </div>
-            )}
           </div>
 
           {error && <p className="workflow-error">{error}</p>}
@@ -365,7 +377,7 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
         ) : (
           <div className="jobs-list">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard key={job.id} job={job} now={jobClock} />
             ))}
           </div>
         )}
@@ -495,9 +507,10 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
 
 type JobCardProps = {
   job: Job;
+  now: number;
 };
 
-function JobCard({ job }: JobCardProps) {
+function JobCard({ job, now }: JobCardProps) {
   const isGenerating = job.status === 'pending' || job.status === 'queued' || job.status === 'running';
   const statusClass =
     job.status === 'completed'
@@ -509,16 +522,23 @@ function JobCard({ job }: JobCardProps) {
           : job.status === 'running'
             ? 'running'
             : 'pending';
+  const statusLabel = isGenerating ? 'Generating Image...' : job.status;
+  const startedAt = job.startedAt ?? job.createdAt;
+  const endedAt = job.completedAt ?? now;
+  const durationMs = Math.max(0, endedAt - startedAt);
 
   return (
     <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
       <div className="job-header">
         <span className="job-status">
-          {job.status}
+          {statusLabel}
           {isGenerating && <span className="job-spinner" aria-hidden="true" />}
         </span>
-        <span className="job-time">
-          {new Date(job.createdAt).toLocaleString()}
+        <span className="job-meta">
+          <span className="job-time">
+            {new Date(job.createdAt).toLocaleString()}
+          </span>
+          <span className="job-duration">{formatDuration(durationMs)}</span>
         </span>
       </div>
       {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}
@@ -536,6 +556,13 @@ function JobCard({ job }: JobCardProps) {
       )}
     </div>
   );
+}
+
+function formatDuration(durationMs: number) {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 type WorkflowEditorPanelProps = {

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.21] - 2026-01-30
+
+### Fixed
+- Simplified queued status to a generating label, added job duration timers, and fall back to polling during active runs.
+
 ## [0.3.20] - 2026-01-30
 
 ### Fixed

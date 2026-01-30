@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Updated workflow job cards with generating status text, live duration timers, and periodic polling fallback.
 - Ensured workflow runs only overwrite configured inputs, leaving other node values intact.
 - Swapped workflow edit mode to an in-place editor view with a modern toggle and sorted selected inputs to the top.
 - Fixed workflow input deletions by clearing job input references to avoid foreign key errors.
