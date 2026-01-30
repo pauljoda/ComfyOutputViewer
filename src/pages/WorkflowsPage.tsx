@@ -512,7 +512,11 @@ function WorkflowDetail({
   };
 
   const handleOpenOutput = async (job: Job, output: JobOutput) => {
-    const paths = job.outputs?.map((item) => item.imagePath) ?? [output.imagePath];
+    const visibleOutputs = job.outputs?.filter((item) => item.exists !== false) ?? [];
+    const paths = visibleOutputs.map((item) => item.imagePath);
+    if (paths.length === 0) {
+      return;
+    }
     setOutputPaths(paths);
     setSelectedOutputPath(output.imagePath);
     setOutputTool(null);
@@ -976,9 +980,11 @@ function JobCard({ job, now, onOpenOutput }: JobCardProps) {
         </span>
       </div>
       {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}
-      {job.outputs && job.outputs.length > 0 && (
+      {job.outputs && job.outputs.filter((output) => output.exists !== false).length > 0 && (
         <div className="job-outputs">
-          {job.outputs.map((output, index) => (
+          {job.outputs
+            .filter((output) => output.exists !== false)
+            .map((output, index) => (
             <button
               key={index}
               type="button"

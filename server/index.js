@@ -518,7 +518,8 @@ function buildJobPayload(jobId) {
       imagePath: outputRow.image_path,
       comfyFilename: outputRow.comfy_filename,
       createdAt: outputRow.created_at,
-      thumbUrl: getThumbUrl(outputRow.image_path)
+      thumbUrl: getThumbUrl(outputRow.image_path),
+      exists: outputExists(outputRow.image_path)
     });
   }
 
@@ -558,6 +559,12 @@ function broadcastJobUpdate(jobId) {
       client.send(payload);
     }
   }
+}
+
+function outputExists(imagePath) {
+  const sourcePath = path.join(SOURCE_DIR, imagePath);
+  const dataPath = path.join(DATA_DIR, imagePath);
+  return existsSync(sourcePath) || existsSync(dataPath);
 }
 
 // Get job status

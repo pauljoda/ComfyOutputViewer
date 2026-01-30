@@ -915,17 +915,35 @@ export default function ImageModal({
                       </span>
                     )}
                   </div>
-                  {promptWorkflowId ? (
+                  <div className="prompt-card-actions">
+                    {promptWorkflowId ? (
+                      <button
+                        className="button prompt-card-action"
+                        type="button"
+                        onClick={handleLoadWorkflow}
+                      >
+                        Load Workflow
+                      </button>
+                    ) : (
+                      <span className="prompt-card-missing">Workflow not saved</span>
+                    )}
                     <button
-                      className="button prompt-card-action"
+                      className="prompt-card-close"
                       type="button"
-                      onClick={handleLoadWorkflow}
+                      onClick={handleTogglePrompt}
+                      aria-label="Close prompt"
                     >
-                      Load Workflow
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M6 6l12 12M18 6l-12 12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </button>
-                  ) : (
-                    <span className="prompt-card-missing">Workflow not saved</span>
-                  )}
+                  </div>
                 </div>
                 <div className="prompt-card-body prompt-panel">
                   {promptLoading && <p className="prompt-loading">Loading...</p>}

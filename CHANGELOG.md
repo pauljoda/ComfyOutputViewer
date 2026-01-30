@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.36] - 2026-01-30
+
+### Fixed
+- Added a close button to the prompt metadata overlay.
+- Hid deleted workflow output thumbnails in job logs by checking output existence on the server.
+
 ## [0.3.35] - 2026-01-30
 
 ### Fixed

@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Added a close button to the prompt metadata overlay and filtered deleted output thumbnails from workflow job logs.
 - Persisted workflow prefill payloads in session storage to restore input values when navigating from the gallery.
 - Simplified the prompt metadata overlay to a static centered panel and removed flip messaging.
 - Improved workflow prefill matching from gallery navigation using labels/input keys and exposed input keys in prompt metadata.
