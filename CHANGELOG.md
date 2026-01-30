@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.37] - 2026-01-30
+
+### Fixed
+- Defaulted the workflows page to open the first workflow when available.
+- Hid job output thumbnails when the underlying image file has been removed from the app library.
+
 ## [0.3.36] - 2026-01-30
 
 ### Fixed

@@ -562,9 +562,8 @@ function broadcastJobUpdate(jobId) {
 }
 
 function outputExists(imagePath) {
-  const sourcePath = path.join(SOURCE_DIR, imagePath);
-  const dataPath = path.join(DATA_DIR, imagePath);
-  return existsSync(sourcePath) || existsSync(dataPath);
+  const dataPath = resolveDataPath(imagePath);
+  return existsSync(dataPath);
 }
 
 // Get job status

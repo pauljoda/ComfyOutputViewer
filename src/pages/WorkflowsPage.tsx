@@ -75,6 +75,11 @@ export default function WorkflowsPage() {
   }, [workflowId, workflows]);
 
   useEffect(() => {
+    if (workflowId || workflows.length === 0) return;
+    navigate(`/workflows/${workflows[0].id}`, { replace: true });
+  }, [workflowId, workflows, navigate]);
+
+  useEffect(() => {
     if (!selectedWorkflow && editMode) {
       setEditMode(false);
       setImportMode(false);
