@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.39] - 2026-01-30
+
+### Fixed
+- Resolved merge conflict markers in metadata files to restore valid JSON for Nix builds.
+
 ## [0.3.38] - 2026-01-30
 
 ### Fixed
