@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.31] - 2026-01-30
+
+### Fixed
+- Disabled sticky positioning for modal bars and removed earlier Safari-specific safe-area tweaks.
+
 ## [0.3.30] - 2026-01-30
 
 ### Fixed

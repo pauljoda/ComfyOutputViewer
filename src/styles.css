@@ -59,8 +59,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(12px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
-    12px calc(20px + env(safe-area-inset-left));
+  padding: 12px 20px;
   background: var(--toolbar);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--card-border);
@@ -829,17 +828,15 @@ body {
   color: #f5f1ea;
   backdrop-filter: blur(14px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  position: sticky;
+  position: relative;
   z-index: 2;
 }
 
 .modal-topbar {
-  top: 0;
   padding-top: 12px;
 }
 
 .modal-bottombar {
-  bottom: 0;
   border-bottom: none;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-bottom: calc(12px + env(safe-area-inset-bottom));
