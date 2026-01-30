@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.24] - 2026-01-30
+
+### Fixed
+- Added a websocket connection flag so job refresh polling continues when live updates drop.
+
 ## [0.3.23] - 2026-01-30
 
 ### Added

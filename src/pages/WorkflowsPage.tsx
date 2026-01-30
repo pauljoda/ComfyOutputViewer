@@ -224,6 +224,7 @@ function WorkflowDetail({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobClock, setJobClock] = useState(() => Date.now());
+  const [wsConnected, setWsConnected] = useState(false);
 
   useEffect(() => {
     loadWorkflowDetails();
@@ -260,6 +261,10 @@ function WorkflowDetail({
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
+    socket.onopen = () => {
+      setWsConnected(true);
+    };
+
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
@@ -280,7 +285,16 @@ function WorkflowDetail({
       }
     };
 
+    socket.onerror = () => {
+      setWsConnected(false);
+    };
+
+    socket.onclose = () => {
+      setWsConnected(false);
+    };
+
     return () => {
+      setWsConnected(false);
       socket.close();
     };
   }, [workflow.id]);
@@ -299,12 +313,12 @@ function WorkflowDetail({
   }, [hasActiveJobs]);
 
   useEffect(() => {
-    if (!hasActiveJobs) return;
+    if (!hasActiveJobs && wsConnected) return;
     const interval = window.setInterval(() => {
       loadJobs();
     }, 8000);
     return () => window.clearInterval(interval);
-  }, [hasActiveJobs, loadJobs]);
+  }, [hasActiveJobs, loadJobs, wsConnected]);
 
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
