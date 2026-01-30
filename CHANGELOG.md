@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.29] - 2026-01-30
+
+### Fixed
+- Enabled viewport-fit=cover and safe-area padding on the tab bar so the modal top bar aligns on Safari.
+
 ## [0.3.28] - 2026-01-30
 
 ### Fixed

@@ -59,7 +59,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: calc(12px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+    12px calc(20px + env(safe-area-inset-left));
   background: var(--toolbar);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--card-border);

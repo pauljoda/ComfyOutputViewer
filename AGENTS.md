@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Enabled viewport-fit=cover and safe-area padding for the app nav to fix Safari modal spacing.
 - Reduced the modal top bar offset for image detail view and added a data-dir fallback for workflow output downloads.
 - Removed the extra mobile top bar offset so the gallery toolbar sits flush under the tab bar.
 - Fixed the mobile gallery top bar offset so it sits below the new tab navigation.
@@ -118,6 +119,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Updated the Nix npm dependency hash after the package-lock version bump.
 - Refreshed the Nix npm dependency hash after the latest version bump.
 - Refreshed the Nix npm dependency hash after the latest lockfile update.
+- Refreshed the Nix npm dependency hash after the latest version bump.
 - Removed the redundant hamburger toggle inside the workflow drawer header.
 - Added a websocket connection fallback so job polling continues when live updates drop.
 - Added a debug prompt JSON preview in workflow runs and a toggleable workflow list drawer with a sleek run button.
