@@ -4,9 +4,16 @@ import ImageModal from '../components/ImageModal';
 import { api } from '../lib/api';
 import type { Workflow, WorkflowInput, Job, JobOutput, ImageItem, ModalTool } from '../types';
 
+type WorkflowPrefillEntry = {
+  inputId?: number;
+  label?: string;
+  systemLabel?: string;
+  value: string;
+};
+
 type WorkflowPrefill = {
   workflowId: number;
-  inputValues: Record<number, string>;
+  entries: WorkflowPrefillEntry[];
   sourceImagePath?: string;
   createdAt?: number;
 };
@@ -291,12 +298,29 @@ function WorkflowDetail({
     setInputValues((prev) => {
       const next = { ...prev };
       let changed = false;
-      for (const input of inputs) {
-        const value = prefill.inputValues[input.id];
-        if (value !== undefined) {
-          next[input.id] = value;
-          changed = true;
+      const entries = prefill.entries || [];
+      const byId = new Map<number, WorkflowPrefillEntry>();
+      const byLabel = new Map<string, WorkflowPrefillEntry>();
+      const bySystemLabel = new Map<string, WorkflowPrefillEntry>();
+      entries.forEach((entry) => {
+        if (typeof entry.inputId === 'number') {
+          byId.set(entry.inputId, entry);
         }
+        if (entry.label) {
+          byLabel.set(entry.label.trim(), entry);
+        }
+        if (entry.systemLabel) {
+          bySystemLabel.set(entry.systemLabel.trim(), entry);
+        }
+      });
+      for (const input of inputs) {
+        const entry =
+          byId.get(input.id) ||
+          (input.label ? byLabel.get(input.label.trim()) : undefined) ||
+          (input.inputKey ? bySystemLabel.get(input.inputKey.trim()) : undefined);
+        if (!entry) continue;
+        next[input.id] = entry.value ?? '';
+        changed = true;
       }
       return changed ? next : prev;
     });

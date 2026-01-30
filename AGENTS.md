@@ -109,6 +109,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Simplified the prompt metadata overlay to a static centered panel and removed flip messaging.
+- Improved workflow prefill matching from gallery navigation using labels/input keys and exposed input keys in prompt metadata.
 - Replaced the prompt metadata popover with a centered flip-card prompt view that closes by clicking outside.
 - Added a Load Workflow action on prompt metadata to jump to workflows with prefilled inputs and missing-workflow messaging.
 - Stored workflow IDs/input IDs with image prompt metadata and exposed job inputs in the prompt API response.

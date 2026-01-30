@@ -530,7 +530,8 @@ function buildJobPayload(jobId) {
       inputId: inputRow.input_id,
       value: inputRow.value,
       label: inputRow.label,
-      inputType: inputRow.input_type
+      inputType: inputRow.input_type,
+      inputKey: inputRow.input_key
     });
   }
 
@@ -593,7 +594,8 @@ app.get('/api/images/:path(*)/prompt', async (req, res) => {
           inputId: inputRow.input_id,
           value: inputRow.value,
           label: inputRow.label,
-          inputType: inputRow.input_type
+          inputType: inputRow.input_type,
+          inputKey: inputRow.input_key
         });
       }
     }
@@ -975,7 +977,7 @@ function prepareStatements(database) {
     updateJobStatus: database.prepare('UPDATE jobs SET status = ?, error_message = ?, started_at = ?, completed_at = ? WHERE id = ?'),
     updateJobPromptId: database.prepare('UPDATE jobs SET prompt_id = ? WHERE id = ?'),
     // Job input statements
-    selectJobInputs: database.prepare('SELECT ji.id, ji.job_id, ji.input_id, ji.value, wi.label, wi.input_type FROM job_inputs ji JOIN workflow_inputs wi ON ji.input_id = wi.id WHERE ji.job_id = ?'),
+    selectJobInputs: database.prepare('SELECT ji.id, ji.job_id, ji.input_id, ji.value, wi.label, wi.input_type, wi.input_key FROM job_inputs ji JOIN workflow_inputs wi ON ji.input_id = wi.id WHERE ji.job_id = ?'),
     insertJobInput: database.prepare('INSERT INTO job_inputs (job_id, input_id, value) VALUES (?, ?, ?)'),
     // Job output statements
     selectJobOutputs: database.prepare('SELECT id, job_id, image_path, comfy_filename, created_at FROM job_outputs WHERE job_id = ?'),

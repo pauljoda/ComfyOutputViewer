@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.34] - 2026-01-30
+
+### Fixed
+- Simplified the prompt metadata overlay to a static centered panel without flip animation.
+- Prefilled workflow inputs when navigating from the gallery by matching stored labels and input keys.
+- Returned workflow input keys with prompt metadata to improve prefill matching.
+
 ## [0.3.33] - 2026-01-30
 
 ### Added

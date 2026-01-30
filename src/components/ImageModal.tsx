@@ -1,4 +1,4 @@
-import type { SyntheticEvent, TouchEvent, TransitionEvent } from 'react';
+import type { SyntheticEvent, TouchEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
@@ -28,6 +28,7 @@ type PromptJobInput = {
   value: string;
   label?: string;
   inputType?: string;
+  inputKey?: string;
 };
 
 type PromptData = {
@@ -88,9 +89,6 @@ export default function ImageModal({
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptAvailable, setPromptAvailable] = useState(false);
-  const [promptCardOpen, setPromptCardOpen] = useState(false);
-  const [promptCardFlipped, setPromptCardFlipped] = useState(false);
-  const [promptClosing, setPromptClosing] = useState(false);
 
   const loadPromptData = async (signal?: AbortSignal) => {
     try {
@@ -130,19 +128,6 @@ export default function ImageModal({
     }
   }, [modalTool, promptAvailable, promptData, promptLoading]);
 
-  useEffect(() => {
-    if (modalTool === 'prompt' && promptAvailable && !promptClosing) {
-      setPromptCardOpen(true);
-      const raf = window.requestAnimationFrame(() => {
-        setPromptCardFlipped(true);
-      });
-      return () => window.cancelAnimationFrame(raf);
-    }
-    if (!promptClosing) {
-      setPromptCardFlipped(false);
-      setPromptCardOpen(false);
-    }
-  }, [modalTool, promptAvailable, promptClosing]);
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -186,32 +171,12 @@ export default function ImageModal({
     onToggleRating();
   };
 
-  const requestPromptClose = () => {
-    if (promptClosing) return;
-    setPromptClosing(true);
-    setPromptCardFlipped(false);
-  };
-
   const handleTogglePrompt = () => {
-    if (modalTool === 'prompt') {
-      requestPromptClose();
-      return;
-    }
     onTogglePrompt();
   };
 
   const handlePromptOverlayClick = () => {
-    requestPromptClose();
-  };
-
-  const handlePromptTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
-    if (!promptClosing) return;
-    if (event.propertyName !== 'transform') return;
-    if (modalTool === 'prompt') {
-      onTogglePrompt();
-    }
-    setPromptClosing(false);
-    setPromptCardOpen(false);
+    onTogglePrompt();
   };
 
   const handleLoadWorkflow = () => {
@@ -220,7 +185,7 @@ export default function ImageModal({
       state: {
         prefill: {
           workflowId: promptWorkflowId,
-          inputValues: promptInputValues || {},
+          entries: promptPrefillEntries,
           sourceImagePath: image.id,
           createdAt: promptData?.createdAt
         }
@@ -391,6 +356,7 @@ export default function ImageModal({
       return promptData.jobInputs.map((input) => ({
         inputId: input.inputId,
         label: input.label || `Input ${input.inputId}`,
+        systemLabel: input.inputKey,
         inputType: input.inputType,
         value: input.value
       }));
@@ -415,21 +381,54 @@ export default function ImageModal({
   const promptWorkflowId =
     promptData?.promptData?.workflowId ?? promptData?.workflowId ?? null;
 
-  const promptInputValues = useMemo(() => {
-    if (!promptData) return null;
-    const values: Record<number, string> = {};
-    const inputSource =
-      promptData.jobInputs && promptData.jobInputs.length > 0
-        ? promptData.jobInputs
-        : promptInputs;
-    inputSource.forEach((input) => {
-      const inputId = 'inputId' in input ? input.inputId : undefined;
-      if (typeof inputId !== 'number') return;
-      const value = 'value' in input ? input.value : '';
-      values[inputId] = value === null || value === undefined ? '' : String(value);
-    });
-    return Object.keys(values).length > 0 ? values : null;
-  }, [promptData, promptInputs]);
+  const promptPrefillEntries = useMemo(() => {
+    if (!promptData) return [];
+    const entries: Array<{
+      inputId?: number;
+      label?: string;
+      systemLabel?: string;
+      value: string;
+    }> = [];
+    const jobInputs = promptData.jobInputs ?? [];
+    const jobInputByLabel = new Map(
+      jobInputs
+        .filter((input) => input.label)
+        .map((input) => [String(input.label), input])
+    );
+    const jobInputByKey = new Map(
+      jobInputs
+        .filter((input) => input.inputKey)
+        .map((input) => [String(input.inputKey), input])
+    );
+    const promptSource =
+      promptData.promptData?.inputs && promptData.promptData.inputs.length > 0
+        ? promptData.promptData.inputs
+        : promptData.promptData?.workflowInputs || [];
+    if (promptSource.length > 0) {
+      promptSource.forEach((input) => {
+        const byLabel = input.label ? jobInputByLabel.get(String(input.label)) : undefined;
+        const byKey = input.systemLabel ? jobInputByKey.get(String(input.systemLabel)) : undefined;
+        const inputId = input.inputId ?? byLabel?.inputId ?? byKey?.inputId;
+        const value = input.value === null || input.value === undefined ? '' : String(input.value);
+        entries.push({
+          inputId,
+          label: input.label,
+          systemLabel: input.systemLabel,
+          value
+        });
+      });
+    } else if (jobInputs.length > 0) {
+      jobInputs.forEach((input) => {
+        entries.push({
+          inputId: input.inputId,
+          label: input.label,
+          systemLabel: input.inputKey,
+          value: input.value === null || input.value === undefined ? '' : String(input.value)
+        });
+      });
+    }
+    return entries;
+  }, [promptData]);
 
   useEffect(() => {
     setTagInput('');
@@ -578,6 +577,11 @@ export default function ImageModal({
 
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
     if (Date.now() - lastSwipeAtRef.current < 350) {
+      dragStartRef.current = null;
+      dragMovedRef.current = false;
+      return;
+    }
+    if (modalTool === 'prompt') {
       dragStartRef.current = null;
       dragMovedRef.current = false;
       return;
@@ -888,56 +892,44 @@ export default function ImageModal({
             )}
           </div>
 
-          {promptCardOpen && promptAvailable && (
+          {modalTool === 'prompt' && promptAvailable && (
             <div className="prompt-overlay" onClick={handlePromptOverlayClick}>
               <div
-                className={`prompt-card${promptCardFlipped ? ' is-flipped' : ''}${
-                  promptClosing ? ' is-closing' : ''
-                }`}
+                className="prompt-card"
                 role="dialog"
                 aria-label="Prompt metadata"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="prompt-card-inner" onTransitionEnd={handlePromptTransitionEnd}>
-                  <div className="prompt-card-face prompt-card-front">
-                    <img src={image.url} alt={image.name} />
+                <div className="prompt-card-header">
+                  <div className="prompt-card-heading">
+                    <span className="prompt-panel-title">Generation prompt</span>
+                    {promptData && (
+                      <span className="prompt-card-subtitle">
+                        Generated {new Date(promptData.createdAt).toLocaleString()}
+                      </span>
+                    )}
                   </div>
-                  <div className="prompt-card-face prompt-card-back">
-                    <div className="prompt-card-header">
-                      <div className="prompt-card-heading">
-                        <span className="prompt-panel-title">Generation prompt</span>
-                        {promptData && (
-                          <span className="prompt-card-subtitle">
-                            Generated {new Date(promptData.createdAt).toLocaleString()}
-                          </span>
-                        )}
-                      </div>
-                      {promptWorkflowId ? (
-                        <button
-                          className="button prompt-card-action"
-                          type="button"
-                          onClick={handleLoadWorkflow}
-                        >
-                          Load Workflow
-                        </button>
-                      ) : (
-                        <span className="prompt-card-missing">Workflow not saved</span>
-                      )}
-                    </div>
-                    <div className="prompt-card-body prompt-panel">
-                      {promptLoading && <p className="prompt-loading">Loading...</p>}
-                      {promptError && <p className="prompt-error">{promptError}</p>}
-                      {promptJson && (
-                        <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
-                      )}
-                      {!promptJson && promptData && (
-                        <p className="prompt-empty">No input data recorded.</p>
-                      )}
-                    </div>
-                    <div className="prompt-card-footer">
-                      <span className="hint">Click outside to return to the image.</span>
-                    </div>
-                  </div>
+                  {promptWorkflowId ? (
+                    <button
+                      className="button prompt-card-action"
+                      type="button"
+                      onClick={handleLoadWorkflow}
+                    >
+                      Load Workflow
+                    </button>
+                  ) : (
+                    <span className="prompt-card-missing">Workflow not saved</span>
+                  )}
+                </div>
+                <div className="prompt-card-body prompt-panel">
+                  {promptLoading && <p className="prompt-loading">Loading...</p>}
+                  {promptError && <p className="prompt-error">{promptError}</p>}
+                  {promptJson && (
+                    <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
+                  )}
+                  {!promptJson && promptData && (
+                    <p className="prompt-empty">No input data recorded.</p>
+                  )}
                 </div>
               </div>
             </div>
