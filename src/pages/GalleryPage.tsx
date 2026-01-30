@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import packageJson from '../../package.json';
+import { useOutletContext } from 'react-router-dom';
 import TagDrawer from '../components/TagDrawer';
 import Gallery from '../components/Gallery';
 import ImageModal from '../components/ImageModal';
@@ -38,6 +38,11 @@ const emptyData: ApiResponse = {
 };
 
 export default function GalleryPage() {
+  const { themeMode, setThemeMode, goHomeSignal } = useOutletContext<{
+    themeMode: ThemeMode;
+    setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>;
+    goHomeSignal: number;
+  }>();
   const [data, setData] = useState<ApiResponse>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,13 +70,6 @@ export default function GalleryPage() {
   const [modalTool, setModalTool] = useState<ModalTool>(null);
   const { ref: topBarRef, height: topBarHeight } = useElementSize<HTMLElement>();
   const { ref: galleryRef, width: galleryWidth } = useElementSize<HTMLElement>();
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.theme);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored;
-    }
-    return 'system';
-  });
   const [columns, setColumns] = useState<number>(() => {
     const stored = Number(window.localStorage.getItem(STORAGE_KEYS.columns));
     return Number.isFinite(stored) && stored >= COLUMN_MIN ? stored : 0;
@@ -112,26 +110,6 @@ export default function GalleryPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.theme, themeMode);
-    const root = document.documentElement;
-    const applyTheme = (mode: 'light' | 'dark') => {
-      root.dataset.theme = mode;
-    };
-
-    if (themeMode === 'system') {
-      const media = window.matchMedia('(prefers-color-scheme: dark)');
-      applyTheme(media.matches ? 'dark' : 'light');
-      const listener = (event: MediaQueryListEvent) => {
-        applyTheme(event.matches ? 'dark' : 'light');
-      };
-      media.addEventListener('change', listener);
-      return () => media.removeEventListener('change', listener);
-    }
-
-    applyTheme(themeMode);
-  }, [themeMode]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.tileFit, tileFit);
@@ -319,7 +297,7 @@ export default function GalleryPage() {
     setShowUntagged(true);
   };
 
-  const handleGoHome = () => {
+  const handleGoHome = useCallback(() => {
     setSelectedTags([]);
     setShowUntagged(false);
     setFavoritesOnly(false);
@@ -327,7 +305,13 @@ export default function GalleryPage() {
     setMaxRating(5);
     setActiveTool(null);
     setDrawerOpen(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (goHomeSignal > 0) {
+      handleGoHome();
+    }
+  }, [goHomeSignal, handleGoHome]);
 
   const handleToggleMultiSelect = () => {
     setMultiSelect((prev) => {
@@ -600,8 +584,6 @@ export default function GalleryPage() {
     >
       <TopBar
         ref={topBarRef}
-        version={packageJson.version}
-        sourceDir={data.sourceDir}
         currentFilterLabel={currentFilterLabel}
         activeTool={activeTool}
         multiSelect={multiSelect}
@@ -643,7 +625,6 @@ export default function GalleryPage() {
         onRemoveFilterTag={handleRemoveSelectedTag}
         onClearFilterTags={handleClearSelectedTags}
         onExitUntagged={handleSelectAllImages}
-        onGoHome={handleGoHome}
       />
 
       {activeTool && (

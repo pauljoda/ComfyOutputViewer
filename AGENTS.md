@@ -109,7 +109,10 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
-
+- Added WebSocket job updates with generating indicators for workflow runs.
+- Swapped workflow import to a right-side editor panel with an edit mode toggle for updating inputs later.
+- Moved the gallery home action to the top tab bar title and removed the gallery header title/theme selector (theme now in filters).
+- Updated the npm deps hash script to use an SRI-compatible placeholder hash and refreshed npmDepsHash after adding ws.
 - Fixed npmDepsHash mismatch in flake.nix to resolve Nix build errors (manually updated to sha256-gGHPHrhMb744d7YID7jHWHIAQ4rZeNQyWul258Ul9bM=).
 - Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.

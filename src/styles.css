@@ -72,6 +72,9 @@ body {
   display: flex;
   align-items: baseline;
   gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .app-nav-title {
@@ -115,15 +118,6 @@ body {
   gap: 12px;
 }
 
-.theme-select {
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--ink);
-  font-size: 13px;
-}
-
 .app-content {
   flex: 1;
   display: flex;
@@ -151,55 +145,8 @@ body {
   z-index: 9;
 }
 
-.top-row {
-  width: 100%;
-}
-
 .toolbar-row {
   width: 100%;
-}
-
-.brand {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.brand-button {
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-  display: inline-flex;
-}
-
-.brand-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
-  border-radius: 12px;
-}
-
-.title {
-  font-size: 20px;
-  font-weight: 600;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.version {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.subtitle {
-  font-size: 13px;
-  color: var(--muted);
-  max-width: 540px;
-  word-break: break-all;
 }
 
 .filter-pill {
@@ -1110,6 +1057,12 @@ body {
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 .modal-tool-popover .control select {
   min-width: 200px;
@@ -1419,6 +1372,59 @@ body {
   padding: 24px;
 }
 
+.workflows-editor {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--card-border);
+}
+
+.workflow-editor-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.workflow-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.workflow-editor-header h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.workflow-editor-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.workflow-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.workflow-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--card-border);
+}
+
 .workflows-placeholder {
   display: flex;
   flex-direction: column;
@@ -1449,8 +1455,20 @@ body {
 .workflow-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.workflow-header-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.workflow-edit-toggle {
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .workflow-header h2 {
@@ -1468,6 +1486,19 @@ body {
 .workflow-inputs-section,
 .workflow-jobs-section {
   margin-bottom: 32px;
+}
+
+.workflow-edit-section {
+  margin-bottom: 32px;
+}
+
+.workflow-edit-hint {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  font-size: 13px;
 }
 
 .workflow-inputs-section h3,
@@ -1528,8 +1559,18 @@ body {
 
 .workflow-actions {
   margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
+.workflow-generating {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
 .workflow-error {
   margin-top: 12px;
   padding: 10px 12px;
@@ -1608,6 +1649,10 @@ body {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.job-card.queued {
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
 .job-card.running {
   border-color: rgba(59, 130, 246, 0.3);
 }
@@ -1620,6 +1665,9 @@ body {
 }
 
 .job-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -1640,6 +1688,19 @@ body {
 
 .job-card.pending .job-status {
   color: var(--muted);
+}
+
+.job-card.queued .job-status {
+  color: #3b82f6;
+}
+
+.job-spinner {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
 }
 
 .job-time {
@@ -1671,33 +1732,12 @@ body {
   border: 1px solid var(--card-border);
 }
 
-/* Import Modal */
-.import-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+/* Modal */
 .modal-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(6, 6, 6, 0.5);
   backdrop-filter: blur(4px);
-}
-
-.import-dialog {
-  position: relative;
-  width: 90vw;
-  max-width: 700px;
-  max-height: 85vh;
-  background: var(--card);
-  border-radius: 16px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
 }
 
 .modal-header {
@@ -1714,20 +1754,6 @@ body {
   font-weight: 600;
 }
 
-.import-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-}
-
-.modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--card-border);
-}
 
 .import-error {
   padding: 10px 12px;
@@ -1795,15 +1821,34 @@ body {
   width: 100%;
 }
 
+.nodes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 .nodes-section h3 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+.nodes-loading {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .nodes-section .hint {
   margin: 0 0 16px;
   font-size: 13px;
+  color: var(--muted);
+}
+
+.nodes-empty {
+  margin: 0 0 12px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -2049,6 +2094,12 @@ body {
 
   .workflows-main {
     padding: 16px;
+  }
+
+  .workflows-editor {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--card-border);
   }
 
   .app-nav {

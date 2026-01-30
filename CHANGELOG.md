@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.18] - 2026-01-30
+
+### Added
+- Added real-time workflow job status updates over WebSockets with generating indicators.
+- Added a right-side workflow editor panel with edit mode toggles for imports and updates.
+
+### Changed
+- Moved the gallery home action to the top tab bar title and removed the gallery title header.
+- Moved the theme selector into the gallery filters panel.
+- Docked the workflow import flow into the right-side editor panel instead of a modal.
+- Updated the npm dependency hash script to use an SRI-compatible placeholder hash.
+
+### Fixed
+- Updated the Nix npm dependency hash after dependency changes.
+
 ## [0.3.17] - 2026-01-29
 
 ### Fixed

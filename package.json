@@ -1,6 +1,6 @@
 {
   "name": "comfy-output-viewer",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.13.0",
     "react-zoom-pan-pinch": "^3.6.1",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

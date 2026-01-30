@@ -23,7 +23,7 @@ restore_hash() {
 }
 trap restore_hash EXIT
 
-perl -0pi -e 's~npmDepsHash = .*?;~npmDepsHash = lib.fakeSha256;~s' "$flake_file"
+perl -0pi -e 's~npmDepsHash = .*?;~npmDepsHash = lib.fakeHash;~s' "$flake_file"
 
 echo "computing npmDepsHash via nix build..."
 if output=$(nix build .#comfy-output-viewer --no-link 2>&1); then

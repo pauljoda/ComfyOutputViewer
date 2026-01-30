@@ -4,7 +4,9 @@ import os from 'os';
 import fs from 'fs/promises';
 import { createHash } from 'crypto';
 import { createReadStream, existsSync } from 'fs';
+import http from 'node:http';
 import dotenv from 'dotenv';
+import { WebSocketServer, WebSocket } from 'ws';
 import { DatabaseSync } from 'node:sqlite';
 
 dotenv.config();
@@ -43,6 +45,16 @@ const port = Number(process.env.SERVER_PORT || process.env.PORT || (isProd ? 800
 let sharpModule;
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+const wsClients = new Set();
+
+wss.on('connection', (socket) => {
+  wsClients.add(socket);
+  socket.on('close', () => {
+    wsClients.delete(socket);
+  });
+});
 app.use(express.json({ limit: '1mb' }));
 
 await ensureDir(DATA_DIR);
@@ -438,6 +450,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
         }
       }
     });
+    broadcastJobUpdate(jobId);
 
     // Generate a client ID for tracking
     const clientId = `comfy-viewer-${jobId}-${now}`;
@@ -456,6 +469,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       if (!response.ok) {
         const errorText = await response.text();
         statements.updateJobStatus.run('error', errorText, now, now, jobId);
+        broadcastJobUpdate(jobId);
         return res.status(500).json({ ok: false, error: errorText, jobId });
       }
 
@@ -465,6 +479,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       // Update job with prompt ID
       statements.updateJobPromptId.run(promptId, jobId);
       statements.updateJobStatus.run('queued', null, now, null, jobId);
+      broadcastJobUpdate(jobId);
 
       // Start polling for completion in the background
       pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap);
@@ -473,6 +488,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     } catch (fetchErr) {
       const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
       statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
+      broadcastJobUpdate(jobId);
       res.status(500).json({ ok: false, error: errorMessage, jobId });
     }
   } catch (err) {
@@ -480,52 +496,67 @@ app.post('/api/workflows/:id/run', async (req, res) => {
   }
 });
 
+function buildJobPayload(jobId) {
+  const row = statements.selectJobById.get(jobId);
+  if (!row) return null;
+
+  const outputs = [];
+  for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
+    outputs.push({
+      id: outputRow.id,
+      jobId: outputRow.job_id,
+      imagePath: outputRow.image_path,
+      comfyFilename: outputRow.comfy_filename,
+      createdAt: outputRow.created_at
+    });
+  }
+
+  const inputs = [];
+  for (const inputRow of statements.selectJobInputs.iterate(jobId)) {
+    inputs.push({
+      id: inputRow.id,
+      jobId: inputRow.job_id,
+      inputId: inputRow.input_id,
+      value: inputRow.value,
+      label: inputRow.label,
+      inputType: inputRow.input_type
+    });
+  }
+
+  return {
+    id: row.id,
+    workflowId: row.workflow_id,
+    promptId: row.prompt_id,
+    status: row.status,
+    errorMessage: row.error_message,
+    createdAt: row.created_at,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    outputs,
+    inputs
+  };
+}
+
+function broadcastJobUpdate(jobId) {
+  const job = buildJobPayload(jobId);
+  if (!job) return;
+  const payload = JSON.stringify({ type: 'job_update', job });
+  for (const client of wsClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  }
+}
+
 // Get job status
 app.get('/api/jobs/:id', async (req, res) => {
   try {
     const jobId = Number(req.params.id);
-    const row = statements.selectJobById.get(jobId);
-    if (!row) {
+    const job = buildJobPayload(jobId);
+    if (!job) {
       return res.status(404).send('Job not found');
     }
-
-    const outputs = [];
-    for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
-      outputs.push({
-        id: outputRow.id,
-        jobId: outputRow.job_id,
-        imagePath: outputRow.image_path,
-        comfyFilename: outputRow.comfy_filename,
-        createdAt: outputRow.created_at
-      });
-    }
-
-    const inputs = [];
-    for (const inputRow of statements.selectJobInputs.iterate(jobId)) {
-      inputs.push({
-        id: inputRow.id,
-        jobId: inputRow.job_id,
-        inputId: inputRow.input_id,
-        value: inputRow.value,
-        label: inputRow.label,
-        inputType: inputRow.input_type
-      });
-    }
-
-    res.json({
-      job: {
-        id: row.id,
-        workflowId: row.workflow_id,
-        promptId: row.prompt_id,
-        status: row.status,
-        errorMessage: row.error_message,
-        createdAt: row.created_at,
-        startedAt: row.started_at,
-        completedAt: row.completed_at,
-        outputs,
-        inputs
-      }
-    });
+    res.json({ job });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to get job');
   }
@@ -594,6 +625,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
         if (promptHistory.status.status_str === 'error') {
           const errorMsg = promptHistory.status.messages?.[0]?.[1] || 'Unknown error';
           statements.updateJobStatus.run('error', errorMsg, null, now, jobId);
+          broadcastJobUpdate(jobId);
           return;
         }
 
@@ -653,6 +685,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
         // Mark job as complete
         statements.updateJobStatus.run('completed', null, null, now, jobId);
+        broadcastJobUpdate(jobId);
 
         // Trigger a sync to copy to data dir
         await syncSourceToData();
@@ -665,6 +698,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
         const job = statements.selectJobById.get(jobId);
         if (job && job.status !== 'running') {
           statements.updateJobStatus.run('running', null, Date.now(), null, jobId);
+          broadcastJobUpdate(jobId);
         }
       }
 
@@ -675,6 +709,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
   // Timeout
   statements.updateJobStatus.run('error', 'Job timed out', null, Date.now(), jobId);
+  broadcastJobUpdate(jobId);
 }
 
 if (isProd) {
@@ -697,7 +732,7 @@ if (Number.isFinite(SYNC_INTERVAL_MS) && SYNC_INTERVAL_MS > 0) {
   }, SYNC_INTERVAL_MS);
 }
 
-app.listen(port, '0.0.0.0', () => {
+server.listen(port, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${port}`);
   console.log(`Source dir: ${SOURCE_DIR}`);
   console.log(`Data dir: ${DATA_DIR}`);

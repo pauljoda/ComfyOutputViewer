@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, Link } from 'react-router-dom';
 import packageJson from '../package.json';
 import { STORAGE_KEYS } from './constants';
 import type { ThemeMode } from './types';
@@ -12,6 +12,7 @@ export default function App() {
     }
     return 'system';
   });
+  const [goHomeSignal, setGoHomeSignal] = useState(0);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.theme, themeMode);
@@ -33,13 +34,17 @@ export default function App() {
     applyTheme(themeMode);
   }, [themeMode]);
 
+  const handleGoHome = () => {
+    setGoHomeSignal((prev) => prev + 1);
+  };
+
   return (
     <div className="app">
       <nav className="app-nav">
-        <div className="app-nav-brand">
+        <Link className="app-nav-brand" to="/" onClick={handleGoHome} title="All images">
           <span className="app-nav-title">ComfyUI Viewer</span>
           <span className="app-nav-version">v{packageJson.version}</span>
-        </div>
+        </Link>
         <div className="app-nav-links">
           <NavLink to="/" end className={({ isActive }) => `app-nav-link ${isActive ? 'active' : ''}`}>
             Gallery
@@ -48,20 +53,9 @@ export default function App() {
             Workflows
           </NavLink>
         </div>
-        <div className="app-nav-actions">
-          <select
-            className="theme-select"
-            value={themeMode}
-            onChange={(e) => setThemeMode(e.target.value as ThemeMode)}
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </div>
       </nav>
       <div className="app-content">
-        <Outlet />
+        <Outlet context={{ themeMode, setThemeMode, goHomeSignal }} />
       </div>
     </div>
   );
