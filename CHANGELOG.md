@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.32] - 2026-01-30
+
+### Fixed
+- Kept workflow job polling active while a run is in-flight and immediately fetched new jobs after starting a run.
+
 ## [0.3.31] - 2026-01-30
 
 ### Fixed

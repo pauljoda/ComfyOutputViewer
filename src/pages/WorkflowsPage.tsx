@@ -235,6 +235,15 @@ function WorkflowDetail({
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
 
+  const mergeJobUpdate = useCallback((job: Job) => {
+    setJobs((prev) => {
+      const next = prev.filter((item) => item.id !== job.id);
+      next.push(job);
+      next.sort((a, b) => b.createdAt - a.createdAt);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     loadWorkflowDetails();
     loadJobs();
@@ -322,12 +331,7 @@ function WorkflowDetail({
           if (job.workflowId !== workflow.id) {
             return;
           }
-          setJobs((prev) => {
-            const next = prev.filter((item) => item.id !== job.id);
-            next.push(job);
-            next.sort((a, b) => b.createdAt - a.createdAt);
-            return next;
-          });
+          mergeJobUpdate(job);
         }
       } catch (err) {
         console.warn('Failed to parse job update:', err);
@@ -346,11 +350,13 @@ function WorkflowDetail({
       setWsConnected(false);
       socket.close();
     };
-  }, [workflow.id]);
+  }, [mergeJobUpdate, workflow.id]);
 
   const hasActiveJobs = useMemo(
-    () => jobs.some((job) => job.status === 'pending' || job.status === 'queued' || job.status === 'running'),
-    [jobs]
+    () =>
+      running ||
+      jobs.some((job) => job.status === 'pending' || job.status === 'queued' || job.status === 'running'),
+    [jobs, running]
   );
 
   useEffect(() => {
@@ -387,10 +393,20 @@ function WorkflowDetail({
         inputId: input.id,
         value: inputValues[input.id] || ''
       }));
-      await api(`/api/workflows/${workflow.id}/run`, {
+      const result = await api<{ ok: boolean; jobId: number }>(`/api/workflows/${workflow.id}/run`, {
         method: 'POST',
         body: JSON.stringify({ inputs: inputData })
       });
+      if (result?.jobId) {
+        try {
+          const response = await api<{ job: Job }>(`/api/jobs/${result.jobId}`);
+          if (response?.job) {
+            mergeJobUpdate(response.job);
+          }
+        } catch (err) {
+          console.warn('Failed to load new job:', err);
+        }
+      }
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to run workflow');

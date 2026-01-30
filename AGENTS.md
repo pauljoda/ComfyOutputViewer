@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Kept workflow job polling active during runs and pulled newly created jobs immediately after starting.
 - Disabled sticky positioning for modal bars and removed prior Safari-only safe-area tweaks.
 - Removed extra modal topbar padding on Safari and hid the prompt info icon when metadata is missing.
 - Enabled viewport-fit=cover and safe-area padding for the app nav to fix Safari modal spacing.
@@ -121,6 +122,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Updated the Nix npm dependency hash after the package-lock version bump.
 - Refreshed the Nix npm dependency hash after the latest version bump.
 - Refreshed the Nix npm dependency hash after the latest lockfile update.
+- Refreshed the Nix npm dependency hash after the latest version bump.
 - Refreshed the Nix npm dependency hash after the latest version bump.
 - Refreshed the Nix npm dependency hash after the latest version bump.
 - Refreshed the Nix npm dependency hash after the latest version bump.
