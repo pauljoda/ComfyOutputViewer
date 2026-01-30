@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Removed the redundant hamburger toggle inside the workflow drawer header.
 - Added a websocket connection fallback so job polling continues when live updates drop.
 - Added a debug prompt JSON preview in workflow runs and a toggleable workflow list drawer with a sleek run button.
 - Added a workflow editor legend clarifying text-input (blue) and selected (orange) highlights.

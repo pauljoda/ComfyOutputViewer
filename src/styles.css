@@ -1301,12 +1301,6 @@ body {
   border-bottom: 1px solid var(--card-border);
 }
 
-.workflows-sidebar-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .workflows-sidebar-header h2 {
   margin: 0;
   font-size: 16px;

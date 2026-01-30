@@ -104,21 +104,7 @@ export default function WorkflowsPage() {
       >
         <aside className="workflows-sidebar">
           <div className="workflows-sidebar-header">
-            <div className="workflows-sidebar-title">
-              <button
-                className="ghost workflows-toggle"
-                type="button"
-                onClick={() => setSidebarOpen((prev) => !prev)}
-                aria-label={sidebarOpen ? 'Close workflow list' : 'Open workflow list'}
-              >
-                <span className="hamburger" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </span>
-              </button>
-              <h2>Workflows</h2>
-            </div>
+            <h2>Workflows</h2>
             <button
               className="button"
               onClick={handleOpenImport}

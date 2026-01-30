@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.25] - 2026-01-30
+
+### Changed
+- Removed the redundant hamburger toggle inside the workflow drawer header.
+
 ## [0.3.24] - 2026-01-30
 
 ### Fixed
