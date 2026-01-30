@@ -39,6 +39,7 @@ Responsibilities:
 Important paths/config:
 - `COMFY_OUTPUT_DIR` or `OUTPUT_DIR`: source folder to sync from.
 - `DATA_DIR`: local data folder for images, thumbnails, and DB.
+- `COMFY_API_URL`: ComfyUI server URL (default: http://127.0.0.1:8188).
 - Thumbnails are stored in `.thumbs` under the data dir.
 - DB stored at `.comfy_viewer.sqlite` (legacy `.comfy_viewer.json` migrates on boot).
 
@@ -50,12 +51,22 @@ API endpoints:
 - `POST /api/delete` -> `{ path }`
 - `POST /api/delete/bulk` -> `{ paths }`
 - `POST /api/sync` -> `{ scanned, copied, thumbnails? }`
+- `GET /api/workflows` -> list all workflows
+- `POST /api/workflows` -> create workflow with inputs
+- `GET /api/workflows/:id` -> get workflow with inputs and jobs
+- `PUT /api/workflows/:id` -> update workflow
+- `DELETE /api/workflows/:id` -> delete workflow
+- `POST /api/workflows/:id/run` -> execute workflow against ComfyUI
+- `GET /api/jobs/:id` -> get job status and outputs
+- `GET /api/images/:path/prompt` -> get prompt metadata for an image
 
 ### Client (Vite + React)
-Entry: `src/App.tsx`
+Entry: `src/main.tsx` (React Router setup), `src/App.tsx` (layout shell)
+Pages: `src/pages/GalleryPage.tsx`, `src/pages/WorkflowsPage.tsx`
 Component modules live in `src/components`, with shared hooks/utilities in `src/hooks`, `src/utils`, and `src/lib`.
 
 Key UI features:
+- App navigation with Gallery and Workflows tabs.
 - Top toolbar with icon buttons and a single active tool popover.
 - Drawer navigation for tag filters sorted by image count, plus an untagged view.
 - Image grid:
@@ -64,8 +75,14 @@ Key UI features:
     by natural image ratio, tiled via flex-wrap.
 - Favorites and hidden toggles on cards and modal toolbar.
 - Hide hidden items on All Images only; tag filters show hidden items.
-- Zoom/pan modal for selected image.
+- Zoom/pan modal for selected image with prompt metadata viewing.
 - Modal tag editor with add/remove controls.
+- Workflows page:
+  - Workflow list sidebar with import/delete actions.
+  - JSON import wizard with node selection for configuring inputs.
+  - Workflow runner form with text, number, seed, and image input fields.
+  - Image picker modal for selecting existing synced images.
+  - Job history with status indicators and output image previews.
 
 Key client behaviors:
 - LocalStorage persists theme, columns per row, display mode,
@@ -107,9 +124,61 @@ If a request is purely informational and makes no changes, do not commit.
 ## Current Projects
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
+- Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+<<<<<<< HEAD
+- Stored workflow output hashes to hide blacklisted outputs and removed deleted outputs from job logs immediately.
+- Defaulted the workflows page to open the first available workflow and hid job output thumbnails for deleted images.
+- Added a close button to the prompt metadata overlay and filtered deleted output thumbnails from workflow job logs.
+- Persisted workflow prefill payloads in session storage to restore input values when navigating from the gallery.
+- Simplified the prompt metadata overlay to a static centered panel and removed flip messaging.
+- Improved workflow prefill matching from gallery navigation using labels/input keys and exposed input keys in prompt metadata.
+- Replaced the prompt metadata popover with a centered flip-card prompt view that closes by clicking outside.
+- Added a Load Workflow action on prompt metadata to jump to workflows with prefilled inputs and missing-workflow messaging.
+- Stored workflow IDs/input IDs with image prompt metadata and exposed job inputs in the prompt API response.
+- Kept workflow job polling active during runs and pulled newly created jobs immediately after starting.
+- Disabled sticky positioning for modal bars and removed prior Safari-only safe-area tweaks.
+- Removed extra modal topbar padding on Safari and hid the prompt info icon when metadata is missing.
+- Enabled viewport-fit=cover and safe-area padding for the app nav to fix Safari modal spacing.
+- Reduced the modal top bar offset for image detail view and added a data-dir fallback for workflow output downloads.
+- Removed the extra mobile top bar offset so the gallery toolbar sits flush under the tab bar.
+- Fixed the mobile gallery top bar offset so it sits below the new tab navigation.
+- Added workflow job output thumbnails that open in the full image modal, plus per-output metadata loading.
+- Stored workflow run inputs as JSON for the modal info panel and displayed custom input labels with system label subtitles.
+- Added workflow deletion controls and enforced SQLite foreign-key cascades for workflow/job cleanup.
+- Updated the Nix npm dependency hash after the package-lock version bump.
+- Refreshed the Nix npm dependency hash after the latest version bump.
+- Refreshed the Nix npm dependency hash after the latest lockfile update.
+- Refreshed the Nix npm dependency hash after the latest version bump.
+- Refreshed the Nix npm dependency hash after the latest version bump.
+- Refreshed the Nix npm dependency hash after the latest version bump.
+- Refreshed the Nix npm dependency hash after the latest version bump.
+- Removed the redundant hamburger toggle inside the workflow drawer header.
+- Added a websocket connection fallback so job polling continues when live updates drop.
+- Added a debug prompt JSON preview in workflow runs and a toggleable workflow list drawer with a sleek run button.
+- Added a workflow editor legend clarifying text-input (blue) and selected (orange) highlights.
+- Updated workflow job cards with generating status text, live duration timers, and periodic polling fallback.
+- Ensured workflow runs only overwrite configured inputs, leaving other node values intact.
+- Swapped workflow edit mode to an in-place editor view with a modern toggle and sorted selected inputs to the top.
+- Fixed workflow input deletions by clearing job input references to avoid foreign key errors.
+- Added WebSocket job updates with generating indicators for workflow runs.
+- Swapped workflow import to a right-side editor panel with an edit mode toggle for updating inputs later.
+- Moved the gallery home action to the top tab bar title and removed the gallery header title/theme selector (theme now in filters).
+- Updated the npm deps hash script to use an SRI-compatible placeholder hash and refreshed npmDepsHash after adding ws.
+=======
 
+- **v0.4.0**: Added Workflows page for importing and executing ComfyUI API JSON workflows.
+  - React Router integration with Gallery and Workflows navigation.
+  - Workflow import wizard parsing ComfyUI JSON with configurable input nodes.
+  - Runner form with text, number, seed, and image input types.
+  - Job execution with status polling and automatic image download.
+  - Image picker modal for selecting existing synced images.
+  - Prompt metadata viewing in image modal.
+  - New database tables: workflows, workflow_inputs, jobs, job_inputs, job_outputs, image_prompts.
+  - New API endpoints for workflow CRUD, job execution, and prompt metadata.
+  - COMFY_API_URL environment variable for ComfyUI server configuration.
+>>>>>>> 13ff65bc7550e2f29f1778c0f04f47e483be67f4
 - Fixed npmDepsHash mismatch in flake.nix to resolve Nix build errors (manually updated to sha256-gGHPHrhMb744d7YID7jHWHIAQ4rZeNQyWul258Ul9bM=).
 - Updated the Nix npm dependency hash again after the latest npm lockfile change.
 - Updated the Nix npm dependency hash for the latest npm lockfile.

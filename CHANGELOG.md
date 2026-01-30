@@ -2,6 +2,148 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.38] - 2026-01-30
+
+### Fixed
+- Stored output hashes for workflow job images and hid outputs that match blacklisted hashes.
+- Removed deleted outputs from job logs immediately after deletion.
+
+## [0.3.37] - 2026-01-30
+
+### Fixed
+- Defaulted the workflows page to open the first workflow when available.
+- Hid job output thumbnails when the underlying image file has been removed from the app library.
+
+## [0.3.36] - 2026-01-30
+
+### Fixed
+- Added a close button to the prompt metadata overlay.
+- Hid deleted workflow output thumbnails in job logs by checking output existence on the server.
+
+## [0.3.35] - 2026-01-30
+
+### Fixed
+- Persisted workflow prefill payloads in session storage so gallery navigation fills inputs reliably.
+
+## [0.3.34] - 2026-01-30
+
+### Fixed
+- Simplified the prompt metadata overlay to a static centered panel without flip animation.
+- Prefilled workflow inputs when navigating from the gallery by matching stored labels and input keys.
+- Returned workflow input keys with prompt metadata to improve prefill matching.
+
+## [0.3.33] - 2026-01-30
+
+### Added
+- Replaced the prompt metadata popover with a centered flip-card view in the image modal.
+- Added a Load Workflow action on prompt metadata to jump to the workflow and prefill saved inputs.
+- Stored workflow IDs and input IDs with image prompt metadata for reliable workflow reloads.
+
+## [0.3.32] - 2026-01-30
+
+### Fixed
+- Kept workflow job polling active while a run is in-flight and immediately fetched new jobs after starting a run.
+
+## [0.3.31] - 2026-01-30
+
+### Fixed
+- Disabled sticky positioning for modal bars and removed earlier Safari-specific safe-area tweaks.
+
+## [0.3.30] - 2026-01-30
+
+### Fixed
+- Removed extra modal topbar padding on mobile Safari and hide the prompt info icon when no metadata exists.
+
+## [0.3.29] - 2026-01-30
+
+### Fixed
+- Enabled viewport-fit=cover and safe-area padding on the tab bar so the modal top bar aligns on Safari.
+
+## [0.3.28] - 2026-01-30
+
+### Fixed
+- Reduced the modal top bar offset so the image detail toolbar aligns to the top on mobile.
+- Fallback to saving workflow outputs into the data directory when the source output path is not writable.
+
+## [0.3.27] - 2026-01-30
+
+### Fixed
+- Removed the extra top bar offset so the gallery toolbar sits flush under the tab bar on mobile.
+
+## [0.3.26] - 2026-01-30
+
+### Added
+- Added clickable workflow job output thumbnails that open the image viewer from the jobs list.
+- Added an info (prompt JSON) panel for workflow-generated images in the modal.
+- Added a workflow delete action in the workflow detail header.
+
+### Changed
+- Displayed custom workflow input labels as primary with system labels as a smaller subtitle.
+- Included thumbnail URLs in workflow job output payloads for lighter previews.
+
+### Fixed
+- Corrected the mobile gallery top bar positioning under the tab navigation bar.
+
+## [0.3.25] - 2026-01-30
+
+### Changed
+- Removed the redundant hamburger toggle inside the workflow drawer header.
+
+## [0.3.24] - 2026-01-30
+
+### Fixed
+- Added a websocket connection flag so job refresh polling continues when live updates drop.
+
+## [0.3.23] - 2026-01-30
+
+### Added
+- Added debug prompt JSON output (debug=1) in workflow run mode.
+- Added a toggleable workflow list drawer with a hamburger control.
+
+### Changed
+- Restyled the workflow run button with a sleeker primary treatment.
+
+## [0.3.22] - 2026-01-30
+
+### Fixed
+- Added an input legend explaining blue (text inputs) and orange (selected) highlights in the workflow editor.
+
+## [0.3.21] - 2026-01-30
+
+### Fixed
+- Simplified queued status to a generating label, added job duration timers, and fall back to polling during active runs.
+
+## [0.3.20] - 2026-01-30
+
+### Fixed
+- Ensured workflow runs only overwrite inputs defined as configurable, leaving all other node values untouched.
+
+## [0.3.19] - 2026-01-30
+
+### Added
+- Added an in-place workflow edit view with selected inputs sorted to the top and a modern toggle switch.
+
+### Changed
+- Swapped the workflow editor back to an in-place layout instead of a side panel.
+
+### Fixed
+- Removed the workflow input FK failure by clearing stale job input references during workflow updates.
+
+## [0.3.18] - 2026-01-30
+
+### Added
+- Added real-time workflow job status updates over WebSockets with generating indicators.
+- Added a right-side workflow editor panel with edit mode toggles for imports and updates.
+
+### Changed
+- Moved the gallery home action to the top tab bar title and removed the gallery title header.
+- Moved the theme selector into the gallery filters panel.
+- Docked the workflow import flow into the right-side editor panel instead of a modal.
+- Updated the npm dependency hash script to use an SRI-compatible placeholder hash.
+
+### Fixed
+- Updated the Nix npm dependency hash after dependency changes.
+
 ## [0.3.17] - 2026-01-29
 
 ### Fixed

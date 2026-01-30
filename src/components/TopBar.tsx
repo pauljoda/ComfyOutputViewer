@@ -11,8 +11,6 @@ import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
 
 type TopBarProps = {
-  version: string;
-  sourceDir: string;
   currentFilterLabel: string;
   activeTool: ActiveTool;
   multiSelect: boolean;
@@ -51,14 +49,11 @@ type TopBarProps = {
   onRemoveFilterTag: (tag: string) => void;
   onClearFilterTags: () => void;
   onExitUntagged: () => void;
-  onGoHome: () => void;
 };
 
 const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
   (
     {
-      version,
-      sourceDir,
       currentFilterLabel,
       activeTool,
       multiSelect,
@@ -96,8 +91,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onAddFilterTag,
       onRemoveFilterTag,
       onClearFilterTags,
-      onExitUntagged,
-      onGoHome
+      onExitUntagged
     },
     ref
   ) => {
@@ -140,17 +134,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
 
     return (
       <header className="top-bar" ref={ref} onPointerDown={handlePointerDown}>
-        <div className="top-row">
-          <button className="brand-button" type="button" onClick={onGoHome} title="All images">
-            <div className="brand">
-              <div className="title">
-                Comfy Output Viewer <span className="version">v{version}</span>
-              </div>
-              <div className="subtitle">{sourceDir || 'No source configured'}</div>
-            </div>
-          </button>
-        </div>
-
         <div className="toolbar-row">
           <div className="toolbar">
             <button
@@ -441,17 +424,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                   </select>
                 </label>
 
-                <label className="control">
-                  <span>Theme</span>
-                  <select
-                    value={themeMode}
-                    onChange={(event) => onThemeModeChange(event.target.value as ThemeMode)}
-                  >
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </label>
               </div>
             )}
 
@@ -500,6 +472,18 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                         {formatMaxLabel(value)}
                       </option>
                     ))}
+                  </select>
+                </label>
+
+                <label className="control">
+                  <span>Theme</span>
+                  <select
+                    value={themeMode}
+                    onChange={(event) => onThemeModeChange(event.target.value as ThemeMode)}
+                  >
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
                   </select>
                 </label>
 

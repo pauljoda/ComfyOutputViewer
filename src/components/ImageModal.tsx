@@ -1,10 +1,44 @@
 import type { SyntheticEvent, TouchEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
 import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
+import { api } from '../lib/api';
+
+type PromptInput = {
+  inputId?: number;
+  label: string;
+  systemLabel?: string;
+  inputType?: string;
+  value: unknown;
+};
+
+type PromptPayload = {
+  workflowId?: number;
+  workflowInputs?: PromptInput[];
+  inputs?: PromptInput[];
+  inputJson?: Record<string, unknown>;
+};
+
+type PromptJobInput = {
+  inputId: number;
+  value: string;
+  label?: string;
+  inputType?: string;
+  inputKey?: string;
+};
+
+type PromptData = {
+  imagePath: string;
+  jobId: number | null;
+  workflowId?: number | null;
+  promptData: PromptPayload;
+  jobInputs?: PromptJobInput[];
+  createdAt: number;
+};
 
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.92;
@@ -21,6 +55,7 @@ type ImageModalProps = {
   onUpdateTags: (tags: string[]) => void;
   onToggleTags: () => void;
   onToggleRating: () => void;
+  onTogglePrompt: () => void;
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
   onRate: (rating: number) => void;
@@ -39,6 +74,7 @@ export default function ImageModal({
   onUpdateTags,
   onToggleTags,
   onToggleRating,
+  onTogglePrompt,
   onToggleFavorite,
   onToggleHidden,
   onRate,
@@ -47,7 +83,51 @@ export default function ImageModal({
   onPrev,
   onNext
 }: ImageModalProps) {
+  const navigate = useNavigate();
   const [tagInput, setTagInput] = useState('');
+  const [promptData, setPromptData] = useState<PromptData | null>(null);
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [promptAvailable, setPromptAvailable] = useState(false);
+
+  const loadPromptData = async (signal?: AbortSignal) => {
+    try {
+      setPromptLoading(true);
+      setPromptError(null);
+      const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
+        signal
+      });
+      setPromptData(data);
+      setPromptAvailable(true);
+    } catch (err) {
+      if (signal?.aborted) return;
+      setPromptAvailable(false);
+      setPromptData(null);
+      if (modalTool === 'prompt') {
+        setPromptError(err instanceof Error ? err.message : 'No prompt data found');
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setPromptLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPromptAvailable(false);
+    setPromptData(null);
+    setPromptError(null);
+    loadPromptData(controller.signal);
+    return () => controller.abort();
+  }, [image.id]);
+
+  useEffect(() => {
+    if (modalTool === 'prompt' && promptAvailable && !promptData && !promptLoading) {
+      loadPromptData();
+    }
+  }, [modalTool, promptAvailable, promptData, promptLoading]);
+
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -89,6 +169,35 @@ export default function ImageModal({
 
   const handleToggleRating = () => {
     onToggleRating();
+  };
+
+  const handleTogglePrompt = () => {
+    onTogglePrompt();
+  };
+
+  const handlePromptOverlayClick = () => {
+    onTogglePrompt();
+  };
+
+  const handleLoadWorkflow = () => {
+    if (!promptWorkflowId) return;
+    const prefillPayload = {
+      workflowId: promptWorkflowId,
+      entries: promptPrefillEntries,
+      sourceImagePath: image.id,
+      createdAt: promptData?.createdAt
+    };
+    try {
+      window.sessionStorage.setItem('comfy_prefill', JSON.stringify(prefillPayload));
+    } catch (err) {
+      console.warn('Failed to store workflow prefill payload:', err);
+    }
+    navigate(`/workflows/${promptWorkflowId}`, {
+      state: {
+        prefill: prefillPayload
+      }
+    });
+    onClose();
   };
 
   const handleDelete = () => {
@@ -241,6 +350,92 @@ export default function ImageModal({
     [availableTags, image.tags, tagQuery]
   );
 
+  const promptInputs = useMemo<PromptInput[]>(() => {
+    if (!promptData) return [];
+    if (Array.isArray(promptData.promptData?.inputs)) {
+      return promptData.promptData.inputs;
+    }
+    if (Array.isArray(promptData.promptData?.workflowInputs)) {
+      return promptData.promptData.workflowInputs;
+    }
+    if (Array.isArray(promptData.jobInputs) && promptData.jobInputs.length > 0) {
+      return promptData.jobInputs.map((input) => ({
+        inputId: input.inputId,
+        label: input.label || `Input ${input.inputId}`,
+        systemLabel: input.inputKey,
+        inputType: input.inputType,
+        value: input.value
+      }));
+    }
+    return [];
+  }, [promptData]);
+
+  const promptJson = useMemo(() => {
+    if (!promptData?.promptData) return null;
+    if (promptData.promptData.inputJson) {
+      return promptData.promptData.inputJson;
+    }
+    if (promptInputs.length === 0) return null;
+    const next = {} as Record<string, unknown>;
+    promptInputs.forEach((input) => {
+      const key = input.label || input.systemLabel || 'input';
+      next[key] = input.value;
+    });
+    return next;
+  }, [promptData, promptInputs]);
+
+  const promptWorkflowId =
+    promptData?.promptData?.workflowId ?? promptData?.workflowId ?? null;
+
+  const promptPrefillEntries = useMemo(() => {
+    if (!promptData) return [];
+    const entries: Array<{
+      inputId?: number;
+      label?: string;
+      systemLabel?: string;
+      value: string;
+    }> = [];
+    const jobInputs = promptData.jobInputs ?? [];
+    const jobInputByLabel = new Map(
+      jobInputs
+        .filter((input) => input.label)
+        .map((input) => [String(input.label), input])
+    );
+    const jobInputByKey = new Map(
+      jobInputs
+        .filter((input) => input.inputKey)
+        .map((input) => [String(input.inputKey), input])
+    );
+    const promptSource =
+      promptData.promptData?.inputs && promptData.promptData.inputs.length > 0
+        ? promptData.promptData.inputs
+        : promptData.promptData?.workflowInputs || [];
+    if (promptSource.length > 0) {
+      promptSource.forEach((input) => {
+        const byLabel = input.label ? jobInputByLabel.get(String(input.label)) : undefined;
+        const byKey = input.systemLabel ? jobInputByKey.get(String(input.systemLabel)) : undefined;
+        const inputId = input.inputId ?? byLabel?.inputId ?? byKey?.inputId;
+        const value = input.value === null || input.value === undefined ? '' : String(input.value);
+        entries.push({
+          inputId,
+          label: input.label,
+          systemLabel: input.systemLabel,
+          value
+        });
+      });
+    } else if (jobInputs.length > 0) {
+      jobInputs.forEach((input) => {
+        entries.push({
+          inputId: input.inputId,
+          label: input.label,
+          systemLabel: input.inputKey,
+          value: input.value === null || input.value === undefined ? '' : String(input.value)
+        });
+      });
+    }
+    return entries;
+  }, [promptData]);
+
   useEffect(() => {
     setTagInput('');
   }, [image.id]);
@@ -392,6 +587,11 @@ export default function ImageModal({
       dragMovedRef.current = false;
       return;
     }
+    if (modalTool === 'prompt') {
+      dragStartRef.current = null;
+      dragMovedRef.current = false;
+      return;
+    }
     const moved = dragMovedRef.current;
     dragStartRef.current = null;
     dragMovedRef.current = false;
@@ -501,6 +701,34 @@ export default function ImageModal({
                     <path d="M12 3.8l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" />
                   </svg>
                 </button>
+                {promptAvailable && (
+                  <button
+                    className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
+                    type="button"
+                    onClick={handleTogglePrompt}
+                    title="View prompt"
+                    aria-label="View prompt data"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="9"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                      />
+                      <path
+                        d="M12 10v6"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      />
+                      <circle cx="12" cy="7" r="1.2" fill="currentColor" />
+                    </svg>
+                  </button>
+                )}
                 <button
                   className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
                   type="button"
@@ -583,7 +811,7 @@ export default function ImageModal({
               </div>
             </div>
 
-            {modalTool && (
+            {modalTool && modalTool !== 'prompt' && (
               <div className="modal-tool-popover">
                 {modalTool === 'tags' && (
                   <div className="tool-panel tag-editor">
@@ -670,16 +898,77 @@ export default function ImageModal({
             )}
           </div>
 
-            <div
-              className="modal-body"
-              onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
-              onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
-              onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerEnd}
-              onPointerCancel={handlePointerEnd}
-            >
+          {modalTool === 'prompt' && promptAvailable && (
+            <div className="prompt-overlay" onClick={handlePromptOverlayClick}>
+              <div
+                className="prompt-card"
+                role="dialog"
+                aria-label="Prompt metadata"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="prompt-card-header">
+                  <div className="prompt-card-heading">
+                    <span className="prompt-panel-title">Generation prompt</span>
+                    {promptData && (
+                      <span className="prompt-card-subtitle">
+                        Generated {new Date(promptData.createdAt).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="prompt-card-actions">
+                    {promptWorkflowId ? (
+                      <button
+                        className="button prompt-card-action"
+                        type="button"
+                        onClick={handleLoadWorkflow}
+                      >
+                        Load Workflow
+                      </button>
+                    ) : (
+                      <span className="prompt-card-missing">Workflow not saved</span>
+                    )}
+                    <button
+                      className="prompt-card-close"
+                      type="button"
+                      onClick={handleTogglePrompt}
+                      aria-label="Close prompt"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M6 6l12 12M18 6l-12 12"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="prompt-card-body prompt-panel">
+                  {promptLoading && <p className="prompt-loading">Loading...</p>}
+                  {promptError && <p className="prompt-error">{promptError}</p>}
+                  {promptJson && (
+                    <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
+                  )}
+                  {!promptJson && promptData && (
+                    <p className="prompt-empty">No input data recorded.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="modal-body"
+            onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+            onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+            onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+          >
               <div className="modal-stage">
                 <TransformComponent
                   wrapperClass="zoom-wrapper"
