@@ -1279,6 +1279,7 @@ body {
   display: flex;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .workflows-sidebar {
@@ -1288,14 +1289,22 @@ body {
   flex-direction: column;
   background: var(--card);
   border-right: 1px solid var(--card-border);
+  transition: width 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 }
 
 .workflows-sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 16px;
   border-bottom: 1px solid var(--card-border);
+}
+
+.workflows-sidebar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .workflows-sidebar-header h2 {
@@ -1370,6 +1379,47 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+}
+
+.workflows-main-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workflows-main-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.workflows-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  padding: 0;
+}
+
+.workflows-layout.sidebar-closed .workflows-sidebar {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.workflows-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 6, 6, 0.4);
+  backdrop-filter: blur(2px);
+  border: none;
+  z-index: 15;
 }
 
 .workflow-editor-panel {
@@ -1598,6 +1648,57 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.button.primary {
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(211, 95, 59, 0.95), rgba(232, 127, 91, 0.95));
+  border: none;
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(211, 95, 59, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.button.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 24px rgba(211, 95, 59, 0.3);
+}
+
+.button.primary:disabled {
+  box-shadow: none;
+  transform: none;
+}
+
+.workflow-debug {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--card-border);
+}
+
+.workflow-debug-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.workflow-debug-json {
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .workflow-error {
   margin-top: 12px;
@@ -2150,22 +2251,34 @@ body {
   word-break: break-word;
 }
 
-@media (max-width: 768px) {
-  .workflows-layout {
-    flex-direction: column;
+@media (max-width: 900px) {
+  .workflows-sidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(78vw, 320px);
+    transform: translateX(-100%);
+    z-index: 20;
+    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.25);
+    border-right: none;
   }
 
-  .workflows-sidebar {
-    width: 100%;
-    max-height: 200px;
-    border-right: none;
-    border-bottom: 1px solid var(--card-border);
+  .workflows-layout.sidebar-open .workflows-sidebar {
+    transform: translateX(0);
+  }
+
+  .workflows-layout.sidebar-closed .workflows-sidebar {
+    width: min(78vw, 320px);
+    opacity: 1;
   }
 
   .workflows-main {
     padding: 16px;
   }
+}
 
+@media (max-width: 768px) {
   .app-nav {
     flex-wrap: wrap;
     gap: 10px;

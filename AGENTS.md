@@ -109,6 +109,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Added a debug prompt JSON preview in workflow runs and a toggleable workflow list drawer with a sleek run button.
 - Added a workflow editor legend clarifying text-input (blue) and selected (orange) highlights.
 - Updated workflow job cards with generating status text, live duration timers, and periodic polling fallback.
 - Ensured workflow runs only overwrite configured inputs, leaving other node values intact.

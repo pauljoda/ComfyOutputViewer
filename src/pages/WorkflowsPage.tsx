@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Workflow, WorkflowInput, Job } from '../types';
 
 export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [importMode, setImportMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    window.matchMedia('(max-width: 900px)').matches ? false : true
+  );
+  const [isMobile, setIsMobile] = useState(() =>
+    window.matchMedia('(max-width: 900px)').matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)');
+    const handler = (event: MediaQueryListEvent) => {
+      setIsMobile(event.matches);
+      setSidebarOpen(event.matches ? false : true);
+    };
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, []);
 
   const loadWorkflows = useCallback(async () => {
     try {
@@ -73,12 +90,35 @@ export default function WorkflowsPage() {
     }
   };
 
+  const showDebug = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('debug') === '1';
+  }, [location.search]);
+
   return (
     <div className="workflows-page">
-      <div className="workflows-layout">
+      <div
+        className={`workflows-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${
+          isMobile ? 'is-mobile' : ''
+        }`}
+      >
         <aside className="workflows-sidebar">
           <div className="workflows-sidebar-header">
-            <h2>Workflows</h2>
+            <div className="workflows-sidebar-title">
+              <button
+                className="ghost workflows-toggle"
+                type="button"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                aria-label={sidebarOpen ? 'Close workflow list' : 'Open workflow list'}
+              >
+                <span className="hamburger" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </button>
+              <h2>Workflows</h2>
+            </div>
             <button
               className="button"
               onClick={handleOpenImport}
@@ -110,6 +150,21 @@ export default function WorkflowsPage() {
         </aside>
 
         <main className="workflows-main">
+          <div className="workflows-main-header">
+            <button
+              className="ghost workflows-toggle"
+              type="button"
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? 'Close workflow list' : 'Open workflow list'}
+            >
+              <span className="hamburger" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+            <span className="workflows-main-title">Workflows</span>
+          </div>
           {importMode ? (
             <WorkflowEditorPanel
               mode="import"
@@ -129,9 +184,18 @@ export default function WorkflowsPage() {
               editMode={editMode}
               onEditModeChange={handleEditModeChange}
               onSaved={handleEditorSaved}
+              showDebug={showDebug}
             />
           )}
         </main>
+        {isMobile && sidebarOpen && (
+          <button
+            className="workflows-scrim"
+            type="button"
+            aria-label="Close workflow list"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -143,9 +207,17 @@ type WorkflowDetailProps = {
   editMode: boolean;
   onEditModeChange: (value: boolean) => void;
   onSaved: (result: { id?: number; mode: 'import' | 'edit' }) => void;
+  showDebug: boolean;
 };
 
-function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved }: WorkflowDetailProps) {
+function WorkflowDetail({
+  workflow,
+  onBack,
+  editMode,
+  onEditModeChange,
+  onSaved,
+  showDebug
+}: WorkflowDetailProps) {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -258,6 +330,24 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
     }
   };
 
+  const promptPreview = useMemo(() => {
+    try {
+      const cloned = JSON.parse(JSON.stringify(workflow.apiJson));
+      for (const input of inputs) {
+        if (Object.prototype.hasOwnProperty.call(inputValues, input.id) && cloned[input.nodeId]) {
+          const rawValue = inputValues[input.id];
+          cloned[input.nodeId].inputs[input.inputKey] =
+            input.inputType === 'number' || input.inputType === 'seed'
+              ? Number(rawValue)
+              : rawValue;
+        }
+      }
+      return JSON.stringify(cloned, null, 2);
+    } catch (err) {
+      return `Failed to build prompt JSON: ${err instanceof Error ? err.message : 'Unknown error'}`;
+    }
+  }, [inputs, inputValues, workflow.apiJson]);
+
   return (
     <div className="workflow-detail">
       <div className="workflow-header">
@@ -360,8 +450,15 @@ function WorkflowDetail({ workflow, onBack, editMode, onEditModeChange, onSaved 
             </div>
           )}
 
+          {showDebug && (
+            <div className="workflow-debug">
+              <div className="workflow-debug-header">Generated prompt JSON (debug=1)</div>
+              <pre className="workflow-debug-json">{promptPreview}</pre>
+            </div>
+          )}
+
           <div className="workflow-actions">
-            <button className="button" onClick={handleRun} disabled={running}>
+            <button className="button primary" onClick={handleRun} disabled={running}>
               {running ? 'Running...' : 'Run Workflow'}
             </button>
           </div>

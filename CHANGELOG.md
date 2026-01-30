@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.23] - 2026-01-30
+
+### Added
+- Added debug prompt JSON output (debug=1) in workflow run mode.
+- Added a toggleable workflow list drawer with a hamburger control.
+
+### Changed
+- Restyled the workflow run button with a sleeker primary treatment.
+
 ## [0.3.22] - 2026-01-30
 
 ### Fixed
