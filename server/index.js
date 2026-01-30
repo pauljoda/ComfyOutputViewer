@@ -11,6 +11,7 @@ dotenv.config();
 
 const DEFAULT_OUTPUT_DIR = '/var/lib/comfyui/output';
 const DEFAULT_DATA_DIR = path.join(os.homedir(), 'comfy_viewer', 'data');
+const DEFAULT_COMFY_API_URL = 'http://127.0.0.1:8188';
 const IMAGE_EXTENSIONS = new Set([
   '.png',
   '.jpg',
@@ -26,6 +27,7 @@ const SOURCE_DIR = resolveDir(
   process.env.COMFY_OUTPUT_DIR || process.env.OUTPUT_DIR || DEFAULT_OUTPUT_DIR
 );
 const DATA_DIR = resolveDir(process.env.DATA_DIR || DEFAULT_DATA_DIR);
+const COMFY_API_URL = process.env.COMFY_API_URL || DEFAULT_COMFY_API_URL;
 const THUMB_DIR = path.join(DATA_DIR, '.thumbs');
 const LEGACY_DB_PATH = path.join(DATA_DIR, '.comfy_viewer.json');
 const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.sqlite');
@@ -195,6 +197,486 @@ app.post('/api/sync', async (_req, res) => {
   }
 });
 
+// ==================== WORKFLOW API ENDPOINTS ====================
+
+// List all workflows
+app.get('/api/workflows', async (_req, res) => {
+  try {
+    const workflows = [];
+    for (const row of statements.selectWorkflows.iterate()) {
+      workflows.push({
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        apiJson: JSON.parse(row.api_json),
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      });
+    }
+    res.json({ workflows });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to list workflows');
+  }
+});
+
+// Get single workflow with inputs
+app.get('/api/workflows/:id', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const row = statements.selectWorkflowById.get(workflowId);
+    if (!row) {
+      return res.status(404).send('Workflow not found');
+    }
+    const workflow = {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      apiJson: JSON.parse(row.api_json),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+    const inputs = [];
+    for (const inputRow of statements.selectWorkflowInputs.iterate(workflowId)) {
+      inputs.push({
+        id: inputRow.id,
+        workflowId: inputRow.workflow_id,
+        nodeId: inputRow.node_id,
+        nodeTitle: inputRow.node_title,
+        inputKey: inputRow.input_key,
+        inputType: inputRow.input_type,
+        label: inputRow.label,
+        defaultValue: inputRow.default_value,
+        sortOrder: inputRow.sort_order
+      });
+    }
+    res.json({ workflow, inputs });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get workflow');
+  }
+});
+
+// Create new workflow
+app.post('/api/workflows', async (req, res) => {
+  try {
+    const { name, description, apiJson, inputs } = req.body || {};
+    if (!name || !apiJson) {
+      return res.status(400).send('Missing name or apiJson');
+    }
+    const now = Date.now();
+    const result = statements.insertWorkflow.run(
+      name,
+      description || null,
+      JSON.stringify(apiJson),
+      now,
+      now
+    );
+    const workflowId = Number(result.lastInsertRowid);
+
+    // Insert inputs if provided
+    if (Array.isArray(inputs) && inputs.length > 0) {
+      runTransaction(() => {
+        for (let i = 0; i < inputs.length; i++) {
+          const input = inputs[i];
+          statements.insertWorkflowInput.run(
+            workflowId,
+            input.nodeId,
+            input.nodeTitle || null,
+            input.inputKey,
+            input.inputType,
+            input.label,
+            input.defaultValue || null,
+            i
+          );
+        }
+      });
+    }
+
+    res.json({ ok: true, id: workflowId });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to create workflow');
+  }
+});
+
+// Update workflow
+app.put('/api/workflows/:id', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const { name, description, apiJson, inputs } = req.body || {};
+    if (!name || !apiJson) {
+      return res.status(400).send('Missing name or apiJson');
+    }
+    const now = Date.now();
+    statements.updateWorkflow.run(
+      name,
+      description || null,
+      JSON.stringify(apiJson),
+      now,
+      workflowId
+    );
+
+    // Replace inputs
+    if (Array.isArray(inputs)) {
+      runTransaction(() => {
+        statements.deleteWorkflowInputs.run(workflowId);
+        for (let i = 0; i < inputs.length; i++) {
+          const input = inputs[i];
+          statements.insertWorkflowInput.run(
+            workflowId,
+            input.nodeId,
+            input.nodeTitle || null,
+            input.inputKey,
+            input.inputType,
+            input.label,
+            input.defaultValue || null,
+            i
+          );
+        }
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update workflow');
+  }
+});
+
+// Delete workflow
+app.delete('/api/workflows/:id', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    statements.deleteWorkflow.run(workflowId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to delete workflow');
+  }
+});
+
+// Get jobs for a workflow
+app.get('/api/workflows/:id/jobs', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const jobs = [];
+    for (const row of statements.selectJobsByWorkflow.iterate(workflowId)) {
+      const outputs = [];
+      for (const outputRow of statements.selectJobOutputs.iterate(row.id)) {
+        outputs.push({
+          id: outputRow.id,
+          jobId: outputRow.job_id,
+          imagePath: outputRow.image_path,
+          comfyFilename: outputRow.comfy_filename,
+          createdAt: outputRow.created_at
+        });
+      }
+      jobs.push({
+        id: row.id,
+        workflowId: row.workflow_id,
+        promptId: row.prompt_id,
+        status: row.status,
+        errorMessage: row.error_message,
+        createdAt: row.created_at,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        outputs
+      });
+    }
+    res.json({ jobs });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get jobs');
+  }
+});
+
+// Run workflow
+app.post('/api/workflows/:id/run', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const { inputs: inputValues } = req.body || {};
+
+    // Get workflow
+    const workflowRow = statements.selectWorkflowById.get(workflowId);
+    if (!workflowRow) {
+      return res.status(404).send('Workflow not found');
+    }
+
+    // Get workflow inputs
+    const workflowInputs = [];
+    for (const row of statements.selectWorkflowInputs.iterate(workflowId)) {
+      workflowInputs.push(row);
+    }
+
+    // Create the prompt JSON by modifying the workflow's API JSON
+    const apiJson = JSON.parse(workflowRow.api_json);
+
+    // Apply input values
+    const inputValuesMap = new Map();
+    if (Array.isArray(inputValues)) {
+      for (const iv of inputValues) {
+        inputValuesMap.set(iv.inputId, iv.value);
+      }
+    }
+
+    for (const input of workflowInputs) {
+      const value = inputValuesMap.get(input.id);
+      if (value !== undefined && apiJson[input.node_id]) {
+        apiJson[input.node_id].inputs[input.input_key] =
+          input.input_type === 'number' || input.input_type === 'seed'
+            ? Number(value)
+            : value;
+      }
+    }
+
+    // Create job record
+    const now = Date.now();
+    const jobResult = statements.insertJob.run(workflowId, null, 'pending', now);
+    const jobId = Number(jobResult.lastInsertRowid);
+
+    // Save job inputs
+    runTransaction(() => {
+      for (const input of workflowInputs) {
+        const value = inputValuesMap.get(input.id);
+        if (value !== undefined) {
+          statements.insertJobInput.run(jobId, input.id, value);
+        }
+      }
+    });
+
+    // Generate a client ID for tracking
+    const clientId = `comfy-viewer-${jobId}-${now}`;
+
+    // Send to ComfyUI
+    try {
+      const response = await fetch(`${COMFY_API_URL}/prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: apiJson,
+          client_id: clientId
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        statements.updateJobStatus.run('error', errorText, now, now, jobId);
+        return res.status(500).json({ ok: false, error: errorText, jobId });
+      }
+
+      const result = await response.json();
+      const promptId = result.prompt_id;
+
+      // Update job with prompt ID
+      statements.updateJobPromptId.run(promptId, jobId);
+      statements.updateJobStatus.run('queued', null, now, null, jobId);
+
+      // Start polling for completion in the background
+      pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap);
+
+      res.json({ ok: true, jobId, promptId });
+    } catch (fetchErr) {
+      const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
+      statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
+      res.status(500).json({ ok: false, error: errorMessage, jobId });
+    }
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to run workflow');
+  }
+});
+
+// Get job status
+app.get('/api/jobs/:id', async (req, res) => {
+  try {
+    const jobId = Number(req.params.id);
+    const row = statements.selectJobById.get(jobId);
+    if (!row) {
+      return res.status(404).send('Job not found');
+    }
+
+    const outputs = [];
+    for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
+      outputs.push({
+        id: outputRow.id,
+        jobId: outputRow.job_id,
+        imagePath: outputRow.image_path,
+        comfyFilename: outputRow.comfy_filename,
+        createdAt: outputRow.created_at
+      });
+    }
+
+    const inputs = [];
+    for (const inputRow of statements.selectJobInputs.iterate(jobId)) {
+      inputs.push({
+        id: inputRow.id,
+        jobId: inputRow.job_id,
+        inputId: inputRow.input_id,
+        value: inputRow.value,
+        label: inputRow.label,
+        inputType: inputRow.input_type
+      });
+    }
+
+    res.json({
+      job: {
+        id: row.id,
+        workflowId: row.workflow_id,
+        promptId: row.prompt_id,
+        status: row.status,
+        errorMessage: row.error_message,
+        createdAt: row.created_at,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        outputs,
+        inputs
+      }
+    });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get job');
+  }
+});
+
+// Get prompt data for an image
+app.get('/api/images/:path(*)/prompt', async (req, res) => {
+  try {
+    const imagePath = req.params.path;
+    const row = statements.selectImagePrompt.get(imagePath);
+    if (!row) {
+      return res.status(404).send('No prompt data found for this image');
+    }
+    res.json({
+      imagePath: row.image_path,
+      jobId: row.job_id,
+      promptData: JSON.parse(row.prompt_data),
+      createdAt: row.created_at
+    });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get prompt data');
+  }
+});
+
+// ComfyUI proxy endpoints
+app.post('/api/comfy/upload', async (req, res) => {
+  try {
+    // For file uploads, we need to forward the request to ComfyUI
+    const response = await fetch(`${COMFY_API_URL}/upload/image`, {
+      method: 'POST',
+      body: req.body,
+      headers: {
+        'Content-Type': req.headers['content-type']
+      }
+    });
+    const result = await response.json();
+    res.json(result);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to upload to ComfyUI');
+  }
+});
+
+// Poll for job completion and download images
+async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap) {
+  const maxAttempts = 300; // 5 minutes max
+  const pollInterval = 1000; // 1 second
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+    try {
+      // Check history for this prompt
+      const historyResponse = await fetch(`${COMFY_API_URL}/history/${promptId}`);
+      if (!historyResponse.ok) continue;
+
+      const history = await historyResponse.json();
+      const promptHistory = history[promptId];
+
+      if (!promptHistory) continue;
+
+      // Check if execution is complete
+      if (promptHistory.status && promptHistory.status.completed) {
+        const now = Date.now();
+
+        // Check for errors
+        if (promptHistory.status.status_str === 'error') {
+          const errorMsg = promptHistory.status.messages?.[0]?.[1] || 'Unknown error';
+          statements.updateJobStatus.run('error', errorMsg, null, now, jobId);
+          return;
+        }
+
+        // Process outputs
+        const outputs = promptHistory.outputs || {};
+        const imageOutputs = [];
+
+        for (const [nodeId, nodeOutput] of Object.entries(outputs)) {
+          if (nodeOutput.images && Array.isArray(nodeOutput.images)) {
+            for (const img of nodeOutput.images) {
+              imageOutputs.push({
+                filename: img.filename,
+                subfolder: img.subfolder || '',
+                type: img.type || 'output'
+              });
+            }
+          }
+        }
+
+        // Download images and save to output folder
+        for (const imgInfo of imageOutputs) {
+          try {
+            const params = new URLSearchParams({
+              filename: imgInfo.filename,
+              subfolder: imgInfo.subfolder,
+              type: imgInfo.type
+            });
+            const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
+            if (!imageResponse.ok) continue;
+
+            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+            const imagePath = imgInfo.subfolder
+              ? path.join(imgInfo.subfolder, imgInfo.filename)
+              : imgInfo.filename;
+            const fullPath = path.join(SOURCE_DIR, imagePath);
+
+            await ensureDir(path.dirname(fullPath));
+            await fs.writeFile(fullPath, imageBuffer);
+
+            // Record the output
+            statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now);
+
+            // Save prompt data for this image
+            const promptData = {
+              workflowInputs: workflowInputs.map(wi => ({
+                label: wi.label,
+                inputType: wi.input_type,
+                value: inputValuesMap.get(wi.id)
+              })).filter(wi => wi.value !== undefined)
+            };
+            statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
+
+          } catch (imgErr) {
+            console.error('Failed to download image:', imgErr);
+          }
+        }
+
+        // Mark job as complete
+        statements.updateJobStatus.run('completed', null, null, now, jobId);
+
+        // Trigger a sync to copy to data dir
+        await syncSourceToData();
+
+        return;
+      }
+
+      // Update status to running if we see execution progress
+      if (promptHistory.status?.status_str === 'running') {
+        const job = statements.selectJobById.get(jobId);
+        if (job && job.status !== 'running') {
+          statements.updateJobStatus.run('running', null, Date.now(), null, jobId);
+        }
+      }
+
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }
+
+  // Timeout
+  statements.updateJobStatus.run('error', 'Job timed out', null, Date.now(), jobId);
+}
+
 if (isProd) {
   const distPath = path.join(process.cwd(), 'dist');
   if (existsSync(distPath)) {
@@ -257,6 +739,54 @@ function initDb() {
       hash TEXT PRIMARY KEY,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS workflows (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      api_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS workflow_inputs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workflow_id INTEGER NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      node_id TEXT NOT NULL,
+      node_title TEXT,
+      input_key TEXT NOT NULL,
+      input_type TEXT NOT NULL,
+      label TEXT NOT NULL,
+      default_value TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS jobs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      workflow_id INTEGER NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+      prompt_id TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error_message TEXT,
+      created_at INTEGER NOT NULL,
+      started_at INTEGER,
+      completed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS job_inputs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+      input_id INTEGER NOT NULL REFERENCES workflow_inputs(id),
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS job_outputs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+      image_path TEXT NOT NULL,
+      comfy_filename TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS image_prompts (
+      image_path TEXT PRIMARY KEY,
+      job_id INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+      prompt_data TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
   `);
   ensureMetaColumn(database, 'rating', 'INTEGER NOT NULL DEFAULT 0');
   return database;
@@ -289,7 +819,33 @@ function prepareStatements(database) {
       'INSERT OR IGNORE INTO blacklist (hash, created_at) VALUES (?, ?)'
     ),
     hasMeta: database.prepare('SELECT 1 FROM meta LIMIT 1'),
-    hasTags: database.prepare('SELECT 1 FROM tags LIMIT 1')
+    hasTags: database.prepare('SELECT 1 FROM tags LIMIT 1'),
+    // Workflow statements
+    selectWorkflows: database.prepare('SELECT id, name, description, api_json, created_at, updated_at FROM workflows ORDER BY updated_at DESC'),
+    selectWorkflowById: database.prepare('SELECT id, name, description, api_json, created_at, updated_at FROM workflows WHERE id = ?'),
+    insertWorkflow: database.prepare('INSERT INTO workflows (name, description, api_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'),
+    updateWorkflow: database.prepare('UPDATE workflows SET name = ?, description = ?, api_json = ?, updated_at = ? WHERE id = ?'),
+    deleteWorkflow: database.prepare('DELETE FROM workflows WHERE id = ?'),
+    // Workflow input statements
+    selectWorkflowInputs: database.prepare('SELECT id, workflow_id, node_id, node_title, input_key, input_type, label, default_value, sort_order FROM workflow_inputs WHERE workflow_id = ? ORDER BY sort_order'),
+    insertWorkflowInput: database.prepare('INSERT INTO workflow_inputs (workflow_id, node_id, node_title, input_key, input_type, label, default_value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'),
+    deleteWorkflowInputs: database.prepare('DELETE FROM workflow_inputs WHERE workflow_id = ?'),
+    // Job statements
+    selectJobsByWorkflow: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE workflow_id = ? ORDER BY created_at DESC LIMIT 50'),
+    selectJobById: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE id = ?'),
+    selectJobByPromptId: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE prompt_id = ?'),
+    insertJob: database.prepare('INSERT INTO jobs (workflow_id, prompt_id, status, created_at) VALUES (?, ?, ?, ?)'),
+    updateJobStatus: database.prepare('UPDATE jobs SET status = ?, error_message = ?, started_at = ?, completed_at = ? WHERE id = ?'),
+    updateJobPromptId: database.prepare('UPDATE jobs SET prompt_id = ? WHERE id = ?'),
+    // Job input statements
+    selectJobInputs: database.prepare('SELECT ji.id, ji.job_id, ji.input_id, ji.value, wi.label, wi.input_type FROM job_inputs ji JOIN workflow_inputs wi ON ji.input_id = wi.id WHERE ji.job_id = ?'),
+    insertJobInput: database.prepare('INSERT INTO job_inputs (job_id, input_id, value) VALUES (?, ?, ?)'),
+    // Job output statements
+    selectJobOutputs: database.prepare('SELECT id, job_id, image_path, comfy_filename, created_at FROM job_outputs WHERE job_id = ?'),
+    insertJobOutput: database.prepare('INSERT INTO job_outputs (job_id, image_path, comfy_filename, created_at) VALUES (?, ?, ?, ?)'),
+    // Image prompt statements
+    selectImagePrompt: database.prepare('SELECT image_path, job_id, prompt_data, created_at FROM image_prompts WHERE image_path = ?'),
+    insertImagePrompt: database.prepare('INSERT OR REPLACE INTO image_prompts (image_path, job_id, prompt_data, created_at) VALUES (?, ?, ?, ?)')
   };
 }
 

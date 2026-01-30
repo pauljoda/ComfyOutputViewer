@@ -5,6 +5,20 @@ import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
 import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
+import { api } from '../lib/api';
+
+type PromptData = {
+  imagePath: string;
+  jobId: number | null;
+  promptData: {
+    workflowInputs: Array<{
+      label: string;
+      inputType: string;
+      value: string;
+    }>;
+  };
+  createdAt: number;
+};
 
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.92;
@@ -21,6 +35,7 @@ type ImageModalProps = {
   onUpdateTags: (tags: string[]) => void;
   onToggleTags: () => void;
   onToggleRating: () => void;
+  onTogglePrompt: () => void;
   onToggleFavorite: () => void;
   onToggleHidden: () => void;
   onRate: (rating: number) => void;
@@ -39,6 +54,7 @@ export default function ImageModal({
   onUpdateTags,
   onToggleTags,
   onToggleRating,
+  onTogglePrompt,
   onToggleFavorite,
   onToggleHidden,
   onRate,
@@ -48,6 +64,30 @@ export default function ImageModal({
   onNext
 }: ImageModalProps) {
   const [tagInput, setTagInput] = useState('');
+  const [promptData, setPromptData] = useState<PromptData | null>(null);
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptError, setPromptError] = useState<string | null>(null);
+
+  // Load prompt data when prompt tool is opened
+  useEffect(() => {
+    if (modalTool === 'prompt') {
+      loadPromptData();
+    }
+  }, [modalTool, image.id]);
+
+  const loadPromptData = async () => {
+    try {
+      setPromptLoading(true);
+      setPromptError(null);
+      const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`);
+      setPromptData(data);
+    } catch (err) {
+      setPromptError(err instanceof Error ? err.message : 'No prompt data found');
+      setPromptData(null);
+    } finally {
+      setPromptLoading(false);
+    }
+  };
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -502,6 +542,23 @@ export default function ImageModal({
                   </svg>
                 </button>
                 <button
+                  className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
+                  type="button"
+                  onClick={onTogglePrompt}
+                  title="View prompt"
+                  aria-label="View prompt data"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M4 6h16M4 12h16M4 18h10"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button
                   className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
                   type="button"
                   onClick={onToggleHidden}
@@ -664,6 +721,31 @@ export default function ImageModal({
                     <span className="hint">
                       Click a star to rate. Click the same star to clear.
                     </span>
+                  </div>
+                )}
+                {modalTool === 'prompt' && (
+                  <div className="tool-panel prompt-panel">
+                    <span className="prompt-panel-title">Generation Inputs</span>
+                    {promptLoading && <p className="prompt-loading">Loading...</p>}
+                    {promptError && <p className="prompt-error">{promptError}</p>}
+                    {promptData && promptData.promptData.workflowInputs.length > 0 && (
+                      <div className="prompt-inputs">
+                        {promptData.promptData.workflowInputs.map((input, idx) => (
+                          <div key={idx} className="prompt-input-item">
+                            <span className="prompt-input-label">{input.label}</span>
+                            <span className="prompt-input-value">{input.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {promptData && promptData.promptData.workflowInputs.length === 0 && (
+                      <p className="prompt-empty">No input data recorded.</p>
+                    )}
+                    {promptData && (
+                      <span className="hint">
+                        Generated {new Date(promptData.createdAt).toLocaleString()}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

@@ -46,7 +46,7 @@ export type ToolPanel = 'view' | 'filters' | 'search';
 
 export type ActiveTool = ToolPanel | null;
 
-export type ModalTool = 'tags' | 'rating' | null;
+export type ModalTool = 'tags' | 'rating' | 'prompt' | null;
 
 export type ThemeMode = 'system' | 'light' | 'dark';
 
@@ -66,3 +66,55 @@ export const SORT_MODES: SortMode[] = [
 ];
 
 export const DEFAULT_SORT: SortMode = 'created-desc';
+
+// Workflow types
+export type Workflow = {
+  id: number;
+  name: string;
+  description?: string;
+  apiJson: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type WorkflowInput = {
+  id: number;
+  workflowId: number;
+  nodeId: string;
+  nodeTitle?: string;
+  inputKey: string;
+  inputType: 'text' | 'negative' | 'number' | 'seed' | 'image';
+  label: string;
+  defaultValue?: string;
+  sortOrder: number;
+};
+
+export type JobStatus = 'pending' | 'queued' | 'running' | 'completed' | 'error';
+
+export type Job = {
+  id: number;
+  workflowId: number;
+  promptId?: string;
+  status: JobStatus;
+  errorMessage?: string;
+  createdAt: number;
+  startedAt?: number;
+  completedAt?: number;
+  outputs?: JobOutput[];
+  inputs?: JobInputValue[];
+};
+
+export type JobOutput = {
+  id: number;
+  jobId: number;
+  imagePath: string;
+  comfyFilename?: string;
+  createdAt: number;
+};
+
+export type JobInputValue = {
+  id: number;
+  jobId: number;
+  inputId: number;
+  value: string;
+};
