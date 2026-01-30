@@ -1,6 +1,10 @@
 {
   "name": "comfy-output-viewer",
+<<<<<<< HEAD
   "version": "0.3.38",
+=======
+  "version": "0.4.0",
+>>>>>>> 13ff65bc7550e2f29f1778c0f04f47e483be67f4
   "private": true,
   "type": "module",
   "scripts": {
