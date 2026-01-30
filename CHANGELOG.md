@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.33] - 2026-01-30
+
+### Added
+- Replaced the prompt metadata popover with a centered flip-card view in the image modal.
+- Added a Load Workflow action on prompt metadata to jump to the workflow and prefill saved inputs.
+- Stored workflow IDs and input IDs with image prompt metadata for reliable workflow reloads.
+
 ## [0.3.32] - 2026-01-30
 
 ### Fixed

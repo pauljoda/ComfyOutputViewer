@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ImageModal from '../components/ImageModal';
 import { api } from '../lib/api';
 import type { Workflow, WorkflowInput, Job, JobOutput, ImageItem, ModalTool } from '../types';
+
+type WorkflowPrefill = {
+  workflowId: number;
+  inputValues: Record<number, string>;
+  sourceImagePath?: string;
+  createdAt?: number;
+};
 
 export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
@@ -12,6 +19,7 @@ export default function WorkflowsPage() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [missingWorkflowId, setMissingWorkflowId] = useState<number | null>(null);
   const [importMode, setImportMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() =>
@@ -20,6 +28,7 @@ export default function WorkflowsPage() {
   const [isMobile, setIsMobile] = useState(() =>
     window.matchMedia('(max-width: 900px)').matches
   );
+  const [prefill, setPrefill] = useState<WorkflowPrefill | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -51,8 +60,10 @@ export default function WorkflowsPage() {
     if (workflowId && workflows.length > 0) {
       const workflow = workflows.find((w) => w.id === Number(workflowId));
       setSelectedWorkflow(workflow || null);
+      setMissingWorkflowId(workflow ? null : Number(workflowId));
     } else {
       setSelectedWorkflow(null);
+      setMissingWorkflowId(null);
     }
   }, [workflowId, workflows]);
 
@@ -62,6 +73,13 @@ export default function WorkflowsPage() {
       setImportMode(false);
     }
   }, [editMode, selectedWorkflow]);
+
+  useEffect(() => {
+    const state = location.state as { prefill?: WorkflowPrefill } | null;
+    if (state?.prefill) {
+      setPrefill(state.prefill);
+    }
+  }, [location.state]);
 
   const handleSelectWorkflow = (workflow: Workflow) => {
     navigate(`/workflows/${workflow.id}`);
@@ -176,8 +194,14 @@ export default function WorkflowsPage() {
             />
           ) : !selectedWorkflow ? (
             <div className="workflows-placeholder">
-              <h3>Select a workflow</h3>
-              <p>Choose a workflow from the sidebar or import a new one to get started.</p>
+              <h3>{missingWorkflowId ? 'Workflow not found' : 'Select a workflow'}</h3>
+              {missingWorkflowId ? (
+                <p className="workflows-error">
+                  Workflow #{missingWorkflowId} could not be found. It may have been deleted.
+                </p>
+              ) : (
+                <p>Choose a workflow from the sidebar or import a new one to get started.</p>
+              )}
             </div>
           ) : (
             <WorkflowDetail
@@ -188,6 +212,8 @@ export default function WorkflowsPage() {
               onSaved={handleEditorSaved}
               onDelete={handleDeleteWorkflow}
               showDebug={showDebug}
+              prefill={prefill}
+              onPrefillApplied={() => setPrefill(null)}
             />
           )}
         </main>
@@ -212,6 +238,8 @@ type WorkflowDetailProps = {
   onSaved: (result: { id?: number; mode: 'import' | 'edit' }) => void;
   onDelete: (workflow: Workflow) => void;
   showDebug: boolean;
+  prefill?: WorkflowPrefill | null;
+  onPrefillApplied?: () => void;
 };
 
 function WorkflowDetail({
@@ -221,7 +249,9 @@ function WorkflowDetail({
   onEditModeChange,
   onSaved,
   onDelete,
-  showDebug
+  showDebug,
+  prefill,
+  onPrefillApplied
 }: WorkflowDetailProps) {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
@@ -234,6 +264,7 @@ function WorkflowDetail({
   const [outputPaths, setOutputPaths] = useState<string[]>([]);
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
+  const prefillAppliedRef = useRef<string | null>(null);
 
   const mergeJobUpdate = useCallback((job: Job) => {
     setJobs((prev) => {
@@ -248,6 +279,30 @@ function WorkflowDetail({
     loadWorkflowDetails();
     loadJobs();
   }, [workflow.id, workflow.updatedAt]);
+
+  useEffect(() => {
+    if (!prefill || prefill.workflowId !== workflow.id) {
+      prefillAppliedRef.current = null;
+      return;
+    }
+    if (inputs.length === 0) return;
+    const prefillKey = `${prefill.workflowId}:${prefill.sourceImagePath || ''}:${prefill.createdAt || ''}`;
+    if (prefillAppliedRef.current === prefillKey) return;
+    setInputValues((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const input of inputs) {
+        const value = prefill.inputValues[input.id];
+        if (value !== undefined) {
+          next[input.id] = value;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    prefillAppliedRef.current = prefillKey;
+    onPrefillApplied?.();
+  }, [prefill, inputs, workflow.id, onPrefillApplied]);
 
   const loadWorkflowDetails = async () => {
     try {

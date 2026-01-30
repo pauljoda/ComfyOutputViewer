@@ -492,7 +492,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       broadcastJobUpdate(jobId);
 
       // Start polling for completion in the background
-      pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap);
+      pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId);
 
       res.json({ ok: true, jobId, promptId });
     } catch (fetchErr) {
@@ -581,10 +581,28 @@ app.get('/api/images/:path(*)/prompt', async (req, res) => {
     if (!row) {
       return res.status(404).send('No prompt data found for this image');
     }
+    const promptData = JSON.parse(row.prompt_data);
+    const jobRow = row.job_id ? statements.selectJobById.get(row.job_id) : null;
+    if (jobRow && !promptData.workflowId) {
+      promptData.workflowId = jobRow.workflow_id;
+    }
+    const jobInputs = [];
+    if (row.job_id) {
+      for (const inputRow of statements.selectJobInputs.iterate(row.job_id)) {
+        jobInputs.push({
+          inputId: inputRow.input_id,
+          value: inputRow.value,
+          label: inputRow.label,
+          inputType: inputRow.input_type
+        });
+      }
+    }
     res.json({
       imagePath: row.image_path,
       jobId: row.job_id,
-      promptData: JSON.parse(row.prompt_data),
+      workflowId: promptData.workflowId ?? jobRow?.workflow_id ?? null,
+      promptData,
+      jobInputs,
       createdAt: row.created_at
     });
   } catch (err) {
@@ -626,7 +644,7 @@ app.post('/api/comfy/upload', async (req, res) => {
 });
 
 // Poll for job completion and download images
-async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap) {
+async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId) {
   const maxAttempts = 300; // 5 minutes max
   const pollInterval = 1000; // 1 second
 
@@ -739,6 +757,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
                       : rawValue
                     : rawValue;
                 return {
+                  inputId: wi.id,
                   label,
                   systemLabel,
                   inputType: wi.input_type,
@@ -754,7 +773,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
                 ? { value: input.value, systemLabel: input.systemLabel }
                 : input.value;
             }
-            const promptData = { inputs, inputJson };
+            const promptData = { workflowId, inputs, inputJson };
             statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
 
           } catch (imgErr) {

@@ -1,5 +1,6 @@
-import type { SyntheticEvent, TouchEvent } from 'react';
+import type { SyntheticEvent, TouchEvent, TransitionEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import type { ImageItem, ModalTool } from '../types';
@@ -8,6 +9,7 @@ import { normalizeTagInput } from '../utils/tags';
 import { api } from '../lib/api';
 
 type PromptInput = {
+  inputId?: number;
   label: string;
   systemLabel?: string;
   inputType?: string;
@@ -15,15 +17,25 @@ type PromptInput = {
 };
 
 type PromptPayload = {
+  workflowId?: number;
   workflowInputs?: PromptInput[];
   inputs?: PromptInput[];
   inputJson?: Record<string, unknown>;
 };
 
+type PromptJobInput = {
+  inputId: number;
+  value: string;
+  label?: string;
+  inputType?: string;
+};
+
 type PromptData = {
   imagePath: string;
   jobId: number | null;
+  workflowId?: number | null;
   promptData: PromptPayload;
+  jobInputs?: PromptJobInput[];
   createdAt: number;
 };
 
@@ -70,11 +82,15 @@ export default function ImageModal({
   onPrev,
   onNext
 }: ImageModalProps) {
+  const navigate = useNavigate();
   const [tagInput, setTagInput] = useState('');
   const [promptData, setPromptData] = useState<PromptData | null>(null);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptAvailable, setPromptAvailable] = useState(false);
+  const [promptCardOpen, setPromptCardOpen] = useState(false);
+  const [promptCardFlipped, setPromptCardFlipped] = useState(false);
+  const [promptClosing, setPromptClosing] = useState(false);
 
   const loadPromptData = async (signal?: AbortSignal) => {
     try {
@@ -113,6 +129,20 @@ export default function ImageModal({
       loadPromptData();
     }
   }, [modalTool, promptAvailable, promptData, promptLoading]);
+
+  useEffect(() => {
+    if (modalTool === 'prompt' && promptAvailable && !promptClosing) {
+      setPromptCardOpen(true);
+      const raf = window.requestAnimationFrame(() => {
+        setPromptCardFlipped(true);
+      });
+      return () => window.cancelAnimationFrame(raf);
+    }
+    if (!promptClosing) {
+      setPromptCardFlipped(false);
+      setPromptCardOpen(false);
+    }
+  }, [modalTool, promptAvailable, promptClosing]);
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -154,6 +184,49 @@ export default function ImageModal({
 
   const handleToggleRating = () => {
     onToggleRating();
+  };
+
+  const requestPromptClose = () => {
+    if (promptClosing) return;
+    setPromptClosing(true);
+    setPromptCardFlipped(false);
+  };
+
+  const handleTogglePrompt = () => {
+    if (modalTool === 'prompt') {
+      requestPromptClose();
+      return;
+    }
+    onTogglePrompt();
+  };
+
+  const handlePromptOverlayClick = () => {
+    requestPromptClose();
+  };
+
+  const handlePromptTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+    if (!promptClosing) return;
+    if (event.propertyName !== 'transform') return;
+    if (modalTool === 'prompt') {
+      onTogglePrompt();
+    }
+    setPromptClosing(false);
+    setPromptCardOpen(false);
+  };
+
+  const handleLoadWorkflow = () => {
+    if (!promptWorkflowId) return;
+    navigate(`/workflows/${promptWorkflowId}`, {
+      state: {
+        prefill: {
+          workflowId: promptWorkflowId,
+          inputValues: promptInputValues || {},
+          sourceImagePath: image.id,
+          createdAt: promptData?.createdAt
+        }
+      }
+    });
+    onClose();
   };
 
   const handleDelete = () => {
@@ -307,12 +380,20 @@ export default function ImageModal({
   );
 
   const promptInputs = useMemo<PromptInput[]>(() => {
-    if (!promptData?.promptData) return [];
-    if (Array.isArray(promptData.promptData.inputs)) {
+    if (!promptData) return [];
+    if (Array.isArray(promptData.promptData?.inputs)) {
       return promptData.promptData.inputs;
     }
-    if (Array.isArray(promptData.promptData.workflowInputs)) {
+    if (Array.isArray(promptData.promptData?.workflowInputs)) {
       return promptData.promptData.workflowInputs;
+    }
+    if (Array.isArray(promptData.jobInputs) && promptData.jobInputs.length > 0) {
+      return promptData.jobInputs.map((input) => ({
+        inputId: input.inputId,
+        label: input.label || `Input ${input.inputId}`,
+        inputType: input.inputType,
+        value: input.value
+      }));
     }
     return [];
   }, [promptData]);
@@ -329,6 +410,25 @@ export default function ImageModal({
       next[key] = input.value;
     });
     return next;
+  }, [promptData, promptInputs]);
+
+  const promptWorkflowId =
+    promptData?.promptData?.workflowId ?? promptData?.workflowId ?? null;
+
+  const promptInputValues = useMemo(() => {
+    if (!promptData) return null;
+    const values: Record<number, string> = {};
+    const inputSource =
+      promptData.jobInputs && promptData.jobInputs.length > 0
+        ? promptData.jobInputs
+        : promptInputs;
+    inputSource.forEach((input) => {
+      const inputId = 'inputId' in input ? input.inputId : undefined;
+      if (typeof inputId !== 'number') return;
+      const value = 'value' in input ? input.value : '';
+      values[inputId] = value === null || value === undefined ? '' : String(value);
+    });
+    return Object.keys(values).length > 0 ? values : null;
   }, [promptData, promptInputs]);
 
   useEffect(() => {
@@ -595,7 +695,7 @@ export default function ImageModal({
                   <button
                     className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
                     type="button"
-                    onClick={onTogglePrompt}
+                    onClick={handleTogglePrompt}
                     title="View prompt"
                     aria-label="View prompt data"
                   >
@@ -701,7 +801,7 @@ export default function ImageModal({
               </div>
             </div>
 
-            {modalTool && (
+            {modalTool && modalTool !== 'prompt' && (
               <div className="modal-tool-popover">
                 {modalTool === 'tags' && (
                   <div className="tool-panel tag-editor">
@@ -784,38 +884,75 @@ export default function ImageModal({
                     </span>
                   </div>
                 )}
-                {modalTool === 'prompt' && promptAvailable && (
-                  <div className="tool-panel prompt-panel">
-                    <span className="prompt-panel-title">Generation JSON</span>
-                    {promptLoading && <p className="prompt-loading">Loading...</p>}
-                    {promptError && <p className="prompt-error">{promptError}</p>}
-                    {promptJson && (
-                      <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
-                    )}
-                    {!promptJson && promptData && (
-                      <p className="prompt-empty">No input data recorded.</p>
-                    )}
-                    {promptData && (
-                      <span className="hint">
-                        Generated {new Date(promptData.createdAt).toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                )}
               </div>
             )}
           </div>
 
-            <div
-              className="modal-body"
-              onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
-              onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
-              onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerEnd}
-              onPointerCancel={handlePointerEnd}
-            >
+          {promptCardOpen && promptAvailable && (
+            <div className="prompt-overlay" onClick={handlePromptOverlayClick}>
+              <div
+                className={`prompt-card${promptCardFlipped ? ' is-flipped' : ''}${
+                  promptClosing ? ' is-closing' : ''
+                }`}
+                role="dialog"
+                aria-label="Prompt metadata"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="prompt-card-inner" onTransitionEnd={handlePromptTransitionEnd}>
+                  <div className="prompt-card-face prompt-card-front">
+                    <img src={image.url} alt={image.name} />
+                  </div>
+                  <div className="prompt-card-face prompt-card-back">
+                    <div className="prompt-card-header">
+                      <div className="prompt-card-heading">
+                        <span className="prompt-panel-title">Generation prompt</span>
+                        {promptData && (
+                          <span className="prompt-card-subtitle">
+                            Generated {new Date(promptData.createdAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                      {promptWorkflowId ? (
+                        <button
+                          className="button prompt-card-action"
+                          type="button"
+                          onClick={handleLoadWorkflow}
+                        >
+                          Load Workflow
+                        </button>
+                      ) : (
+                        <span className="prompt-card-missing">Workflow not saved</span>
+                      )}
+                    </div>
+                    <div className="prompt-card-body prompt-panel">
+                      {promptLoading && <p className="prompt-loading">Loading...</p>}
+                      {promptError && <p className="prompt-error">{promptError}</p>}
+                      {promptJson && (
+                        <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
+                      )}
+                      {!promptJson && promptData && (
+                        <p className="prompt-empty">No input data recorded.</p>
+                      )}
+                    </div>
+                    <div className="prompt-card-footer">
+                      <span className="hint">Click outside to return to the image.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div
+            className="modal-body"
+            onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+            onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+            onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+          >
               <div className="modal-stage">
                 <TransformComponent
                   wrapperClass="zoom-wrapper"

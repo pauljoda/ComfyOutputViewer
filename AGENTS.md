@@ -109,6 +109,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 
 ## Recent Changes
+- Replaced the prompt metadata popover with a centered flip-card prompt view that closes by clicking outside.
+- Added a Load Workflow action on prompt metadata to jump to workflows with prefilled inputs and missing-workflow messaging.
+- Stored workflow IDs/input IDs with image prompt metadata and exposed job inputs in the prompt API response.
 - Kept workflow job polling active during runs and pulled newly created jobs immediately after starting.
 - Disabled sticky positioning for modal bars and removed prior Safari-only safe-area tweaks.
 - Removed extra modal topbar padding on Safari and hid the prompt info icon when metadata is missing.
