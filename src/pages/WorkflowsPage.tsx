@@ -85,6 +85,23 @@ export default function WorkflowsPage() {
     const state = location.state as { prefill?: WorkflowPrefill } | null;
     if (state?.prefill) {
       setPrefill(state.prefill);
+      try {
+        window.sessionStorage.removeItem('comfy_prefill');
+      } catch (err) {
+        console.warn('Failed to clear workflow prefill payload:', err);
+      }
+      return;
+    }
+    try {
+      const stored = window.sessionStorage.getItem('comfy_prefill');
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as WorkflowPrefill;
+      if (parsed?.workflowId) {
+        setPrefill(parsed);
+      }
+      window.sessionStorage.removeItem('comfy_prefill');
+    } catch (err) {
+      console.warn('Failed to read workflow prefill payload:', err);
     }
   }, [location.state]);
 

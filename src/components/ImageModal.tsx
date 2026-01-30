@@ -181,14 +181,20 @@ export default function ImageModal({
 
   const handleLoadWorkflow = () => {
     if (!promptWorkflowId) return;
+    const prefillPayload = {
+      workflowId: promptWorkflowId,
+      entries: promptPrefillEntries,
+      sourceImagePath: image.id,
+      createdAt: promptData?.createdAt
+    };
+    try {
+      window.sessionStorage.setItem('comfy_prefill', JSON.stringify(prefillPayload));
+    } catch (err) {
+      console.warn('Failed to store workflow prefill payload:', err);
+    }
     navigate(`/workflows/${promptWorkflowId}`, {
       state: {
-        prefill: {
-          workflowId: promptWorkflowId,
-          entries: promptPrefillEntries,
-          sourceImagePath: image.id,
-          createdAt: promptData?.createdAt
-        }
+        prefill: prefillPayload
       }
     });
     onClose();

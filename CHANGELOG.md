@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.35] - 2026-01-30
+
+### Fixed
+- Persisted workflow prefill payloads in session storage so gallery navigation fills inputs reliably.
+
 ## [0.3.34] - 2026-01-30
 
 ### Fixed
