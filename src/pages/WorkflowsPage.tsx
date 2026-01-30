@@ -847,6 +847,16 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
                 Click on inputs you want to configure when running the workflow.
                 Text nodes are highlighted - select which type each one is.
               </p>
+              <div className="nodes-legend">
+                <span className="legend-item">
+                  <span className="legend-chip legend-text" />
+                  Text input detected
+                </span>
+                <span className="legend-item">
+                  <span className="legend-chip legend-selected" />
+                  Selected input
+                </span>
+              </div>
 
               {!apiJson && (
                 <p className="nodes-empty">No workflow JSON loaded yet.</p>

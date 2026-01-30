@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.22] - 2026-01-30
+
+### Fixed
+- Added an input legend explaining blue (text inputs) and orange (selected) highlights in the workflow editor.
+
 ## [0.3.21] - 2026-01-30
 
 ### Fixed
