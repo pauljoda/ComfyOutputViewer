@@ -1,66 +1,116 @@
 # Comfy Output Viewer
 
-A simple local-only React + TypeScript gallery for ComfyUI outputs. It copies images from a read-only output folder into a local working directory where you can favorite and organize them.
+A powerful, self-hosted gallery and workflow management tool for ComfyUI. Organize your AI-generated images with ratings, tags, and favorites. Run workflows directly from the browser with full parameter control.
 
-Supports ratings, tags, hiding, and blacklisting images from import. 
+Built with React + TypeScript frontend and Node.js/Express backend with SQLite storage.
 
 ![screenshot1](screenshots/screenshot1.png)
 
 ![screenshot2](screenshots/screenshot2.png)
 
+## Features
 
+### Gallery
+
+- **Image Management** — Syncs images from your ComfyUI output folder into a separate data directory for independent organization. Source folder remains read-only.
+- **Ratings & Favorites** — Rate images on a 5-star scale and mark favorites for quick filtering.
+- **Tagging System** — Create custom tags for flexible organization. Filter by tags or view untagged images.
+- **Hide & Delete** — Hide images to filter them out by default (reversible), or delete them entirely. Deleted images are blacklisted to prevent re-import on future syncs.
+- **Sorting & Filtering** — Sort by date created, modified, name, size, or rating. Filter by favorites, ratings, tags, or hidden status.
+- **Grid Customization** — Adjustable column count (1-12 or auto) with cover or contain fit modes.
+- **Detail View** — Full-resolution image viewer with zoom/pan support. Swipe navigation on mobile, keyboard navigation on desktop.
+- **Download** — Download images directly to your device.
+- **Multi-Select** — Bulk operations for favorites, ratings, tags, hide, and delete.
+
+### Slideshow
+
+- **Filtered Slideshows** — Turn any gallery view into a slideshow, respecting current filters and sort order.
+- **Playback Modes** — Fixed interval, random interval range, or manual navigation.
+- **Shuffle** — Play in order or randomized.
+- **Progress Indicator** — Optional progress bar showing time until next slide.
+- **Pause Control** — Click or tap anywhere to pause/resume.
+- **Smooth Transitions** — Fade transitions with intelligent preloading.
+
+### Workflow Import & Execution
+
+- **Direct Execution** — Run ComfyUI workflows directly from the browser.
+- **Easy Import** — Export workflows as API format from ComfyUI and import the JSON.
+- **Parameter Overrides** — Select any node value to expose as an editable field in the UI. Add custom labels without affecting the workflow sent to ComfyUI.
+- **Job Monitoring** — Track generation progress in real-time via WebSocket connection.
+- **Auto-Import Results** — Generated images are automatically synced and linked to their workflow inputs.
+- **Prompt Viewing** — View the exact prompt and settings that created any image generated in-app.
+- **Workflow Prefill** — Load a workflow with values pre-filled from a previously generated image.
+- **Multiple Workflows** — Import and manage as many workflows as you need.
+
+### Theming
+
+- **Light, Dark, and System** — Three theme modes with automatic system preference detection.
+
+---
 
 ## Requirements
+
 - Node.js 20+
 - npm (or another Node package manager)
+- ComfyUI instance (for workflow execution features)
 
-## Usage
-1) Install dependencies:
-```bash
-npm install
-```
-2) (Optional) Create a `.env` file based on `.env.example`.
-3) Run the dev servers (Vite + API):
-```bash
-npm run dev
-```
-- Frontend: http://localhost:8008
-- API server: http://localhost:8009
+---
 
-### Configuration
-The server reads configuration from environment variables:
-- `COMFY_OUTPUT_DIR` or `OUTPUT_DIR`: source folder to sync from. Default: `/var/lib/comfyui/output`.
-- `DATA_DIR`: local data folder for images, thumbnails, and metadata. Default: `~/comfy_viewer/data`.
-- `SERVER_PORT` or `PORT`: server port. Default: `8009` in dev, `8008` in production.
-- `SYNC_INTERVAL_MS`: auto-sync interval in milliseconds (disabled when unset or `0`).
-- `THUMB_MAX`: maximum thumbnail dimension. Default: `512`.
-- `THUMB_QUALITY`: JPEG quality for thumbnails. Default: `72`.
+## Quick Start
 
-## Setup
-```bash
-npm install
-```
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Optionally create a `.env` file based on `.env.example`.
+2. (Optional) Create a `.env` file based on `.env.example`.
 
-## Development
-```bash
-npm run dev
-```
-- Frontend: http://localhost:8008
-- API server: http://localhost:8009
+3. Run the development servers:
+   ```bash
+   npm run dev
+   ```
+   - Frontend: http://localhost:8008
+   - API server: http://localhost:8009
+
+4. Click **Sync** to import images from your ComfyUI output folder.
+
+---
+
+## Configuration
+
+Configure via environment variables or a `.env` file:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COMFY_OUTPUT_DIR` | `/var/lib/comfyui/output` | Source folder to sync images from (read-only) |
+| `DATA_DIR` | `~/comfy_viewer/data` | Working directory for images, thumbnails, and database |
+| `SERVER_PORT` | `8009` (dev) / `8008` (prod) | HTTP server port |
+| `COMFY_API_URL` | `http://127.0.0.1:8188` | ComfyUI API endpoint for workflow execution |
+| `SYNC_INTERVAL_MS` | `0` (disabled) | Auto-sync interval in milliseconds |
+| `THUMB_MAX` | `512` | Maximum thumbnail dimension in pixels |
+| `THUMB_QUALITY` | `72` | JPEG quality for thumbnails (0-100) |
+
+---
 
 ## Production
+
+Build and run for production:
+
 ```bash
 npm run build
 npm run start
 ```
-Runs the API + static UI on http://localhost:8008.
 
-## Nix (flake)
-This repo ships a flake with a package and NixOS module.
+Serves the API and static UI on http://localhost:8008.
 
-Build or run locally:
+---
+
+## Nix / NixOS
+
+This repo includes a Nix flake with a package and NixOS module.
+
+### Build or Run Locally
+
 ```bash
 nix build .#
 ./result/bin/comfy-output-viewer
@@ -70,8 +120,10 @@ nix build .#
 nix run .#
 ```
 
-## NixOS
-Example `configuration.nix` using the overlay + module:
+### NixOS Module
+
+Example `configuration.nix` using the overlay and module:
+
 ```nix
 {
   nixpkgs.overlays = [ inputs.comfy-output-viewer.overlays.default ];
@@ -90,20 +142,55 @@ Example `configuration.nix` using the overlay + module:
 }
 ```
 
-Service options:
-- `enable`: start the server on boot.
-- `openFirewall`: open the configured port in the firewall.
-- `outputDir`: source directory for ComfyUI outputs.
-- `dataDir`: writable data directory for images, thumbnails, and metadata.
-- `port`: HTTP port (default 8008).
-- `syncIntervalMs`: optional auto-sync interval in ms (null disables).
-- `thumbMax` and `thumbQuality`: thumbnail settings.
-- `user`, `group`, `createUser`: control the system user/group used by the service.
-- `extraEnvironment`: extra environment variables for the service.
+### Module Options
 
-## Notes
-- Source directory (read-only) defaults to `/var/lib/comfyui/output`.
-- Working data directory defaults to `~/comfy_viewer/data` and stores favorites/folders.
-- Use the **Sync** button to copy new/updated images from the source.
-- Optional auto-sync: set `SYNC_INTERVAL_MS` (for example `60000` for 1 minute).
-- Thumbnails are generated on sync (configurable with `THUMB_MAX` and `THUMB_QUALITY`).
+| Option | Description |
+|--------|-------------|
+| `enable` | Start the server on boot |
+| `openFirewall` | Open the configured port in the firewall |
+| `outputDir` | Source directory for ComfyUI outputs |
+| `dataDir` | Writable data directory for images, thumbnails, and database |
+| `port` | HTTP port (default 8008) |
+| `syncIntervalMs` | Auto-sync interval in ms (`null` disables) |
+| `thumbMax` | Maximum thumbnail dimension |
+| `thumbQuality` | Thumbnail JPEG quality |
+| `user`, `group`, `createUser` | Control the system user/group for the service |
+| `extraEnvironment` | Extra environment variables for the service |
+
+---
+
+## How It Works
+
+1. **Sync** copies images from your ComfyUI output folder into the app's data directory. The source folder is never modified.
+2. **Thumbnails** are generated on sync for fast gallery browsing.
+3. **Metadata** (ratings, tags, favorites, hidden status) is stored in a local SQLite database.
+4. **Blacklist** prevents deleted images from being re-imported on subsequent syncs.
+5. **Workflows** are stored with their API JSON and configurable input definitions.
+6. **Jobs** connect to ComfyUI via WebSocket for real-time progress updates.
+
+---
+
+## Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite, React Router
+- **Backend**: Node.js, Express, WebSocket
+- **Database**: SQLite
+- **Image Processing**: Sharp
+- **Theming**: CSS custom properties with light/dark/system modes
+
+---
+
+## Development
+
+```bash
+npm run dev      # Start dev servers (Vite + Express)
+npm run build    # Build production bundle
+npm run preview  # Preview production build
+npm run start    # Run production server
+```
+
+---
+
+## License
+
+MIT
