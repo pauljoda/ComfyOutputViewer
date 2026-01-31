@@ -2473,10 +2473,10 @@ body {
 }
 
 .slideshow-settings-modal {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--card));
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: var(--card);
+  border: 1px solid var(--card-border);
   border-radius: 24px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow);
   width: min(460px, 100%);
   max-height: 90vh;
   overflow-y: auto;
@@ -2489,7 +2489,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 22px 24px 18px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .slideshow-settings-header h2 {
@@ -2532,12 +2532,12 @@ body {
 
 .slideshow-image-count {
   font-size: 12px;
-  color: rgba(13, 14, 16, 0.65);
+  color: var(--muted);
   text-align: center;
   padding: 8px 14px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--card-border);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -2586,8 +2586,8 @@ body {
 .slideshow-option-card {
   position: relative;
   border-radius: 16px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--card-border);
+  background: rgba(0, 0, 0, 0.03);
   padding: 12px 14px;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
@@ -2707,7 +2707,23 @@ body {
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--card-border);
+}
+
+:root[data-theme='dark'] .slideshow-close-button {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .slideshow-image-count {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+:root[data-theme='dark'] .slideshow-option-card {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+:root[data-theme='dark'] .slideshow-option-icon {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Slideshow View */
