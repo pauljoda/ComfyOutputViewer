@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2026-01-31
+
+### Fixed
+- Kept slideshow images offscreen until loaded to avoid flash frames on Safari.
+
+## [0.4.6] - 2026-01-31
+
+### Fixed
+- Kept slideshow images clear of the bottom control bar by padding the crossfade frames.
+
+## [0.4.5] - 2026-01-31
+
+### Fixed
+- Ensured slideshow images stay transparent until loaded to avoid flash frames.
+- Drove the progress bar with a transform transition to reduce mobile Safari stalls.
+
 ## [0.4.4] - 2026-01-31
 
 ### Fixed
