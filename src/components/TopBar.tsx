@@ -27,6 +27,7 @@ type TopBarProps = {
   selectedTags: string[];
   availableTags: string[];
   showUntagged: boolean;
+  imageCount: number;
   onOpenDrawer: () => void;
   onToggleTool: (tool: ToolPanel) => void;
   onDismissTool: () => void;
@@ -49,6 +50,7 @@ type TopBarProps = {
   onRemoveFilterTag: (tag: string) => void;
   onClearFilterTags: () => void;
   onExitUntagged: () => void;
+  onOpenSlideshow: () => void;
 };
 
 const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
@@ -70,6 +72,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       selectedTags,
       availableTags,
       showUntagged,
+      imageCount,
       onOpenDrawer,
       onToggleTool,
       onDismissTool,
@@ -91,7 +94,8 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onAddFilterTag,
       onRemoveFilterTag,
       onClearFilterTags,
-      onExitUntagged
+      onExitUntagged,
+      onOpenSlideshow
     },
     ref
   ) => {
@@ -155,6 +159,24 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             </div>
 
             <div className="toolbar-actions" ref={toolButtonsRef}>
+              <button
+                className="tool-button"
+                type="button"
+                onClick={onOpenSlideshow}
+                aria-label="Slideshow"
+                title="Slideshow"
+                disabled={imageCount === 0}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M8 5v14l11-7z"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               <button
                 className={multiSelect ? 'tool-button active' : 'tool-button'}
                 type="button"

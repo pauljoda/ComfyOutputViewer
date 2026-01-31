@@ -5,6 +5,8 @@ import Gallery from '../components/Gallery';
 import ImageModal from '../components/ImageModal';
 import StatusBar from '../components/StatusBar';
 import TopBar from '../components/TopBar';
+import SlideshowSettingsModal from '../components/SlideshowSettingsModal';
+import SlideshowView from '../components/SlideshowView';
 import {
   COLUMN_MAX,
   COLUMN_MIN,
@@ -24,6 +26,7 @@ import {
   type DeleteResponse,
   type ImageItem,
   type ModalTool,
+  type SlideshowSettings,
   type SortMode,
   type SyncResponse,
   type ThemeMode,
@@ -86,6 +89,11 @@ export default function GalleryPage() {
     const stored = window.localStorage.getItem(STORAGE_KEYS.sort);
     return isSortMode(stored) ? stored : DEFAULT_SORT;
   });
+
+  // Slideshow state
+  const [showSlideshowSettings, setShowSlideshowSettings] = useState(false);
+  const [slideshowActive, setSlideshowActive] = useState(false);
+  const [slideshowSettings, setSlideshowSettings] = useState<SlideshowSettings | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -534,6 +542,22 @@ export default function GalleryPage() {
     setActiveTool((current) => (current === tool ? null : tool));
   }, []);
 
+  const handleOpenSlideshow = useCallback(() => {
+    if (filteredImages.length === 0) return;
+    setShowSlideshowSettings(true);
+  }, [filteredImages.length]);
+
+  const handleStartSlideshow = useCallback((settings: SlideshowSettings) => {
+    setShowSlideshowSettings(false);
+    setSlideshowSettings(settings);
+    setSlideshowActive(true);
+  }, []);
+
+  const handleCloseSlideshow = useCallback(() => {
+    setSlideshowActive(false);
+    setSlideshowSettings(null);
+  }, []);
+
   const currentFilterLabel = useMemo(() => {
     if (showUntagged) return 'Untagged';
     const extras: string[] = [];
@@ -600,6 +624,7 @@ export default function GalleryPage() {
         selectedTags={selectedTags}
         availableTags={availableTags}
         showUntagged={showUntagged}
+        imageCount={filteredImages.length}
         onOpenDrawer={() => {
           setDrawerOpen(true);
           setActiveTool(null);
@@ -625,6 +650,7 @@ export default function GalleryPage() {
         onRemoveFilterTag={handleRemoveSelectedTag}
         onClearFilterTags={handleClearSelectedTags}
         onExitUntagged={handleSelectAllImages}
+        onOpenSlideshow={handleOpenSlideshow}
       />
 
       {activeTool && (
@@ -698,6 +724,22 @@ export default function GalleryPage() {
           onClose={() => setSelectedId(null)}
           onPrev={movePrev}
           onNext={moveNext}
+        />
+      )}
+
+      {showSlideshowSettings && (
+        <SlideshowSettingsModal
+          imageCount={filteredImages.length}
+          onStart={handleStartSlideshow}
+          onClose={() => setShowSlideshowSettings(false)}
+        />
+      )}
+
+      {slideshowActive && slideshowSettings && (
+        <SlideshowView
+          images={filteredImages}
+          settings={slideshowSettings}
+          onClose={handleCloseSlideshow}
         />
       )}
     </div>
