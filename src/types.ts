@@ -121,3 +121,14 @@ export type JobInputValue = {
   inputId: number;
   value: string;
 };
+
+// Slideshow types
+export type SlideshowMode = 'manual' | 'fixed' | 'random';
+
+export type SlideshowSettings = {
+  mode: SlideshowMode;
+  fixedInterval: number; // seconds for fixed mode
+  minInterval: number; // seconds for random mode min
+  maxInterval: number; // seconds for random mode max
+  showProgress: boolean;
+};
