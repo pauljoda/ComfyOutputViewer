@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SlideshowMode, SlideshowSettings } from '../types';
+import type { SlideshowMode, SlideshowOrder, SlideshowSettings } from '../types';
 
 type SlideshowSettingsModalProps = {
   imageCount: number;
@@ -8,6 +8,7 @@ type SlideshowSettingsModalProps = {
 };
 
 const DEFAULT_SETTINGS: SlideshowSettings = {
+  order: 'none',
   mode: 'fixed',
   fixedInterval: 5,
   minInterval: 3,
@@ -20,6 +21,7 @@ export default function SlideshowSettingsModal({
   onStart,
   onClose
 }: SlideshowSettingsModalProps) {
+  const [order, setOrder] = useState<SlideshowOrder>(DEFAULT_SETTINGS.order);
   const [mode, setMode] = useState<SlideshowMode>(DEFAULT_SETTINGS.mode);
   const [fixedInterval, setFixedInterval] = useState(DEFAULT_SETTINGS.fixedInterval);
   const [minInterval, setMinInterval] = useState(DEFAULT_SETTINGS.minInterval);
@@ -28,6 +30,7 @@ export default function SlideshowSettingsModal({
 
   const handleStart = () => {
     onStart({
+      order,
       mode,
       fixedInterval,
       minInterval,
@@ -85,9 +88,74 @@ export default function SlideshowSettingsModal({
           </div>
 
           <div className="slideshow-setting-group">
-            <label className="slideshow-setting-label">Mode</label>
-            <div className="slideshow-mode-options">
-              <label className="slideshow-radio">
+            <div className="slideshow-setting-header">
+              <span className="slideshow-setting-title">Ordering</span>
+              <span className="slideshow-setting-subtitle">Play in order or shuffle the deck.</span>
+            </div>
+            <div className="slideshow-option-grid">
+              <label className="slideshow-option-card">
+                <input
+                  type="radio"
+                  name="slideshow-order"
+                  value="none"
+                  checked={order === 'none'}
+                  onChange={() => setOrder('none')}
+                />
+                <span className="slideshow-option-content">
+                  <span className="slideshow-option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 7h10M4 12h16M4 17h12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="slideshow-option-text">
+                    <span className="slideshow-option-title">In order</span>
+                    <span className="slideshow-option-desc">Use the gallery ordering</span>
+                  </span>
+                </span>
+              </label>
+              <label className="slideshow-option-card">
+                <input
+                  type="radio"
+                  name="slideshow-order"
+                  value="shuffle"
+                  checked={order === 'shuffle'}
+                  onChange={() => setOrder('shuffle')}
+                />
+                <span className="slideshow-option-content">
+                  <span className="slideshow-option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 7h5l2 2h6M15 5l3 4-3 4M4 17h5l2-2h6M15 15l3 4-3 4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="slideshow-option-text">
+                    <span className="slideshow-option-title">Shuffled</span>
+                    <span className="slideshow-option-desc">Randomize the sequence</span>
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="slideshow-setting-group">
+            <div className="slideshow-setting-header">
+              <span className="slideshow-setting-title">Timing</span>
+              <span className="slideshow-setting-subtitle">Pick how images advance.</span>
+            </div>
+            <div className="slideshow-option-grid slideshow-option-grid-tight">
+              <label className="slideshow-option-card">
                 <input
                   type="radio"
                   name="slideshow-mode"
@@ -95,12 +163,26 @@ export default function SlideshowSettingsModal({
                   checked={mode === 'manual'}
                   onChange={() => setMode('manual')}
                 />
-                <span className="slideshow-radio-label">
-                  <span className="slideshow-radio-title">Manual</span>
-                  <span className="slideshow-radio-desc">Navigate with arrows only</span>
+                <span className="slideshow-option-content">
+                  <span className="slideshow-option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M7 11l3 3 7-7"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="slideshow-option-text">
+                    <span className="slideshow-option-title">Manual</span>
+                    <span className="slideshow-option-desc">Use the controls only</span>
+                  </span>
                 </span>
               </label>
-              <label className="slideshow-radio">
+              <label className="slideshow-option-card">
                 <input
                   type="radio"
                   name="slideshow-mode"
@@ -108,12 +190,34 @@ export default function SlideshowSettingsModal({
                   checked={mode === 'fixed'}
                   onChange={() => setMode('fixed')}
                 />
-                <span className="slideshow-radio-label">
-                  <span className="slideshow-radio-title">Auto (Fixed)</span>
-                  <span className="slideshow-radio-desc">Same duration for each image</span>
+                <span className="slideshow-option-content">
+                  <span className="slideshow-option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      />
+                      <path
+                        d="M12 8v5l3 2"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="slideshow-option-text">
+                    <span className="slideshow-option-title">Fixed</span>
+                    <span className="slideshow-option-desc">Same duration every time</span>
+                  </span>
                 </span>
               </label>
-              <label className="slideshow-radio">
+              <label className="slideshow-option-card">
                 <input
                   type="radio"
                   name="slideshow-mode"
@@ -121,9 +225,23 @@ export default function SlideshowSettingsModal({
                   checked={mode === 'random'}
                   onChange={() => setMode('random')}
                 />
-                <span className="slideshow-radio-label">
-                  <span className="slideshow-radio-title">Auto (Random)</span>
-                  <span className="slideshow-radio-desc">Random duration within range</span>
+                <span className="slideshow-option-content">
+                  <span className="slideshow-option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M4 6h4l3 4 3-4h6M14 14l3 4-3 4M4 18h4l3-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="slideshow-option-text">
+                    <span className="slideshow-option-title">Range</span>
+                    <span className="slideshow-option-desc">Random within min/max</span>
+                  </span>
                 </span>
               </label>
             </div>

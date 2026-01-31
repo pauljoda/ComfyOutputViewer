@@ -16,7 +16,20 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const progressIntervalRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
-  const currentImage = images[currentIndex];
+  const orderedImages = useMemo(() => {
+    if (settings.order !== 'shuffle') {
+      return images;
+    }
+
+    const shuffled = [...images];
+    for (let i = shuffled.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }, [images, settings.order]);
+
+  const currentImage = orderedImages[currentIndex];
 
   const getRandomDuration = useCallback(() => {
     const min = settings.minInterval * 1000;
@@ -35,12 +48,18 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [settings.mode, settings.fixedInterval, getRandomDuration]);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % images.length);
-  }, [images.length]);
+    setCurrentIndex((prev) => {
+      if (orderedImages.length === 0) return 0;
+      return (prev + 1) % orderedImages.length;
+    });
+  }, [orderedImages.length]);
 
   const goToPrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
-  }, [images.length]);
+    setCurrentIndex((prev) => {
+      if (orderedImages.length === 0) return 0;
+      return (prev - 1 + orderedImages.length) % orderedImages.length;
+    });
+  }, [orderedImages.length]);
 
   const clearTimers = useCallback(() => {
     if (timerRef.current) {
@@ -84,6 +103,16 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     return clearTimers;
   }, [currentIndex, isPaused, settings.mode, startTimer, clearTimers]);
 
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [settings.order]);
+
+  useEffect(() => {
+    if (currentIndex >= orderedImages.length) {
+      setCurrentIndex(0);
+    }
+  }, [currentIndex, orderedImages.length]);
+
   // Handle pause/resume
   const togglePause = useCallback(() => {
     if (settings.mode === 'manual') return;
@@ -117,7 +146,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const handleImageClick = useCallback((e: React.MouseEvent) => {
     // Don't toggle pause if clicking navigation arrows or close button
     const target = e.target as HTMLElement;
-    if (target.closest('.slideshow-nav') || target.closest('.slideshow-close')) return;
+    if (target.closest('.slideshow-control') || target.closest('.slideshow-close')) return;
 
     togglePause();
   }, [togglePause]);
@@ -173,28 +202,6 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
         </svg>
       </button>
 
-      {/* Previous arrow */}
-      <button
-        className="slideshow-nav slideshow-nav-prev"
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handlePrev();
-        }}
-        aria-label="Previous image"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M15 6l-6 6 6 6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
       {/* Image */}
       <div className="slideshow-image-container">
         {currentImage && (
@@ -205,54 +212,66 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
             alt={currentImage.name}
           />
         )}
-
-        {/* Pause indicator */}
-        {isPaused && settings.mode !== 'manual' && (
-          <div className="slideshow-paused-indicator">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor" />
-              <rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor" />
-            </svg>
-            <span>Paused</span>
-          </div>
-        )}
       </div>
 
-      {/* Next arrow */}
-      <button
-        className="slideshow-nav slideshow-nav-next"
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleNext();
-        }}
-        aria-label="Next image"
+      <div
+        className="slideshow-bottom-bar"
+        onClick={(e) => e.stopPropagation()}
+        role="presentation"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M9 6l6 6-6 6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {/* Progress bar */}
-      {showProgressBar && (
-        <div className="slideshow-progress-container">
-          <div
-            className="slideshow-progress-bar"
-            style={{ width: `${progress}%` }}
-          />
+        {showProgressBar && (
+          <div className="slideshow-progress-container">
+            <div
+              className="slideshow-progress-bar"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+        <div className="slideshow-bottom-row">
+          <button
+            className="slideshow-control slideshow-nav-button"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrev();
+            }}
+            aria-label="Previous image"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M15 6l-6 6 6 6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <div className="slideshow-counter">
+            {currentIndex + 1} / {orderedImages.length}
+          </div>
+          <button
+            className="slideshow-control slideshow-nav-button"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNext();
+            }}
+            aria-label="Next image"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M9 6l6 6-6 6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
-      )}
-
-      {/* Image counter */}
-      <div className="slideshow-counter">
-        {currentIndex + 1} / {images.length}
       </div>
     </div>
   );

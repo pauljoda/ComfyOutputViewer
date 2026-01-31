@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-01-31
+
+### Added
+- Added slideshow ordering options for in-order vs shuffled playback.
+
+### Changed
+- Restyled the slideshow settings modal with icon-based ordering and timing cards.
+- Moved slideshow navigation into a bottom bar to maximize image space on mobile.
+
+### Fixed
+- Removed the paused overlay indicator so pausing only freezes playback and the progress bar.
+
 ## [0.4.0] - 2026-01-30
 
 ### Added

@@ -124,8 +124,10 @@ export type JobInputValue = {
 
 // Slideshow types
 export type SlideshowMode = 'manual' | 'fixed' | 'random';
+export type SlideshowOrder = 'none' | 'shuffle';
 
 export type SlideshowSettings = {
+  order: SlideshowOrder;
   mode: SlideshowMode;
   fixedInterval: number; // seconds for fixed mode
   minInterval: number; // seconds for random mode min

@@ -28,7 +28,7 @@
               in
               !(base == "node_modules" || base == "dist" || base == ".cache" || base == ".git");
           };
-          npmDepsHash = "sha256-trGh4NOx3LqtyP1AnwxphgC1zI0te2RKRay+itId6JM=";
+          npmDepsHash = "sha256-yCizeyus1RecyVIzkccimu0iFdI4YXC54PKnVLShcnU=";
           npmBuildScript = "build";
           # Required for building sharp from source
           nativeBuildInputs = with pkgs; [ makeWrapper pkg-config python3 ];
