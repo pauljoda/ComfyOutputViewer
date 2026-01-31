@@ -9,10 +9,15 @@ type SlideshowViewProps = {
 
 export default function SlideshowView({ images, settings, onClose }: SlideshowViewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [nextIndex, setNextIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isFading, setIsFading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [progressDuration, setProgressDuration] = useState(0);
   const timerRef = useRef<number | null>(null);
-  const progressRafRef = useRef<number | null>(null);
+  const fadeTimeoutRef = useRef<number | null>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
+  const progressKickRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const elapsedRef = useRef<number>(0);
   const durationRef = useRef<number>(0);
@@ -31,6 +36,9 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [images, settings.order]);
 
   const currentImage = orderedImages[currentIndex];
+  const nextImage = orderedImages[nextIndex];
+  const hasNextImage = orderedImages.length > 1;
+  const fadeDurationMs = 500;
 
   const getRandomDuration = useCallback(() => {
     const min = settings.minInterval * 1000;
@@ -55,21 +63,22 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     });
   }, [orderedImages.length]);
 
-  const goToPrev = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (orderedImages.length === 0) return 0;
-      return (prev - 1 + orderedImages.length) % orderedImages.length;
-    });
-  }, [orderedImages.length]);
-
   const clearTimers = useCallback(() => {
     if (timerRef.current) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (progressRafRef.current) {
-      window.cancelAnimationFrame(progressRafRef.current);
-      progressRafRef.current = null;
+    if (fadeTimeoutRef.current) {
+      window.clearTimeout(fadeTimeoutRef.current);
+      fadeTimeoutRef.current = null;
+    }
+    if (transitionTimeoutRef.current) {
+      window.clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+    if (progressKickRef.current) {
+      window.cancelAnimationFrame(progressKickRef.current);
+      progressKickRef.current = null;
     }
   }, []);
 
@@ -80,31 +89,46 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
 
     const duration = getDuration();
     durationRef.current = duration;
+    const elapsed = resume ? elapsedRef.current : 0;
+    const remaining = Math.max(0, duration - elapsed);
+    const hasNext = orderedImages.length > 1;
     if (!resume) {
       elapsedRef.current = 0;
-      setProgress(0);
     }
-    startTimeRef.current = Date.now() - elapsedRef.current;
+    startTimeRef.current = Date.now() - elapsed;
 
-    if (settings.showProgress) {
-      const tick = () => {
-        const elapsed = Date.now() - startTimeRef.current;
-        elapsedRef.current = Math.min(elapsed, duration);
-        const newProgress = duration > 0 ? (elapsedRef.current / duration) * 100 : 0;
-        setProgress(newProgress);
-        if (elapsedRef.current < duration && !isPaused) {
-          progressRafRef.current = window.requestAnimationFrame(tick);
-        }
-      };
-      progressRafRef.current = window.requestAnimationFrame(tick);
+    setProgressDuration(0);
+    setProgress(duration > 0 ? (elapsed / duration) * 100 : 0);
+
+    if (settings.showProgress && remaining > 0) {
+      progressKickRef.current = window.requestAnimationFrame(() => {
+        setProgressDuration(remaining);
+        setProgress(100);
+      });
     }
 
-    const remaining = Math.max(0, duration - elapsedRef.current);
+    if (hasNext && remaining > 0) {
+      const fadeDelay = Math.max(0, remaining - fadeDurationMs);
+      fadeTimeoutRef.current = window.setTimeout(() => {
+        setIsFading(true);
+      }, fadeDelay);
+    }
+
     timerRef.current = window.setTimeout(() => {
       elapsedRef.current = 0;
+      setIsFading(false);
       goToNext();
     }, remaining);
-  }, [settings.mode, settings.showProgress, isPaused, getDuration, clearTimers, goToNext]);
+  }, [
+    settings.mode,
+    settings.showProgress,
+    isPaused,
+    getDuration,
+    clearTimers,
+    goToNext,
+    orderedImages.length,
+    fadeDurationMs
+  ]);
 
   // Start timer when index changes or when unpaused
   useEffect(() => {
@@ -117,8 +141,11 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
 
   useEffect(() => {
     setCurrentIndex(0);
+    setNextIndex(0);
     elapsedRef.current = 0;
     setProgress(0);
+    setProgressDuration(0);
+    setIsFading(false);
   }, [settings.order]);
 
   useEffect(() => {
@@ -126,6 +153,16 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       setCurrentIndex(0);
     }
   }, [currentIndex, orderedImages.length]);
+
+  useEffect(() => {
+    if (orderedImages.length === 0) {
+      setNextIndex(0);
+      return;
+    }
+    if (!isFading) {
+      setNextIndex((currentIndex + 1) % orderedImages.length);
+    }
+  }, [currentIndex, isFading, orderedImages.length]);
 
   useEffect(() => {
     document.body.classList.add('slideshow-open');
@@ -147,6 +184,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
         clearTimers();
         if (durationRef.current > 0) {
           elapsedRef.current = Math.min(Date.now() - startTimeRef.current, durationRef.current);
+          setProgressDuration(0);
           setProgress((elapsedRef.current / durationRef.current) * 100);
         }
         return true;
@@ -156,18 +194,34 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
 
   // Handle manual navigation (resets timer)
   const handlePrev = useCallback(() => {
+    if (orderedImages.length === 0) return;
     clearTimers();
     setProgress(0);
+    setProgressDuration(0);
     elapsedRef.current = 0;
-    goToPrev();
-  }, [clearTimers, goToPrev]);
+    const targetIndex = (currentIndex - 1 + orderedImages.length) % orderedImages.length;
+    setNextIndex(targetIndex);
+    setIsFading(true);
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      setIsFading(false);
+      setCurrentIndex(targetIndex);
+    }, fadeDurationMs);
+  }, [clearTimers, currentIndex, fadeDurationMs, orderedImages.length]);
 
   const handleNext = useCallback(() => {
+    if (orderedImages.length === 0) return;
     clearTimers();
     setProgress(0);
+    setProgressDuration(0);
     elapsedRef.current = 0;
-    goToNext();
-  }, [clearTimers, goToNext]);
+    const targetIndex = (currentIndex + 1) % orderedImages.length;
+    setNextIndex(targetIndex);
+    setIsFading(true);
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      setIsFading(false);
+      setCurrentIndex(targetIndex);
+    }, fadeDurationMs);
+  }, [clearTimers, currentIndex, fadeDurationMs, orderedImages.length]);
 
   // Click on image area to pause
   const handleImageClick = useCallback((e: React.MouseEvent) => {
@@ -232,12 +286,32 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       {/* Image */}
       <div className="slideshow-image-container">
         {currentImage && (
-          <img
-            key={currentImage.id}
-            className="slideshow-image"
-            src={currentImage.url}
-            alt={currentImage.name}
-          />
+          <div
+            className={`slideshow-image-frame ${
+              isFading ? 'slideshow-image-out' : 'slideshow-image-in'
+            }`}
+          >
+            <img
+              key={currentImage.id}
+              className="slideshow-image"
+              src={currentImage.url}
+              alt={currentImage.name}
+            />
+          </div>
+        )}
+        {hasNextImage && nextImage && (
+          <div
+            className={`slideshow-image-frame ${
+              isFading ? 'slideshow-image-in' : 'slideshow-image-out'
+            }`}
+          >
+            <img
+              key={nextImage.id}
+              className="slideshow-image"
+              src={nextImage.url}
+              alt={nextImage.name}
+            />
+          </div>
         )}
       </div>
 
@@ -250,7 +324,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
           <div className="slideshow-progress-container">
             <div
               className="slideshow-progress-bar"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${progress}%`, transitionDuration: `${progressDuration}ms` }}
             />
           </div>
         )}

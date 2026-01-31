@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Smoothed slideshow progress with CSS transitions and added preloaded crossfades between images.
 - Smoothed slideshow progress updates, refreshed timing/order icons, and blocked background interaction during slideshows.
 - Adjusted the slideshow settings modal styling to align with dark mode theming.
 - Refined slideshow settings with ordering/timing cards, shuffle support, and a bottom control bar while removing the paused overlay.

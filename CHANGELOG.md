@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2026-01-31
+
+### Fixed
+- Smoothed slideshow progress animation with transition-based timing on mobile Safari.
+- Added preloaded crossfade transitions between slideshow images to avoid flashes.
+
 ## [0.4.3] - 2026-01-31
 
 ### Fixed
