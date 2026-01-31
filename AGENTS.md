@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Replaced the two-image slideshow crossfade with a single-frame fade using preloaded images to prevent flashes.
 - Pushed unloaded slideshow frames offscreen so Safari never flashes them before the fade.
 - Padded slideshow crossfade frames so images no longer overlap the bottom control bar.
 - Kept slideshow images hidden until fully loaded and shifted the progress bar to transform-based animation.

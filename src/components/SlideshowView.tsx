@@ -7,20 +7,20 @@ type SlideshowViewProps = {
   onClose: () => void;
 };
 
+type FadePhase = 'idle' | 'out' | 'in';
+
+const FADE_DURATION_MS = 450;
+
 export default function SlideshowView({ images, settings, onClose }: SlideshowViewProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [nextIndex, setNextIndex] = useState(0);
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
+  const [fadePhase, setFadePhase] = useState<FadePhase>('idle');
   const [isPaused, setIsPaused] = useState(false);
-  const [isFading, setIsFading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressDuration, setProgressDuration] = useState(0);
   const [loadedIds, setLoadedIds] = useState<Set<string>>(() => new Set());
-  const timerRef = useRef<number | null>(null);
   const fadeTimeoutRef = useRef<number | null>(null);
-  const transitionTimeoutRef = useRef<number | null>(null);
   const progressKickRef = useRef<number | null>(null);
-  const fadePendingRef = useRef(false);
-  const nextLoadedRef = useRef(false);
   const startTimeRef = useRef<number>(0);
   const elapsedRef = useRef<number>(0);
   const durationRef = useRef<number>(0);
@@ -39,11 +39,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [images, settings.order]);
 
   const currentImage = orderedImages[currentIndex];
-  const nextImage = orderedImages[nextIndex];
-  const hasNextImage = orderedImages.length > 1;
   const currentLoaded = currentImage ? loadedIds.has(currentImage.id) : false;
-  const nextLoaded = nextImage ? loadedIds.has(nextImage.id) : false;
-  const fadeDurationMs = 500;
 
   const getRandomDuration = useCallback(() => {
     const min = settings.minInterval * 1000;
@@ -61,45 +57,62 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     return 0;
   }, [settings.mode, settings.fixedInterval, getRandomDuration]);
 
-  const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => {
-      if (orderedImages.length === 0) return 0;
-      return (prev + 1) % orderedImages.length;
-    });
-  }, [orderedImages.length]);
-
   const clearTimers = useCallback(() => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     if (fadeTimeoutRef.current) {
       window.clearTimeout(fadeTimeoutRef.current);
       fadeTimeoutRef.current = null;
-    }
-    if (transitionTimeoutRef.current) {
-      window.clearTimeout(transitionTimeoutRef.current);
-      transitionTimeoutRef.current = null;
     }
     if (progressKickRef.current) {
       window.cancelAnimationFrame(progressKickRef.current);
       progressKickRef.current = null;
     }
-    fadePendingRef.current = false;
   }, []);
 
-  const startTimer = useCallback((resume = false) => {
+  const handleImageLoad = useCallback((id: string) => {
+    setLoadedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
+
+  const preloadIndex = useCallback((index: number) => {
+    const target = orderedImages[index];
+    if (!target || loadedIds.has(target.id)) return;
+    const img = new Image();
+    img.src = target.url;
+    img.onload = () => handleImageLoad(target.id);
+    img.onerror = () => handleImageLoad(target.id);
+  }, [orderedImages, loadedIds, handleImageLoad]);
+
+  const beginTransition = useCallback((targetIndex: number) => {
+    if (orderedImages.length === 0) return;
+    if (targetIndex === currentIndex) return;
+    setPendingIndex(targetIndex);
+    preloadIndex(targetIndex);
+    if (!currentLoaded) {
+      setCurrentIndex(targetIndex);
+      setPendingIndex(null);
+      setFadePhase('idle');
+      return;
+    }
+    const target = orderedImages[targetIndex];
+    if (target && loadedIds.has(target.id)) {
+      setFadePhase('out');
+    }
+  }, [orderedImages.length, currentIndex, preloadIndex, currentLoaded, orderedImages, loadedIds]);
+
+  const scheduleAutoAdvance = useCallback((resume = false) => {
     if (settings.mode === 'manual' || isPaused) return;
+    if (orderedImages.length === 0) return;
 
     clearTimers();
-
-    fadePendingRef.current = false;
 
     const duration = getDuration();
     durationRef.current = duration;
     const elapsed = resume ? elapsedRef.current : 0;
     const remaining = Math.max(0, duration - elapsed);
-    const hasNext = orderedImages.length > 1;
     if (!resume) {
       elapsedRef.current = 0;
     }
@@ -115,50 +128,29 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       });
     }
 
-    if (hasNext && remaining > 0) {
-      const fadeDelay = Math.max(0, remaining - fadeDurationMs);
+    if (orderedImages.length > 1) {
+      const fadeDelay = Math.max(0, remaining - FADE_DURATION_MS);
       fadeTimeoutRef.current = window.setTimeout(() => {
-        if (nextLoadedRef.current) {
-          setIsFading(true);
-        } else {
-          fadePendingRef.current = true;
-        }
+        beginTransition((currentIndex + 1) % orderedImages.length);
       }, fadeDelay);
     }
+  }, [settings.mode, settings.showProgress, isPaused, orderedImages.length, clearTimers, getDuration, beginTransition, currentIndex]);
 
-    timerRef.current = window.setTimeout(() => {
-      elapsedRef.current = 0;
-      setIsFading(false);
-      fadePendingRef.current = false;
-      goToNext();
-    }, remaining);
-  }, [
-    settings.mode,
-    settings.showProgress,
-    isPaused,
-    getDuration,
-    clearTimers,
-    goToNext,
-    orderedImages.length,
-    fadeDurationMs
-  ]);
-
-  // Start timer when index changes or when unpaused
   useEffect(() => {
     if (settings.mode !== 'manual' && !isPaused) {
       const resume = elapsedRef.current > 0;
-      startTimer(resume);
+      scheduleAutoAdvance(resume);
     }
     return clearTimers;
-  }, [currentIndex, isPaused, settings.mode, startTimer, clearTimers]);
+  }, [currentIndex, isPaused, settings.mode, scheduleAutoAdvance, clearTimers]);
 
   useEffect(() => {
     setCurrentIndex(0);
-    setNextIndex(0);
+    setPendingIndex(null);
+    setFadePhase('idle');
     elapsedRef.current = 0;
     setProgress(0);
     setProgressDuration(0);
-    setIsFading(false);
   }, [settings.order]);
 
   useEffect(() => {
@@ -168,25 +160,17 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [currentIndex, orderedImages.length]);
 
   useEffect(() => {
-    if (orderedImages.length === 0) {
-      setNextIndex(0);
-      return;
-    }
-    if (!isFading) {
-      setNextIndex((currentIndex + 1) % orderedImages.length);
-    }
-  }, [currentIndex, isFading, orderedImages.length]);
+    if (orderedImages.length < 2) return;
+    preloadIndex((currentIndex + 1) % orderedImages.length);
+  }, [currentIndex, orderedImages.length, preloadIndex]);
 
   useEffect(() => {
-    nextLoadedRef.current = nextLoaded;
-  }, [nextLoaded]);
-
-  useEffect(() => {
-    if (nextLoaded && fadePendingRef.current) {
-      fadePendingRef.current = false;
-      setIsFading(true);
+    if (pendingIndex === null || fadePhase !== 'idle') return;
+    const target = orderedImages[pendingIndex];
+    if (target && loadedIds.has(target.id)) {
+      setFadePhase('out');
     }
-  }, [nextLoaded]);
+  }, [pendingIndex, fadePhase, orderedImages, loadedIds]);
 
   useEffect(() => {
     document.body.classList.add('slideshow-open');
@@ -195,28 +179,40 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     };
   }, []);
 
-  // Handle pause/resume
+  const handleFadeTransitionEnd = useCallback((event: React.TransitionEvent<HTMLDivElement>) => {
+    if (event.propertyName !== 'opacity') return;
+    if (fadePhase === 'out') {
+      if (pendingIndex === null) {
+        setFadePhase('idle');
+        return;
+      }
+      setCurrentIndex(pendingIndex);
+      setFadePhase('in');
+      return;
+    }
+    if (fadePhase === 'in') {
+      setFadePhase('idle');
+      setPendingIndex(null);
+    }
+  }, [fadePhase, pendingIndex]);
+
   const togglePause = useCallback(() => {
     if (settings.mode === 'manual') return;
 
     setIsPaused((prev) => {
       if (prev) {
-        // Resuming - restart timer
         return false;
-      } else {
-        // Pausing - clear timers
-        clearTimers();
-        if (durationRef.current > 0) {
-          elapsedRef.current = Math.min(Date.now() - startTimeRef.current, durationRef.current);
-          setProgressDuration(0);
-          setProgress((elapsedRef.current / durationRef.current) * 100);
-        }
-        return true;
       }
+      clearTimers();
+      if (durationRef.current > 0) {
+        elapsedRef.current = Math.min(Date.now() - startTimeRef.current, durationRef.current);
+        setProgressDuration(0);
+        setProgress((elapsedRef.current / durationRef.current) * 100);
+      }
+      return true;
     });
   }, [settings.mode, clearTimers]);
 
-  // Handle manual navigation (resets timer)
   const handlePrev = useCallback(() => {
     if (orderedImages.length === 0) return;
     clearTimers();
@@ -224,13 +220,8 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     setProgressDuration(0);
     elapsedRef.current = 0;
     const targetIndex = (currentIndex - 1 + orderedImages.length) % orderedImages.length;
-    setNextIndex(targetIndex);
-    setIsFading(true);
-    transitionTimeoutRef.current = window.setTimeout(() => {
-      setIsFading(false);
-      setCurrentIndex(targetIndex);
-    }, fadeDurationMs);
-  }, [clearTimers, currentIndex, fadeDurationMs, orderedImages.length]);
+    beginTransition(targetIndex);
+  }, [orderedImages.length, clearTimers, currentIndex, beginTransition]);
 
   const handleNext = useCallback(() => {
     if (orderedImages.length === 0) return;
@@ -239,33 +230,15 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     setProgressDuration(0);
     elapsedRef.current = 0;
     const targetIndex = (currentIndex + 1) % orderedImages.length;
-    setNextIndex(targetIndex);
-    setIsFading(true);
-    transitionTimeoutRef.current = window.setTimeout(() => {
-      setIsFading(false);
-      setCurrentIndex(targetIndex);
-    }, fadeDurationMs);
-  }, [clearTimers, currentIndex, fadeDurationMs, orderedImages.length]);
+    beginTransition(targetIndex);
+  }, [orderedImages.length, clearTimers, currentIndex, beginTransition]);
 
-  const handleImageLoad = useCallback((id: string) => {
-    setLoadedIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-  }, []);
-
-  // Click on image area to pause
   const handleImageClick = useCallback((e: React.MouseEvent) => {
-    // Don't toggle pause if clicking navigation arrows or close button
     const target = e.target as HTMLElement;
     if (target.closest('.slideshow-control') || target.closest('.slideshow-close')) return;
-
     togglePause();
   }, [togglePause]);
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
@@ -289,16 +262,16 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrev, handleNext, onClose, togglePause]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return clearTimers;
   }, [clearTimers]);
 
   const showProgressBar = settings.mode !== 'manual' && settings.showProgress;
+  const frameClass = fadePhase === 'out' ? 'slideshow-image-out' : 'slideshow-image-in';
+  const frameStateClass = currentLoaded ? frameClass : 'slideshow-image-hidden';
 
   return (
     <div className="slideshow-view" onClick={handleImageClick}>
-      {/* Close button */}
       <button
         className="slideshow-close"
         type="button"
@@ -316,15 +289,11 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
         </svg>
       </button>
 
-      {/* Image */}
       <div className="slideshow-image-container">
         {currentImage && (
           <div
-            className={`slideshow-image-frame ${
-              currentLoaded
-                ? (isFading ? 'slideshow-image-out' : 'slideshow-image-in')
-                : 'slideshow-image-offscreen'
-            }`}
+            className={`slideshow-image-frame ${frameStateClass}`}
+            onTransitionEnd={handleFadeTransitionEnd}
           >
             <img
               key={currentImage.id}
@@ -332,23 +301,6 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
               src={currentImage.url}
               alt={currentImage.name}
               onLoad={() => handleImageLoad(currentImage.id)}
-            />
-          </div>
-        )}
-        {hasNextImage && nextImage && (
-          <div
-            className={`slideshow-image-frame ${
-              nextLoaded
-                ? (isFading ? 'slideshow-image-in' : 'slideshow-image-out')
-                : 'slideshow-image-offscreen'
-            }`}
-          >
-            <img
-              key={nextImage.id}
-              className="slideshow-image"
-              src={nextImage.url}
-              alt={nextImage.name}
-              onLoad={() => handleImageLoad(nextImage.id)}
             />
           </div>
         )}

@@ -2791,8 +2791,7 @@ body.slideshow-open {
   justify-content: center;
   padding: 60px 60px calc(var(--slideshow-bottom-bar) + env(safe-area-inset-bottom, 0px));
   opacity: 0;
-  transform: translate3d(0, 0, 0);
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  transition: opacity 0.45s ease;
 }
 
 .slideshow-image-in {
@@ -2805,11 +2804,6 @@ body.slideshow-open {
 
 .slideshow-image-hidden {
   opacity: 0;
-}
-
-.slideshow-image-offscreen {
-  opacity: 0;
-  transform: translate3d(-200vw, 0, 0);
 }
 
 .slideshow-image {

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.8] - 2026-01-31
+
+### Fixed
+- Reworked slideshow transitions to preload the next image off-DOM and fade out/in on a single frame to avoid flashes.
+
 ## [0.4.7] - 2026-01-31
 
 ### Fixed
