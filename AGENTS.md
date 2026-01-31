@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Smoothed slideshow progress updates, refreshed timing/order icons, and blocked background interaction during slideshows.
 - Adjusted the slideshow settings modal styling to align with dark mode theming.
 - Refined slideshow settings with ordering/timing cards, shuffle support, and a bottom control bar while removing the paused overlay.
 - Bumped the app version to 0.4.1 and refreshed the Nix npm dependency hash after the lockfile update.

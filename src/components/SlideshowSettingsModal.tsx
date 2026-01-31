@@ -130,13 +130,48 @@ export default function SlideshowSettingsModal({
                 <span className="slideshow-option-content">
                   <span className="slideshow-option-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 7h5l2 2h6M15 5l3 4-3 4M4 17h5l2-2h6M15 15l3 4-3 4"
+                      <polyline
+                        points="16 3 21 3 21 8"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.8"
+                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
+                      />
+                      <line
+                        x1="4"
+                        y1="20"
+                        x2="21"
+                        y2="3"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                      <polyline
+                        points="21 16 21 21 16 21"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <line
+                        x1="15"
+                        y1="15"
+                        x2="21"
+                        y2="21"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                      <line
+                        x1="4"
+                        y1="4"
+                        x2="9"
+                        y2="9"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
                       />
                     </svg>
                   </span>
@@ -167,10 +202,10 @@ export default function SlideshowSettingsModal({
                   <span className="slideshow-option-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
-                        d="M7 11l3 3 7-7"
+                        d="M4 3l8 18 2.5-7.5L22 11z"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.8"
+                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -199,13 +234,13 @@ export default function SlideshowSettingsModal({
                         r="8"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.8"
+                        strokeWidth="1.6"
                       />
                       <path
                         d="M12 8v5l3 2"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="1.8"
+                        strokeWidth="1.6"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -228,14 +263,26 @@ export default function SlideshowSettingsModal({
                 <span className="slideshow-option-content">
                   <span className="slideshow-option-icon">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 6h4l3 4 3-4h6M14 14l3 4-3 4M4 18h4l3-4"
-                        fill="none"
+                      <line
+                        x1="4"
+                        y1="7"
+                        x2="20"
+                        y2="7"
                         stroke="currentColor"
-                        strokeWidth="1.8"
+                        strokeWidth="1.6"
                         strokeLinecap="round"
-                        strokeLinejoin="round"
                       />
+                      <circle cx="9" cy="7" r="2" fill="currentColor" />
+                      <line
+                        x1="4"
+                        y1="17"
+                        x2="20"
+                        y2="17"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                      />
+                      <circle cx="15" cy="17" r="2" fill="currentColor" />
                     </svg>
                   </span>
                   <span className="slideshow-option-text">

@@ -45,6 +45,11 @@ body {
   color: var(--ink);
 }
 
+body.slideshow-open {
+  overflow: hidden;
+  touch-action: none;
+}
+
 #root {
   height: 100vh;
 }
@@ -2736,6 +2741,7 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  overscroll-behavior: none;
 }
 
 .slideshow-close {

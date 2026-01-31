@@ -11,10 +11,11 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentDuration, setCurrentDuration] = useState(0);
   const timerRef = useRef<number | null>(null);
-  const progressIntervalRef = useRef<number | null>(null);
+  const progressRafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
+  const elapsedRef = useRef<number>(0);
+  const durationRef = useRef<number>(0);
 
   const orderedImages = useMemo(() => {
     if (settings.order !== 'shuffle') {
@@ -66,45 +67,58 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    if (progressIntervalRef.current) {
-      window.clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
+    if (progressRafRef.current) {
+      window.cancelAnimationFrame(progressRafRef.current);
+      progressRafRef.current = null;
     }
   }, []);
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback((resume = false) => {
     if (settings.mode === 'manual' || isPaused) return;
 
     clearTimers();
 
     const duration = getDuration();
-    setCurrentDuration(duration);
-    setProgress(0);
-    startTimeRef.current = Date.now();
+    durationRef.current = duration;
+    if (!resume) {
+      elapsedRef.current = 0;
+      setProgress(0);
+    }
+    startTimeRef.current = Date.now() - elapsedRef.current;
 
     if (settings.showProgress) {
-      progressIntervalRef.current = window.setInterval(() => {
+      const tick = () => {
         const elapsed = Date.now() - startTimeRef.current;
-        const newProgress = Math.min((elapsed / duration) * 100, 100);
+        elapsedRef.current = Math.min(elapsed, duration);
+        const newProgress = duration > 0 ? (elapsedRef.current / duration) * 100 : 0;
         setProgress(newProgress);
-      }, 16); // ~60fps
+        if (elapsedRef.current < duration && !isPaused) {
+          progressRafRef.current = window.requestAnimationFrame(tick);
+        }
+      };
+      progressRafRef.current = window.requestAnimationFrame(tick);
     }
 
+    const remaining = Math.max(0, duration - elapsedRef.current);
     timerRef.current = window.setTimeout(() => {
+      elapsedRef.current = 0;
       goToNext();
-    }, duration);
+    }, remaining);
   }, [settings.mode, settings.showProgress, isPaused, getDuration, clearTimers, goToNext]);
 
   // Start timer when index changes or when unpaused
   useEffect(() => {
     if (settings.mode !== 'manual' && !isPaused) {
-      startTimer();
+      const resume = elapsedRef.current > 0;
+      startTimer(resume);
     }
     return clearTimers;
   }, [currentIndex, isPaused, settings.mode, startTimer, clearTimers]);
 
   useEffect(() => {
     setCurrentIndex(0);
+    elapsedRef.current = 0;
+    setProgress(0);
   }, [settings.order]);
 
   useEffect(() => {
@@ -112,6 +126,13 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       setCurrentIndex(0);
     }
   }, [currentIndex, orderedImages.length]);
+
+  useEffect(() => {
+    document.body.classList.add('slideshow-open');
+    return () => {
+      document.body.classList.remove('slideshow-open');
+    };
+  }, []);
 
   // Handle pause/resume
   const togglePause = useCallback(() => {
@@ -124,6 +145,10 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       } else {
         // Pausing - clear timers
         clearTimers();
+        if (durationRef.current > 0) {
+          elapsedRef.current = Math.min(Date.now() - startTimeRef.current, durationRef.current);
+          setProgress((elapsedRef.current / durationRef.current) * 100);
+        }
         return true;
       }
     });
@@ -133,12 +158,14 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const handlePrev = useCallback(() => {
     clearTimers();
     setProgress(0);
+    elapsedRef.current = 0;
     goToPrev();
   }, [clearTimers, goToPrev]);
 
   const handleNext = useCallback(() => {
     clearTimers();
     setProgress(0);
+    elapsedRef.current = 0;
     goToNext();
   }, [clearTimers, goToNext]);
 

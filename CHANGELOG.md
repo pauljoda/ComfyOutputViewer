@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2026-01-31
+
+### Fixed
+- Replaced slideshow ordering/timing icons with cleaner SVGs and smoothed progress timing.
+- Prevented background scrolling and input while the slideshow overlay is active.
+
 ## [0.4.2] - 2026-01-31
 
 ### Fixed
