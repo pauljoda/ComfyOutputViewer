@@ -3147,3 +3147,12 @@ body.slideshow-open {
 :root[data-theme='dark'] .folder-header:hover {
   background: rgba(255, 255, 255, 0.04);
 }
+
+/* Prevent iOS Safari zoom on input focus - inputs must be 16px+ */
+@media screen and (max-width: 900px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
