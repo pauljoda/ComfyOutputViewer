@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Fixed tag selection UI not showing all existing tags in the image detail view modal by removing stale memoization and ensuring consistent tag normalization.
 - Added workflow folder organization with single-level nesting and drag-and-drop reordering.
 - Fixed job output race condition by syncing before broadcasting updates and adding frontend retry logic.
 - Increased job polling timeout to 1 hour for large models.

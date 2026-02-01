@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-02-01
+
+### Fixed
+- Fixed tag selection UI not showing all existing tags in the image detail view modal.
+- Removed stale memoization from tag suggestions to ensure the global tag list is always current.
+- Eliminated redundant tag normalization in buildTagCounts for consistent tag handling across all interfaces.
+
 ## [0.5.0] - 2026-02-01
 
 ### Added

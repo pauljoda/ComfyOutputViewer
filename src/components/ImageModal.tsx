@@ -342,12 +342,11 @@ export default function ImageModal({
   };
 
   const tagQuery = normalizeTagInput(tagInput);
-  const suggestions = useMemo(
-    () =>
-      availableTags.filter(
-        (tag) => !image.tags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
-      ),
-    [availableTags, image.tags, tagQuery]
+  // Compute suggestions directly (not memoized) to ensure we always use the latest
+  // availableTags and image.tags from props, avoiding stale closure issues
+  const imageTags = image.tags;
+  const suggestions = availableTags.filter(
+    (tag) => !imageTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
   );
 
   const promptInputs = useMemo<PromptInput[]>(() => {

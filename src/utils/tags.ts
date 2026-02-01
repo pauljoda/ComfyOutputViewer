@@ -24,8 +24,14 @@ export const normalizeTags = (tags: unknown) => {
 export const buildTagCounts = (images: ImageItem[]) => {
   const counts = new Map<string, number>();
   for (const image of images) {
-    for (const tag of normalizeTags(image.tags)) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    // Tags are already normalized when loaded from the API, so we iterate
+    // directly without re-normalizing. This ensures consistency across
+    // all tag-related interfaces (TagDrawer, TopBar, ImageModal).
+    const tags = Array.isArray(image.tags) ? image.tags : [];
+    for (const tag of tags) {
+      if (typeof tag === 'string' && tag.length > 0) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
     }
   }
   return Array.from(counts.entries())
