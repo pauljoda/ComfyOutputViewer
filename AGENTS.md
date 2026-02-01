@@ -132,6 +132,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Increased job polling timeout to 1 hour for large models.
 - Prevented iOS Safari zoom on input focus with 16px minimum font-size on mobile.
 - Changed organization mode icon from hamburger to folder-plus for clarity.
+- Added save/cancel buttons to folder rename editing for clearer UX.
+- Fixed folder header layout overflow and drag handle positioning on mobile.
 - Replaced the two-image slideshow crossfade with a single-frame fade using preloaded images to prevent flashes.
 - Pushed unloaded slideshow frames offscreen so Safari never flashes them before the fade.
 - Padded slideshow crossfade frames so images no longer overlap the bottom control bar.

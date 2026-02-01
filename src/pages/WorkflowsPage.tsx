@@ -417,18 +417,37 @@ export default function WorkflowsPage() {
                       </svg>
                     </button>
                     {editingFolder === folder.id ? (
-                      <input
-                        type="text"
-                        className="folder-name-input"
-                        value={editingFolderName}
-                        onChange={(e) => setEditingFolderName(e.target.value)}
-                        onBlur={() => handleRenameFolder(folder.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRenameFolder(folder.id);
-                          if (e.key === 'Escape') setEditingFolder(null);
-                        }}
-                        autoFocus
-                      />
+                      <div className="folder-edit-row">
+                        <input
+                          type="text"
+                          className="folder-name-input"
+                          value={editingFolderName}
+                          onChange={(e) => setEditingFolderName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleRenameFolder(folder.id);
+                            if (e.key === 'Escape') setEditingFolder(null);
+                          }}
+                          autoFocus
+                        />
+                        <button
+                          className="ghost small"
+                          onClick={() => handleRenameFolder(folder.id)}
+                          title="Save"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        </button>
+                        <button
+                          className="ghost small"
+                          onClick={() => setEditingFolder(null)}
+                          title="Cancel"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     ) : (
                       <span
                         className="folder-name"
@@ -478,7 +497,7 @@ export default function WorkflowsPage() {
                             key={workflow.id}
                             className={`workflow-item ${selectedWorkflow?.id === workflow.id ? 'active' : ''} ${
                               dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'drag-over' : ''
-                            }`}
+                            } ${organizationMode ? 'organize-mode' : ''}`}
                             onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
                             draggable={organizationMode}
                             onDragStart={(e) => handleDragStart(e, workflow)}
@@ -494,10 +513,12 @@ export default function WorkflowsPage() {
                                 </svg>
                               </span>
                             )}
-                            <span className="workflow-name">{workflow.name}</span>
-                            {workflow.description && (
-                              <span className="workflow-description">{workflow.description}</span>
-                            )}
+                            <div className="workflow-item-text">
+                              <span className="workflow-name">{workflow.name}</span>
+                              {workflow.description && (
+                                <span className="workflow-description">{workflow.description}</span>
+                              )}
+                            </div>
                           </button>
                         ))
                       )}
@@ -527,7 +548,7 @@ export default function WorkflowsPage() {
                 key={workflow.id}
                 className={`workflow-item ${selectedWorkflow?.id === workflow.id ? 'active' : ''} ${
                   dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'drag-over' : ''
-                }`}
+                } ${organizationMode ? 'organize-mode' : ''}`}
                 onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
                 draggable={organizationMode}
                 onDragStart={(e) => handleDragStart(e, workflow)}
@@ -543,10 +564,12 @@ export default function WorkflowsPage() {
                     </svg>
                   </span>
                 )}
-                <span className="workflow-name">{workflow.name}</span>
-                {workflow.description && (
-                  <span className="workflow-description">{workflow.description}</span>
-                )}
+                <div className="workflow-item-text">
+                  <span className="workflow-name">{workflow.name}</span>
+                  {workflow.description && (
+                    <span className="workflow-description">{workflow.description}</span>
+                  )}
+                </div>
               </button>
             ))}
           </div>

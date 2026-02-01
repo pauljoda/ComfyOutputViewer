@@ -1353,6 +1353,19 @@ body.slideshow-open {
   transition: background 0.15s;
 }
 
+.workflow-item.organize-mode {
+  flex-direction: row;
+  align-items: center;
+}
+
+.workflow-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
 .workflow-item:hover {
   background: rgba(0, 0, 0, 0.06);
 }
@@ -3007,6 +3020,8 @@ body.slideshow-open {
   padding: 8px 10px;
   border-radius: 10px;
   transition: background 0.15s;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .folder-header:hover {
@@ -3044,6 +3059,10 @@ body.slideshow-open {
   font-weight: 600;
   color: var(--ink);
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .folder-name svg {
@@ -3057,8 +3076,17 @@ body.slideshow-open {
   color: var(--muted);
 }
 
+.folder-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
 .folder-name-input {
   flex: 1;
+  min-width: 0;
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid var(--accent);
@@ -3071,6 +3099,7 @@ body.slideshow-open {
 .folder-actions {
   display: flex;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .folder-actions .ghost.small {

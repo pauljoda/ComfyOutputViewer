@@ -16,6 +16,9 @@ All notable changes to this project will be documented in this file.
 - Increased job polling timeout from 5 minutes to 1 hour to support large models.
 - Prevented iOS Safari zoom on input focus by setting minimum 16px font-size on mobile.
 - Changed organization mode icon from hamburger to folder-plus for clarity.
+- Added save/cancel buttons to folder rename for clearer editing experience.
+- Fixed folder header layout to prevent buttons from overflowing on narrow screens.
+- Fixed drag handle positioning to appear inline left of workflow name on mobile.
 
 ## [0.4.8] - 2026-01-31
 
