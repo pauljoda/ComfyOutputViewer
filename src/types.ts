@@ -67,12 +67,23 @@ export const SORT_MODES: SortMode[] = [
 
 export const DEFAULT_SORT: SortMode = 'created-desc';
 
+// Workflow folder types
+export type WorkflowFolder = {
+  id: number;
+  name: string;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
 // Workflow types
 export type Workflow = {
   id: number;
   name: string;
   description?: string;
   apiJson: Record<string, unknown>;
+  folderId?: number | null;
+  sortOrder: number;
   createdAt: number;
   updatedAt: number;
 };

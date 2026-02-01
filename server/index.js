@@ -211,6 +211,102 @@ app.post('/api/sync', async (_req, res) => {
 
 // ==================== WORKFLOW API ENDPOINTS ====================
 
+// List all workflow folders
+app.get('/api/workflow-folders', async (_req, res) => {
+  try {
+    const folders = [];
+    for (const row of statements.selectWorkflowFolders.iterate()) {
+      folders.push({
+        id: row.id,
+        name: row.name,
+        sortOrder: row.sort_order,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      });
+    }
+    res.json({ folders });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to list folders');
+  }
+});
+
+// Create workflow folder
+app.post('/api/workflow-folders', async (req, res) => {
+  try {
+    const { name } = req.body || {};
+    if (!name) {
+      return res.status(400).send('Missing folder name');
+    }
+    const now = Date.now();
+    // Get max sort order
+    let maxSortOrder = 0;
+    for (const row of statements.selectWorkflowFolders.iterate()) {
+      if (row.sort_order > maxSortOrder) {
+        maxSortOrder = row.sort_order;
+      }
+    }
+    const result = statements.insertWorkflowFolder.run(name, maxSortOrder + 1, now, now);
+    const folderId = Number(result.lastInsertRowid);
+    res.json({ ok: true, id: folderId });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to create folder');
+  }
+});
+
+// Update workflow folder
+app.put('/api/workflow-folders/:id', async (req, res) => {
+  try {
+    const folderId = Number(req.params.id);
+    const { name, sortOrder } = req.body || {};
+    const existing = statements.selectWorkflowFolderById.get(folderId);
+    if (!existing) {
+      return res.status(404).send('Folder not found');
+    }
+    const now = Date.now();
+    statements.updateWorkflowFolder.run(
+      name ?? existing.name,
+      sortOrder ?? existing.sort_order,
+      now,
+      folderId
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update folder');
+  }
+});
+
+// Delete workflow folder
+app.delete('/api/workflow-folders/:id', async (req, res) => {
+  try {
+    const folderId = Number(req.params.id);
+    statements.deleteWorkflowFolder.run(folderId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to delete folder');
+  }
+});
+
+// Reorder workflow folders
+app.post('/api/workflow-folders/reorder', async (req, res) => {
+  try {
+    const { folderIds } = req.body || {};
+    if (!Array.isArray(folderIds)) {
+      return res.status(400).send('Missing folderIds array');
+    }
+    const now = Date.now();
+    runTransaction(() => {
+      for (let i = 0; i < folderIds.length; i++) {
+        const folderId = folderIds[i];
+        if (typeof folderId !== 'number') continue;
+        statements.updateWorkflowFolder.run(null, i, now, folderId);
+      }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to reorder folders');
+  }
+});
+
 // List all workflows
 app.get('/api/workflows', async (_req, res) => {
   try {
@@ -221,6 +317,8 @@ app.get('/api/workflows', async (_req, res) => {
         name: row.name,
         description: row.description,
         apiJson: JSON.parse(row.api_json),
+        folderId: row.folder_id,
+        sortOrder: row.sort_order,
         createdAt: row.created_at,
         updatedAt: row.updated_at
       });
@@ -244,6 +342,8 @@ app.get('/api/workflows/:id', async (req, res) => {
       name: row.name,
       description: row.description,
       apiJson: JSON.parse(row.api_json),
+      folderId: row.folder_id,
+      sortOrder: row.sort_order,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -270,15 +370,28 @@ app.get('/api/workflows/:id', async (req, res) => {
 // Create new workflow
 app.post('/api/workflows', async (req, res) => {
   try {
-    const { name, description, apiJson, inputs } = req.body || {};
+    const { name, description, apiJson, inputs, folderId } = req.body || {};
     if (!name || !apiJson) {
       return res.status(400).send('Missing name or apiJson');
     }
     const now = Date.now();
+    // Get max sort order for the target folder (or null folder)
+    let maxSortOrder = 0;
+    const targetFolderId = folderId || null;
+    const workflowsIter = targetFolderId
+      ? statements.selectWorkflowsByFolder.iterate(targetFolderId)
+      : statements.selectWorkflowsWithoutFolder.iterate();
+    for (const row of workflowsIter) {
+      if (row.sort_order > maxSortOrder) {
+        maxSortOrder = row.sort_order;
+      }
+    }
     const result = statements.insertWorkflow.run(
       name,
       description || null,
       JSON.stringify(apiJson),
+      targetFolderId,
+      maxSortOrder + 1,
       now,
       now
     );
@@ -365,6 +478,56 @@ app.delete('/api/workflows/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to delete workflow');
+  }
+});
+
+// Move workflow to folder
+app.post('/api/workflows/:id/move', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const { folderId } = req.body || {};
+    const existing = statements.selectWorkflowById.get(workflowId);
+    if (!existing) {
+      return res.status(404).send('Workflow not found');
+    }
+    const now = Date.now();
+    const targetFolderId = folderId === null || folderId === undefined ? null : Number(folderId);
+    // Get max sort order in target folder
+    let maxSortOrder = 0;
+    const workflowsIter = targetFolderId
+      ? statements.selectWorkflowsByFolder.iterate(targetFolderId)
+      : statements.selectWorkflowsWithoutFolder.iterate();
+    for (const row of workflowsIter) {
+      if (row.sort_order > maxSortOrder) {
+        maxSortOrder = row.sort_order;
+      }
+    }
+    statements.updateWorkflowFolderAndOrder.run(targetFolderId, maxSortOrder + 1, now, workflowId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to move workflow');
+  }
+});
+
+// Reorder workflows within a folder (or root level if folderId is null)
+app.post('/api/workflows/reorder', async (req, res) => {
+  try {
+    const { workflowIds, folderId } = req.body || {};
+    if (!Array.isArray(workflowIds)) {
+      return res.status(400).send('Missing workflowIds array');
+    }
+    const now = Date.now();
+    const targetFolderId = folderId === null || folderId === undefined ? null : Number(folderId);
+    runTransaction(() => {
+      for (let i = 0; i < workflowIds.length; i++) {
+        const wfId = workflowIds[i];
+        if (typeof wfId !== 'number') continue;
+        statements.updateWorkflowFolderAndOrder.run(targetFolderId, i, now, wfId);
+      }
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to reorder workflows');
   }
 });
 
@@ -658,7 +821,7 @@ app.post('/api/comfy/upload', async (req, res) => {
 
 // Poll for job completion and download images
 async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId) {
-  const maxAttempts = 300; // 5 minutes max
+  const maxAttempts = 3600; // 1 hour max (for large models)
   const pollInterval = 1000; // 1 second
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -795,12 +958,18 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
           }
         }
 
+        // Trigger a sync to copy to data dir before marking complete
+        // This ensures outputs are accessible when the job update is broadcast
+        await syncSourceToData();
+
         // Mark job as complete
         statements.updateJobStatus.run('completed', null, null, now, jobId);
         broadcastJobUpdate(jobId);
 
-        // Trigger a sync to copy to data dir
-        await syncSourceToData();
+        // Schedule a follow-up broadcast after a short delay to catch any sync timing issues
+        setTimeout(() => {
+          broadcastJobUpdate(jobId);
+        }, 2000);
 
         return;
       }
@@ -887,11 +1056,20 @@ function initDb() {
       hash TEXT PRIMARY KEY,
       created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS workflow_folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      sort_order INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS workflows (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       description TEXT,
       api_json TEXT NOT NULL,
+      folder_id INTEGER REFERENCES workflow_folders(id) ON DELETE SET NULL,
+      sort_order INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -939,6 +1117,8 @@ function initDb() {
   `);
   ensureMetaColumn(database, 'rating', 'INTEGER NOT NULL DEFAULT 0');
   ensureJobOutputColumn(database, 'output_hash', 'TEXT');
+  ensureWorkflowColumn(database, 'folder_id', 'INTEGER REFERENCES workflow_folders(id) ON DELETE SET NULL');
+  ensureWorkflowColumn(database, 'sort_order', 'INTEGER DEFAULT 0');
   return database;
 }
 
@@ -952,6 +1132,12 @@ function ensureJobOutputColumn(database, columnName, definition) {
   const columns = database.prepare('PRAGMA table_info(job_outputs)').all();
   if (columns.some((column) => column.name === columnName)) return;
   database.exec(`ALTER TABLE job_outputs ADD COLUMN ${columnName} ${definition};`);
+}
+
+function ensureWorkflowColumn(database, columnName, definition) {
+  const columns = database.prepare('PRAGMA table_info(workflows)').all();
+  if (columns.some((column) => column.name === columnName)) return;
+  database.exec(`ALTER TABLE workflows ADD COLUMN ${columnName} ${definition};`);
 }
 
 function prepareStatements(database) {
@@ -976,11 +1162,22 @@ function prepareStatements(database) {
     ),
     hasMeta: database.prepare('SELECT 1 FROM meta LIMIT 1'),
     hasTags: database.prepare('SELECT 1 FROM tags LIMIT 1'),
+    // Workflow folder statements
+    selectWorkflowFolders: database.prepare('SELECT id, name, sort_order, created_at, updated_at FROM workflow_folders ORDER BY sort_order ASC, name ASC'),
+    selectWorkflowFolderById: database.prepare('SELECT id, name, sort_order, created_at, updated_at FROM workflow_folders WHERE id = ?'),
+    insertWorkflowFolder: database.prepare('INSERT INTO workflow_folders (name, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?)'),
+    updateWorkflowFolder: database.prepare('UPDATE workflow_folders SET name = ?, sort_order = ?, updated_at = ? WHERE id = ?'),
+    deleteWorkflowFolder: database.prepare('DELETE FROM workflow_folders WHERE id = ?'),
     // Workflow statements
-    selectWorkflows: database.prepare('SELECT id, name, description, api_json, created_at, updated_at FROM workflows ORDER BY updated_at DESC'),
-    selectWorkflowById: database.prepare('SELECT id, name, description, api_json, created_at, updated_at FROM workflows WHERE id = ?'),
-    insertWorkflow: database.prepare('INSERT INTO workflows (name, description, api_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'),
+    selectWorkflows: database.prepare('SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows ORDER BY folder_id NULLS FIRST, sort_order ASC, name ASC'),
+    selectWorkflowById: database.prepare('SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE id = ?'),
+    selectWorkflowsByFolder: database.prepare('SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id = ? ORDER BY sort_order ASC, name ASC'),
+    selectWorkflowsWithoutFolder: database.prepare('SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id IS NULL ORDER BY sort_order ASC, name ASC'),
+    insertWorkflow: database.prepare('INSERT INTO workflows (name, description, api_json, folder_id, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'),
     updateWorkflow: database.prepare('UPDATE workflows SET name = ?, description = ?, api_json = ?, updated_at = ? WHERE id = ?'),
+    updateWorkflowFolder: database.prepare('UPDATE workflows SET folder_id = ?, updated_at = ? WHERE id = ?'),
+    updateWorkflowSortOrder: database.prepare('UPDATE workflows SET sort_order = ?, updated_at = ? WHERE id = ?'),
+    updateWorkflowFolderAndOrder: database.prepare('UPDATE workflows SET folder_id = ?, sort_order = ?, updated_at = ? WHERE id = ?'),
     deleteWorkflow: database.prepare('DELETE FROM workflows WHERE id = ?'),
     // Workflow input statements
     selectWorkflowInputs: database.prepare('SELECT id, workflow_id, node_id, node_title, input_key, input_type, label, default_value, sort_order FROM workflow_inputs WHERE workflow_id = ? ORDER BY sort_order'),
