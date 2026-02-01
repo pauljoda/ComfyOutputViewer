@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-01
+
+### Added
+- Added workflow folder organization with single-level nesting support.
+- Added drag-and-drop reordering for workflows within folders or at root level.
+- Added folder management UI to create, rename, and delete folders.
+- Added API endpoints for workflow folder CRUD and reordering.
+
+### Fixed
+- Fixed race condition where completed jobs showed no outputs by syncing before broadcasting job updates.
+- Added frontend retry logic to refetch job outputs if initially empty after completion.
+- Increased job polling timeout from 5 minutes to 1 hour to support large models.
+- Prevented iOS Safari zoom on input focus by setting minimum 16px font-size on mobile.
+- Changed organization mode icon from hamburger to folder-plus for clarity.
+
 ## [0.4.8] - 2026-01-31
 
 ### Fixed

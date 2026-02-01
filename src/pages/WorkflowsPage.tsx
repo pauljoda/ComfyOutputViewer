@@ -345,7 +345,8 @@ export default function WorkflowsPage() {
                 title="Organize workflows"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M3 7h18M3 12h18M3 17h18" />
+                  <path d="M3 3h7l2 2h9v14a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" />
+                  <path d="M12 11v6M9 14h6" />
                 </svg>
               </button>
               <button
