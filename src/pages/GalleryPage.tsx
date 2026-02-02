@@ -15,10 +15,11 @@ import {
   TARGET_TILE_SIZE,
   TILE_GAP
 } from '../constants';
+import { useTags } from '../contexts/TagsContext';
 import { useElementSize } from '../hooks/useElementSize';
 import { api } from '../lib/api';
 import { clamp, filterImages, isSortMode, sortImages } from '../utils/images';
-import { buildTagCounts, normalizeTagInput, normalizeTags } from '../utils/tags';
+import { normalizeTagInput, normalizeTags } from '../utils/tags';
 import {
   DEFAULT_SORT,
   type ActiveTool,
@@ -46,6 +47,7 @@ export default function GalleryPage() {
     setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>;
     goHomeSignal: number;
   }>();
+  const { tagCounts, availableTags, updateFromImages } = useTags();
   const [data, setData] = useState<ApiResponse>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -169,8 +171,11 @@ export default function GalleryPage() {
     }
   }, [columns]);
 
-  const tagCounts = useMemo(() => buildTagCounts(data.images), [data.images]);
-  const availableTags = useMemo(() => tagCounts.map((entry) => entry.tag), [tagCounts]);
+  // Update global tags context whenever images change
+  useEffect(() => {
+    updateFromImages(data.images);
+  }, [data.images, updateFromImages]);
+
   const untaggedCount = useMemo(
     () => data.images.filter((image) => image.tags.length === 0).length,
     [data.images]

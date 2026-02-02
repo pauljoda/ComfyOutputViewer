@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ImageModal from '../components/ImageModal';
+import { useTags } from '../contexts/TagsContext';
 import { api } from '../lib/api';
 import type { Workflow, WorkflowInput, WorkflowFolder, Job, JobOutput, ImageItem, ModalTool } from '../types';
 
@@ -22,6 +23,7 @@ export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { availableTags, refreshTags } = useTags();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [folders, setFolders] = useState<WorkflowFolder[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
@@ -934,13 +936,7 @@ function WorkflowDetail({
     }
   }, [selectedOutputPath, loadOutputImage]);
 
-  const outputTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    Object.values(outputCache).forEach((image) => {
-      image.tags.forEach((tag) => tagSet.add(tag));
-    });
-    return Array.from(tagSet).sort((a, b) => a.localeCompare(b));
-  }, [outputCache]);
+  // Use global availableTags from TagsContext for consistent tag suggestions across the app
 
   const handleOutputFavorite = async () => {
     if (!selectedOutputImage) return;
@@ -991,6 +987,8 @@ function WorkflowDetail({
         method: 'POST',
         body: JSON.stringify({ path: selectedOutputImage.id, tags })
       });
+      // Refresh global tags so new tags appear in suggestions across the app
+      refreshTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
     }
@@ -1194,7 +1192,7 @@ function WorkflowDetail({
           index={Math.max(0, selectedOutputIndex)}
           total={outputPaths.length || 1}
           modalTool={outputTool}
-          availableTags={outputTags}
+          availableTags={availableTags}
           onUpdateTags={handleOutputTags}
           onToggleTags={() =>
             setOutputTool((current) => (current === 'tags' ? null : 'tags'))
