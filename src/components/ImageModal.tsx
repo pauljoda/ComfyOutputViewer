@@ -344,8 +344,10 @@ export default function ImageModal({
   const tagQuery = normalizeTagInput(tagInput);
   // Compute suggestions directly (not memoized) to ensure we always use the latest
   // availableTags and image.tags from props, avoiding stale closure issues
-  const imageTags = image.tags;
-  const suggestions = availableTags.filter(
+  // Defensive: ensure imageTags and availableTags are always arrays
+  const imageTags = Array.isArray(image.tags) ? image.tags : [];
+  const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
+  const suggestions = safeAvailableTags.filter(
     (tag) => !imageTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
   );
 

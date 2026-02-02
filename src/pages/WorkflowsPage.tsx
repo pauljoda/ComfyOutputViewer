@@ -793,7 +793,12 @@ function WorkflowDetail({
     if (outputCache[imagePath]) return;
     try {
       const image = await api<ImageItem>(`/api/images/${encodeURIComponent(imagePath)}`);
-      setOutputCache((prev) => ({ ...prev, [imagePath]: image }));
+      // Ensure tags is always an array for consistency
+      const normalizedImage = {
+        ...image,
+        tags: Array.isArray(image.tags) ? image.tags : []
+      };
+      setOutputCache((prev) => ({ ...prev, [imagePath]: normalizedImage }));
     } catch (err) {
       setOutputCache((prev) => {
         if (prev[imagePath]) return prev;
