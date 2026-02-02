@@ -23,7 +23,6 @@ export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { availableTags, refreshTags } = useTags();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [folders, setFolders] = useState<WorkflowFolder[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
@@ -661,6 +660,7 @@ function WorkflowDetail({
   prefill,
   onPrefillApplied
 }: WorkflowDetailProps) {
+  const { availableTags, refreshTags } = useTags();
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
   const [jobs, setJobs] = useState<Job[]>([]);
