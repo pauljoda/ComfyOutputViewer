@@ -856,12 +856,18 @@ app.get('/api/images/:path(*)', async (req, res) => {
 app.post('/api/comfy/upload', async (req, res) => {
   try {
     // For file uploads, we need to forward the request to ComfyUI
+    const headers = {};
+    if (req.headers['content-type']) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+    if (req.headers['content-length']) {
+      headers['Content-Length'] = req.headers['content-length'];
+    }
     const response = await fetch(`${COMFY_API_URL}/upload/image`, {
       method: 'POST',
-      body: req.body,
-      headers: {
-        'Content-Type': req.headers['content-type']
-      }
+      body: req,
+      duplex: 'half',
+      headers
     });
     const result = await response.json();
     res.json(result);

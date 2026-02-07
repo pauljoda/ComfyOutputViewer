@@ -127,6 +127,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Added virtualized rendering for the workflow image picker and switched thumbnails to contain-fit.
+- Streamed ComfyUI image uploads through the proxy to avoid browser network errors.
 - Fixed workflow image picker grid sizing so thumbnails no longer overlap.
 - Removed the workflow image picker search/limit and ensured image inputs include filename/subfolder/type metadata in prompt payloads.
 - Restored the workflow image picker modal stacking and made gallery-selected image inputs upload to ComfyUI before running.

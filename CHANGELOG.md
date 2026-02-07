@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.5] - 2026-02-07
+
+### Fixed
+- Rendered workflow image picker thumbnails with contain-fit and virtualized the grid for large libraries.
+- Streamed image uploads through the ComfyUI proxy to avoid browser network errors.
+
 ## [0.5.4] - 2026-02-07
 
 ### Fixed

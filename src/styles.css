@@ -2251,7 +2251,6 @@ body.slideshow-open {
   grid-auto-rows: minmax(100px, 1fr);
   align-content: start;
   gap: 8px;
-  padding: 16px 20px;
   max-height: 60vh;
   overflow-y: auto;
 }
@@ -2287,7 +2286,8 @@ body.slideshow-open {
 .picker-item img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #111;
 }
 
 /* Prompt Panel */
