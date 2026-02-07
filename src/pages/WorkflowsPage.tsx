@@ -673,6 +673,7 @@ function WorkflowDetail({
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
   const prefillAppliedRef = useRef<string | null>(null);
+  const imageUploadCacheRef = useRef<Map<string, string>>(new Map());
 
   const mergeJobUpdate = useCallback((job: Job) => {
     setJobs((prev) => {
@@ -888,14 +889,53 @@ function WorkflowDetail({
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   };
 
+  const resolveImageInputValue = useCallback(async (rawValue: string) => {
+    if (!rawValue) return '';
+    if (!rawValue.startsWith('local:')) return rawValue;
+    const imagePath = rawValue.slice('local:'.length);
+    if (!imagePath) return '';
+    const cached = imageUploadCacheRef.current.get(imagePath);
+    if (cached) return cached;
+    const sourceUrl = `/images/${encodeURI(imagePath)}`;
+    const imageResponse = await fetch(sourceUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to load selected image: ${imagePath}`);
+    }
+    const blob = await imageResponse.blob();
+    const filename = imagePath.split('/').pop() || 'input.png';
+    const formData = new FormData();
+    formData.append('image', new File([blob], filename, { type: blob.type || 'image/png' }));
+    const uploadResponse = await fetch('/api/comfy/upload', {
+      method: 'POST',
+      body: formData
+    });
+    if (!uploadResponse.ok) {
+      const text = await uploadResponse.text();
+      throw new Error(text || 'Failed to upload image to ComfyUI');
+    }
+    const uploadResult = await uploadResponse.json();
+    const uploadName = typeof uploadResult.name === 'string' ? uploadResult.name : '';
+    const uploadSubfolder = typeof uploadResult.subfolder === 'string' ? uploadResult.subfolder : '';
+    if (!uploadName) {
+      throw new Error('ComfyUI upload did not return a filename.');
+    }
+    const comfyValue = uploadSubfolder ? `${uploadSubfolder}/${uploadName}` : uploadName;
+    imageUploadCacheRef.current.set(imagePath, comfyValue);
+    return comfyValue;
+  }, []);
+
   const handleRun = async () => {
     try {
       setRunning(true);
       setError(null);
-      const inputData = inputs.map((input) => ({
-        inputId: input.id,
-        value: inputValues[input.id] || ''
-      }));
+      const inputData = await Promise.all(
+        inputs.map(async (input) => {
+          const rawValue = inputValues[input.id] || '';
+          const value =
+            input.inputType === 'image' ? await resolveImageInputValue(rawValue) : rawValue;
+          return { inputId: input.id, value };
+        })
+      );
       const result = await api<{ ok: boolean; jobId: number }>(`/api/workflows/${workflow.id}/run`, {
         method: 'POST',
         body: JSON.stringify({ inputs: inputData })
@@ -1032,10 +1072,14 @@ function WorkflowDetail({
       for (const input of inputs) {
         if (Object.prototype.hasOwnProperty.call(inputValues, input.id) && cloned[input.nodeId]) {
           const rawValue = inputValues[input.id];
+          const resolvedValue =
+            input.inputType === 'image' && rawValue?.startsWith('local:')
+              ? rawValue.slice('local:'.length)
+              : rawValue;
           cloned[input.nodeId].inputs[input.inputKey] =
             input.inputType === 'number' || input.inputType === 'seed'
-              ? Number(rawValue)
-              : rawValue;
+              ? Number(resolvedValue)
+              : resolvedValue;
         }
       }
       return JSON.stringify(cloned, null, 2);
@@ -1239,12 +1283,25 @@ type ImageInputFieldProps = {
 
 function ImageInputField({ value, onChange }: ImageInputFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const isLocal = value.startsWith('local:');
+  const displayValue = isLocal ? value.slice('local:'.length) : value;
+  const previewSrc =
+    isLocal && displayValue
+      ? `/images/${encodeURI(displayValue)}`
+      : !isLocal &&
+          (displayValue.startsWith('http://') ||
+            displayValue.startsWith('https://') ||
+            displayValue.startsWith('/'))
+        ? displayValue
+        : '';
 
   return (
     <div className="image-input-field">
       <div className="image-input-preview">
-        {value ? (
-          <img src={value.startsWith('/') ? value : `/images/${value}`} alt="Selected" />
+        {previewSrc ? (
+          <img src={previewSrc} alt="Selected" />
+        ) : displayValue ? (
+          <span className="image-selected-label">{displayValue}</span>
         ) : (
           <span className="image-placeholder">No image selected</span>
         )}
@@ -1271,7 +1328,7 @@ function ImageInputField({ value, onChange }: ImageInputFieldProps) {
       {showPicker && (
         <ImagePickerModal
           onSelect={(imagePath) => {
-            onChange(imagePath);
+            onChange(`local:${imagePath}`);
             setShowPicker(false);
           }}
           onClose={() => setShowPicker(false)}

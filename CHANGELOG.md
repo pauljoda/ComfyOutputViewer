@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-02-07
+
+### Fixed
+- Restored the workflow image picker modal so it renders above the backdrop and is actionable.
+- Upload gallery-selected workflow inputs to ComfyUI before running and pass the returned filename into the prompt JSON.
+- Improved image input previews to show local gallery selections or fall back to the stored value.
+
 ## [0.5.1] - 2026-02-02
 
 ### Fixed

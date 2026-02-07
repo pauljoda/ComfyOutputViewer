@@ -127,6 +127,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Restored the workflow image picker modal stacking and made gallery-selected image inputs upload to ComfyUI before running.
+- Improved image input previews to show local gallery selections or fallback labels.
 - Fixed tag selection UI not showing all existing tags in both gallery and workflow detail views by adding a global TagsContext, removing stale memoization, and ensuring consistent tag normalization.
 - Added workflow folder organization with single-level nesting and drag-and-drop reordering.
 - Fixed job output race condition by syncing before broadcasting updates and adding frontend retry logic.
