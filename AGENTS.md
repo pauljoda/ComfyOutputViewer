@@ -128,6 +128,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Added editable default values for workflow inputs, seeded from workflow JSON and saved for run prefills.
 - Added workflow job output recovery retries so completed runs restore preview thumbnails.
 - Added cancel tracking for running workflow jobs with cancelled status styling.
 - Kept the tag editor tool open while adding tags in the image detail modal.

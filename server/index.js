@@ -408,6 +408,12 @@ app.post('/api/workflows', async (req, res) => {
           const input = inputs[i];
           const label = typeof input.label === 'string' ? input.label.trim() : '';
           const storedLabel = label || input.inputKey;
+          const defaultValue =
+            typeof input.defaultValue === 'string'
+              ? input.defaultValue
+              : input.defaultValue == null
+                ? null
+                : String(input.defaultValue);
           statements.insertWorkflowInput.run(
             workflowId,
             input.nodeId,
@@ -415,7 +421,7 @@ app.post('/api/workflows', async (req, res) => {
             input.inputKey,
             input.inputType,
             storedLabel,
-            input.defaultValue || null,
+            defaultValue,
             i
           );
         }
@@ -454,6 +460,12 @@ app.put('/api/workflows/:id', async (req, res) => {
           const input = inputs[i];
           const label = typeof input.label === 'string' ? input.label.trim() : '';
           const storedLabel = label || input.inputKey;
+          const defaultValue =
+            typeof input.defaultValue === 'string'
+              ? input.defaultValue
+              : input.defaultValue == null
+                ? null
+                : String(input.defaultValue);
           statements.insertWorkflowInput.run(
             workflowId,
             input.nodeId,
@@ -461,7 +473,7 @@ app.put('/api/workflows/:id', async (req, res) => {
             input.inputKey,
             input.inputType,
             storedLabel,
-            input.defaultValue || null,
+            defaultValue,
             i
           );
         }

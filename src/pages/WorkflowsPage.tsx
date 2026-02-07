@@ -1795,6 +1795,7 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
     inputKey: string;
     inputType: string;
     label: string;
+    defaultValue: string;
   }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -1815,6 +1816,30 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
       }
     }
     return parsedNodes;
+  };
+
+  const formatDefaultValue = (value: unknown): string => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    try {
+      return JSON.stringify(value);
+    } catch (err) {
+      return String(value);
+    }
+  };
+
+  const resolveDefaultValueFromJson = (
+    json: Record<string, unknown> | null,
+    nodeId: string,
+    inputKey: string
+  ) => {
+    if (!json) return '';
+    const node = json[nodeId];
+    if (!node || typeof node !== 'object') return '';
+    const inputs = (node as { inputs?: Record<string, unknown> }).inputs;
+    if (!inputs) return '';
+    return formatDefaultValue(inputs[inputKey]);
   };
 
   useEffect(() => {
@@ -1851,7 +1876,10 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
             nodeId: input.nodeId,
             inputKey: input.inputKey,
             inputType: input.inputType,
-            label: input.label
+            label: input.label,
+            defaultValue:
+              input.defaultValue ??
+              resolveDefaultValueFromJson(workflow.apiJson, input.nodeId, input.inputKey)
           }))
         );
       })
@@ -1882,7 +1910,12 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
     reader.readAsText(file);
   };
 
-  const handleToggleInput = (nodeId: string, inputKey: string, inputType: string) => {
+  const handleToggleInput = (
+    nodeId: string,
+    inputKey: string,
+    inputType: string,
+    defaultValue: string
+  ) => {
     setSelectedInputs((prev) => {
       const existing = prev.find((i) => i.nodeId === nodeId && i.inputKey === inputKey);
       if (existing) {
@@ -1894,7 +1927,8 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
           nodeId,
           inputKey,
           inputType,
-          label: inputKey
+          label: inputKey,
+          defaultValue
         }
       ];
     });
@@ -1912,6 +1946,14 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
     setSelectedInputs((prev) =>
       prev.map((i) =>
         i.nodeId === nodeId && i.inputKey === inputKey ? { ...i, inputType } : i
+      )
+    );
+  };
+
+  const handleUpdateInputDefault = (nodeId: string, inputKey: string, defaultValue: string) => {
+    setSelectedInputs((prev) =>
+      prev.map((i) =>
+        i.nodeId === nodeId && i.inputKey === inputKey ? { ...i, defaultValue } : i
       )
     );
   };
@@ -2109,6 +2151,7 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
                           const selected = selectedInputs.find(
                             (i) => i.nodeId === node.id && i.inputKey === key
                           );
+                          const defaultValue = selected?.defaultValue ?? formatDefaultValue(value);
 
                           return (
                             <div
@@ -2118,7 +2161,9 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
                               <button
                                 type="button"
                                 className="node-input-toggle"
-                                onClick={() => handleToggleInput(node.id, key, inferred)}
+                                onClick={() =>
+                                  handleToggleInput(node.id, key, inferred, defaultValue)
+                                }
                               >
                                 <span className="input-key">{key}</span>
                                 <span className="input-value">
@@ -2139,6 +2184,19 @@ function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }: WorkflowEdito
                                       handleUpdateInputLabel(node.id, key, e.target.value)
                                     }
                                     placeholder="Custom label (optional)"
+                                  />
+                                  <input
+                                    type={
+                                      selected?.inputType === 'number' || selected?.inputType === 'seed'
+                                        ? 'number'
+                                        : 'text'
+                                    }
+                                    value={defaultValue}
+                                    onChange={(e) =>
+                                      handleUpdateInputDefault(node.id, key, e.target.value)
+                                    }
+                                    placeholder="Default value"
+                                    aria-label="Default value"
                                   />
                                   <span className="input-system-label">System label: {key}</span>
                                   <select

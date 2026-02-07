@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.10] - 2026-02-07
+
+### Added
+- Added default value controls for workflow inputs, seeded from the workflow JSON and persisted for run prefills.
+
 ## [0.5.9] - 2026-02-07
 
 ### Added
