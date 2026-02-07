@@ -3,11 +3,13 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
 import { createHash } from 'crypto';
-import { createReadStream, existsSync } from 'fs';
+import { createReadStream, createWriteStream, existsSync } from 'fs';
 import http from 'node:http';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
 import { DatabaseSync } from 'node:sqlite';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 dotenv.config();
 
@@ -31,6 +33,7 @@ const SOURCE_DIR = resolveDir(
 const DATA_DIR = resolveDir(process.env.DATA_DIR || DEFAULT_DATA_DIR);
 const COMFY_API_URL = process.env.COMFY_API_URL || DEFAULT_COMFY_API_URL;
 const THUMB_DIR = path.join(DATA_DIR, '.thumbs');
+const INPUTS_DIR = path.join(DATA_DIR, 'inputs');
 const LEGACY_DB_PATH = path.join(DATA_DIR, '.comfy_viewer.json');
 const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.sqlite');
 const THUMB_MAX = Number(process.env.THUMB_MAX || 512);
@@ -59,6 +62,7 @@ app.use(express.json({ limit: '1mb' }));
 
 await ensureDir(DATA_DIR);
 await ensureDir(THUMB_DIR);
+await ensureDir(INPUTS_DIR);
 const db = initDb();
 const statements = prepareStatements(db);
 await migrateLegacyDb();
@@ -852,6 +856,88 @@ app.get('/api/images/:path(*)', async (req, res) => {
   }
 });
 
+// Upload workflow input image to local inputs folder (hash-deduped)
+app.post('/api/inputs/upload', async (req, res) => {
+  let tempPath;
+  try {
+    const headerName = req.headers['x-file-name'];
+    const queryName = req.query?.filename;
+    const rawName =
+      typeof headerName === 'string'
+        ? headerName
+        : Array.isArray(headerName)
+          ? headerName[0]
+          : typeof queryName === 'string'
+            ? queryName
+            : '';
+    const originalName = rawName ? path.basename(rawName) : '';
+    const contentType = typeof req.headers['content-type'] === 'string' ? req.headers['content-type'] : '';
+    const ext = resolveImageExtension(originalName, contentType);
+    if (!ext) {
+      return res.status(400).send('Unsupported image type');
+    }
+
+    const tempName = `.upload-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+    tempPath = path.join(INPUTS_DIR, tempName);
+
+    const hash = createHash('sha256');
+    let size = 0;
+    const hasher = new Transform({
+      transform(chunk, _encoding, callback) {
+        hash.update(chunk);
+        size += chunk.length;
+        callback(null, chunk);
+      }
+    });
+
+    await pipeline(req, hasher, createWriteStream(tempPath));
+
+    const digest = hash.digest('hex');
+    const existing = await findExistingInputByHash(digest);
+    if (existing) {
+      await removeFileIfExists(tempPath);
+      return res.json({
+        ok: true,
+        path: `inputs/${existing}`,
+        hash: digest,
+        reused: true,
+        size
+      });
+    }
+
+    const finalName = `${digest}${ext}`;
+    const finalPath = path.join(INPUTS_DIR, finalName);
+    if (existsSync(finalPath)) {
+      await removeFileIfExists(tempPath);
+      return res.json({
+        ok: true,
+        path: `inputs/${finalName}`,
+        hash: digest,
+        reused: true,
+        size
+      });
+    }
+
+    await fs.rename(tempPath, finalPath);
+    res.json({
+      ok: true,
+      path: `inputs/${finalName}`,
+      hash: digest,
+      reused: false,
+      size
+    });
+  } catch (err) {
+    if (tempPath) {
+      try {
+        await removeFileIfExists(tempPath);
+      } catch (cleanupErr) {
+        console.warn('Failed to clean up temporary input upload:', cleanupErr);
+      }
+    }
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to upload input image');
+  }
+});
+
 // ComfyUI proxy endpoints
 app.post('/api/comfy/upload', async (req, res) => {
   try {
@@ -1091,6 +1177,47 @@ async function ensureDir(dirPath) {
 function isImageFile(fileName) {
   const ext = path.extname(fileName).toLowerCase();
   return IMAGE_EXTENSIONS.has(ext);
+}
+
+function resolveImageExtension(originalName, contentType) {
+  const ext = path.extname(originalName || '').toLowerCase();
+  if (IMAGE_EXTENSIONS.has(ext)) return ext;
+  const type = (contentType || '').split(';')[0].trim().toLowerCase();
+  switch (type) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return '.jpg';
+    case 'image/png':
+      return '.png';
+    case 'image/webp':
+      return '.webp';
+    case 'image/gif':
+      return '.gif';
+    case 'image/bmp':
+      return '.bmp';
+    case 'image/tiff':
+      return '.tiff';
+    case 'image/svg+xml':
+      return '.svg';
+    default:
+      return '';
+  }
+}
+
+async function findExistingInputByHash(hash) {
+  try {
+    const entries = await fs.readdir(INPUTS_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (!entry.name.startsWith(`${hash}.`)) continue;
+      if (!isImageFile(entry.name)) continue;
+      return entry.name;
+    }
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return null;
+    throw err;
+  }
+  return null;
 }
 
 function initDb() {

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.7] - 2026-02-07
+
+### Fixed
+- Upload workflow input images into a local inputs folder with hash reuse before sending them to ComfyUI.
+
 ## [0.5.6] - 2026-02-07
 
 ### Fixed

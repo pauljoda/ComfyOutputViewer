@@ -127,6 +127,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Uploaded workflow input images into a local inputs folder with hash dedupe before sending them to ComfyUI.
 - Rebuilt the workflow image picker virtualization so scroll height matches the full list and sorted picker results newest-first.
 - Enabled workflow input thumbnails to open in the image detail modal.
 - Added virtualized rendering for the workflow image picker and switched thumbnails to contain-fit.

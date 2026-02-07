@@ -1304,6 +1304,7 @@ function WorkflowDetail({
                         value={inputValues[input.id] || ''}
                         onChange={(value) => handleInputChange(input.id, value)}
                         onPreview={handleOpenInputPreview}
+                        onError={setError}
                       />
                     ) : (
                       <input
@@ -1425,10 +1426,12 @@ type ImageInputFieldProps = {
   value: string;
   onChange: (value: string) => void;
   onPreview?: (imagePath: string) => void;
+  onError?: (message: string | null) => void;
 };
 
-function ImageInputField({ value, onChange, onPreview }: ImageInputFieldProps) {
+function ImageInputField({ value, onChange, onPreview, onError }: ImageInputFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const isLocal = value.startsWith('local:');
   const displayValue = isLocal ? value.slice('local:'.length) : value;
   const previewSrc =
@@ -1480,16 +1483,44 @@ function ImageInputField({ value, onChange, onPreview }: ImageInputFieldProps) {
           Select from Gallery
         </button>
         <label className="ghost upload-label">
-          Upload New
+          {uploading ? 'Uploading...' : 'Upload New'}
           <input
             type="file"
             accept="image/*"
+            disabled={uploading}
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) {
-                // TODO: Handle file upload
-                console.log('Upload file:', file);
-              }
+              if (!file) return;
+              const target = e.currentTarget;
+              setUploading(true);
+              (async () => {
+                try {
+                  const response = await fetch('/api/inputs/upload', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': file.type || 'application/octet-stream',
+                      'X-File-Name': file.name
+                    },
+                    body: file
+                  });
+                  if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || 'Failed to upload input image');
+                  }
+                  const result = await response.json();
+                  const uploadedPath = typeof result?.path === 'string' ? result.path : '';
+                  if (!uploadedPath) {
+                    throw new Error('Input upload did not return a file path.');
+                  }
+                  onChange(`local:${uploadedPath}`);
+                  onError?.(null);
+                } catch (err) {
+                  onError?.(err instanceof Error ? err.message : 'Failed to upload input image');
+                } finally {
+                  setUploading(false);
+                  target.value = '';
+                }
+              })();
             }}
           />
         </label>
