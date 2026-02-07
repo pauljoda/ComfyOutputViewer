@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.8] - 2026-02-07
+
+### Fixed
+- Kept the tag editor tool open while adding tags in the image detail modal.
+
 ## [0.5.7] - 2026-02-07
 
 ### Fixed

@@ -199,10 +199,10 @@ export default function GalleryPage() {
   const selectedImage = selectedIndex >= 0 ? filteredImages[selectedIndex] : null;
 
   useEffect(() => {
-    if (selectedImage) {
+    if (selectedId) {
       setModalTool(null);
     }
-  }, [selectedImage]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!multiSelect) {
