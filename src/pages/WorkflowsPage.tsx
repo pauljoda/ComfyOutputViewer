@@ -19,6 +19,12 @@ type WorkflowPrefill = {
   createdAt?: number;
 };
 
+type ImageUploadValue = {
+  filename: string;
+  subfolder?: string;
+  type?: string;
+};
+
 export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
@@ -673,7 +679,7 @@ function WorkflowDetail({
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
   const prefillAppliedRef = useRef<string | null>(null);
-  const imageUploadCacheRef = useRef<Map<string, string>>(new Map());
+  const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
 
   const mergeJobUpdate = useCallback((job: Job) => {
     setJobs((prev) => {
@@ -915,13 +921,19 @@ function WorkflowDetail({
     }
     const uploadResult = await uploadResponse.json();
     const uploadName = typeof uploadResult.name === 'string' ? uploadResult.name : '';
-    const uploadSubfolder = typeof uploadResult.subfolder === 'string' ? uploadResult.subfolder : '';
+    const uploadSubfolder =
+      typeof uploadResult.subfolder === 'string' ? uploadResult.subfolder : '';
+    const uploadType = typeof uploadResult.type === 'string' ? uploadResult.type : '';
     if (!uploadName) {
       throw new Error('ComfyUI upload did not return a filename.');
     }
-    const comfyValue = uploadSubfolder ? `${uploadSubfolder}/${uploadName}` : uploadName;
-    imageUploadCacheRef.current.set(imagePath, comfyValue);
-    return comfyValue;
+    const uploadValue: ImageUploadValue = {
+      filename: uploadName,
+      subfolder: uploadSubfolder || undefined,
+      type: uploadType || undefined
+    };
+    imageUploadCacheRef.current.set(imagePath, uploadValue);
+    return uploadValue;
   }, []);
 
   const handleRun = async () => {
@@ -1346,7 +1358,6 @@ type ImagePickerModalProps = {
 function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const [images, setImages] = useState<Array<{ id: string; url: string; thumbUrl?: string }>>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
 
   useEffect(() => {
     loadImages();
@@ -1355,18 +1366,16 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const loadImages = async () => {
     try {
       setLoading(true);
-      const response = await api<{ images: Array<{ id: string; url: string; thumbUrl?: string; name: string }> }>('/api/images');
-      setImages(response.images.slice(0, 100)); // Limit to 100 for performance
+      const response = await api<{
+        images: Array<{ id: string; url: string; thumbUrl?: string; name: string }>;
+      }>('/api/images');
+      setImages(response.images);
     } catch (err) {
       console.error('Failed to load images:', err);
     } finally {
       setLoading(false);
     }
   };
-
-  const filteredImages = search
-    ? images.filter((img) => img.id.toLowerCase().includes(search.toLowerCase()))
-    : images;
 
   return (
     <div className="modal image-picker-modal">
@@ -1380,20 +1389,12 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
             </svg>
           </button>
         </div>
-        <div className="picker-search">
-          <input
-            type="text"
-            placeholder="Search images..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
         <div className="picker-grid">
           {loading && <p className="picker-loading">Loading images...</p>}
-          {!loading && filteredImages.length === 0 && (
+          {!loading && images.length === 0 && (
             <p className="picker-empty">No images found</p>
           )}
-          {filteredImages.map((img) => (
+          {images.map((img) => (
             <button
               key={img.id}
               className="picker-item"

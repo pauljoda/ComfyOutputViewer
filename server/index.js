@@ -598,11 +598,61 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       }
     }
 
+    const parseImageValue = (value) => {
+      if (!value || typeof value !== 'object') return null;
+      const filename =
+        typeof value.filename === 'string'
+          ? value.filename
+          : typeof value.name === 'string'
+            ? value.name
+            : '';
+      const subfolder = typeof value.subfolder === 'string' ? value.subfolder : '';
+      const type = typeof value.type === 'string' ? value.type : '';
+      if (!filename && !subfolder && !type) return null;
+      return { filename, subfolder, type };
+    };
+
+    const formatJobInputValue = (value) => {
+      if (!value || typeof value !== 'object') return value;
+      const imageValue = parseImageValue(value);
+      if (imageValue?.filename) return imageValue.filename;
+      try {
+        return JSON.stringify(value);
+      } catch (err) {
+        return String(value);
+      }
+    };
+
     for (const input of workflowInputs) {
       if (!inputValuesMap.has(input.id)) continue;
       const value = inputValuesMap.get(input.id);
-      if (promptJson[input.node_id]) {
-        promptJson[input.node_id].inputs[input.input_key] =
+      const node = promptJson[input.node_id];
+      if (node && node.inputs) {
+        if (input.input_type === 'image') {
+          const imageValue = parseImageValue(value);
+          if (imageValue) {
+            const filename = imageValue.filename || '';
+            if (input.input_key === 'subfolder') {
+              if (imageValue.subfolder) {
+                node.inputs.subfolder = imageValue.subfolder;
+              }
+            } else if (input.input_key === 'type') {
+              if (imageValue.type) {
+                node.inputs.type = imageValue.type;
+              }
+            } else {
+              node.inputs[input.input_key] = filename;
+            }
+            if (imageValue.subfolder) {
+              node.inputs.subfolder = imageValue.subfolder;
+            }
+            if (imageValue.type) {
+              node.inputs.type = imageValue.type;
+            }
+            continue;
+          }
+        }
+        node.inputs[input.input_key] =
           input.input_type === 'number' || input.input_type === 'seed'
             ? Number(value)
             : value;
@@ -619,7 +669,8 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       for (const input of workflowInputs) {
         const value = inputValuesMap.get(input.id);
         if (value !== undefined) {
-          statements.insertJobInput.run(jobId, input.id, value);
+          const storedValue = formatJobInputValue(value);
+          statements.insertJobInput.run(jobId, input.id, storedValue);
         }
       }
     });

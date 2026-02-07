@@ -2245,21 +2245,6 @@ body.slideshow-open {
   max-height: 85vh;
 }
 
-.picker-search {
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.picker-search input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  color: var(--ink);
-  font-size: 14px;
-}
-
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));

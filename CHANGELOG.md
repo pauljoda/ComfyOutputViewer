@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-02-07
+
+### Fixed
+- Sent full image upload metadata (filename/subfolder/type) into workflow prompt inputs for LoadImage nodes.
+- Removed the workflow image picker search and 100-image cap so the full gallery list is selectable.
+
 ## [0.5.2] - 2026-02-07
 
 ### Fixed
