@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.9] - 2026-02-07
+
+### Added
+- Added a cancel action for running workflow jobs to stop tracking them.
+
+### Fixed
+- Retried workflow job output collection and syncing so completed jobs restore preview thumbnails when history lags.
+
 ## [0.5.8] - 2026-02-07
 
 ### Fixed

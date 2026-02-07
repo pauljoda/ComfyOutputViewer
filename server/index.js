@@ -803,6 +803,26 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
+app.post('/api/jobs/:id/cancel', async (req, res) => {
+  try {
+    const jobId = Number(req.params.id);
+    const job = statements.selectJobById.get(jobId);
+    if (!job) {
+      return res.status(404).send('Job not found');
+    }
+    if (job.status === 'completed' || job.status === 'error' || job.status === 'cancelled') {
+      return res.json({ ok: false, status: job.status });
+    }
+    const now = Date.now();
+    const startedAt = job.started_at ?? null;
+    statements.updateJobStatus.run('cancelled', 'Cancelled', startedAt, now, jobId);
+    broadcastJobUpdate(jobId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to cancel job');
+  }
+});
+
 // Get prompt data for an image
 app.get('/api/images/:path(*)/prompt', async (req, res) => {
   try {
@@ -962,6 +982,165 @@ app.post('/api/comfy/upload', async (req, res) => {
   }
 });
 
+function collectImageOutputs(outputs) {
+  const imageOutputs = [];
+  if (!outputs || typeof outputs !== 'object') return imageOutputs;
+  for (const nodeOutput of Object.values(outputs)) {
+    if (!nodeOutput || !Array.isArray(nodeOutput.images)) continue;
+    for (const img of nodeOutput.images) {
+      if (!img || typeof img !== 'object') continue;
+      imageOutputs.push({
+        filename: img.filename,
+        subfolder: img.subfolder || '',
+        type: img.type || 'output'
+      });
+    }
+  }
+  return imageOutputs;
+}
+
+async function fetchImageOutputsWithRetry(promptId, attempts = 3, delayMs = 1000) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    try {
+      const historyResponse = await fetch(`${COMFY_API_URL}/history/${promptId}`);
+      if (!historyResponse.ok) continue;
+      const history = await historyResponse.json();
+      const promptHistory = history[promptId];
+      if (!promptHistory) continue;
+      const imageOutputs = collectImageOutputs(promptHistory.outputs || {});
+      if (imageOutputs.length > 0) return imageOutputs;
+    } catch (err) {
+      console.warn('Failed to refetch prompt history outputs:', err);
+    }
+  }
+  return [];
+}
+
+async function downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inputValuesMap, workflowId, now) {
+  if (!Array.isArray(imageOutputs) || imageOutputs.length === 0) return 0;
+  const existingOutputs = new Set();
+  for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
+    existingOutputs.add(outputRow.image_path);
+  }
+  let recorded = 0;
+
+  for (const imgInfo of imageOutputs) {
+    if (!imgInfo || !imgInfo.filename) continue;
+    const imagePath = imgInfo.subfolder
+      ? path.join(imgInfo.subfolder, imgInfo.filename)
+      : imgInfo.filename;
+    if (!imagePath || existingOutputs.has(imagePath)) continue;
+
+    try {
+      const params = new URLSearchParams({
+        filename: imgInfo.filename,
+        subfolder: imgInfo.subfolder,
+        type: imgInfo.type
+      });
+      const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
+      if (!imageResponse.ok) continue;
+
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+      const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
+      const sourcePath = path.join(SOURCE_DIR, imagePath);
+      const dataPath = path.join(DATA_DIR, imagePath);
+      let wroteToSource = false;
+      let wroteToData = false;
+
+      try {
+        await ensureDir(path.dirname(sourcePath));
+        await fs.writeFile(sourcePath, imageBuffer);
+        wroteToSource = true;
+      } catch (err) {
+        if (err && (err.code === 'EACCES' || err.code === 'EPERM')) {
+          try {
+            await ensureDir(path.dirname(dataPath));
+            await fs.writeFile(dataPath, imageBuffer);
+            wroteToData = true;
+            const stats = await fs.stat(dataPath);
+            await ensureThumbnail(dataPath, imagePath, stats, {
+              scanned: 0,
+              copied: 0,
+              thumbnails: 0
+            });
+          } catch (innerErr) {
+            console.error('Failed to save output image to data dir:', innerErr);
+          }
+        } else {
+          throw err;
+        }
+      }
+
+      const outputExists = wroteToSource || wroteToData || existsSync(sourcePath) || existsSync(dataPath);
+      if (!outputExists) {
+        continue;
+      }
+
+      // Record the output
+      statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
+
+      // Save prompt data for this image
+      const inputs = workflowInputs
+        .map((wi) => {
+          const rawValue = inputValuesMap.get(wi.id);
+          if (rawValue === undefined) return null;
+          const userLabel = typeof wi.label === 'string' ? wi.label.trim() : '';
+          const systemLabel = wi.input_key;
+          const label = userLabel || systemLabel;
+          const numericValue = Number(rawValue);
+          const value =
+            wi.input_type === 'number' || wi.input_type === 'seed'
+              ? Number.isFinite(numericValue)
+                ? numericValue
+                : rawValue
+              : rawValue;
+          return {
+            inputId: wi.id,
+            label,
+            systemLabel,
+            inputType: wi.input_type,
+            value
+          };
+        })
+        .filter(Boolean);
+      const inputJson = {};
+      for (const input of inputs) {
+        const hasSystemLabel =
+          input.systemLabel && input.systemLabel !== input.label;
+        inputJson[input.label] = hasSystemLabel
+          ? { value: input.value, systemLabel: input.systemLabel }
+          : input.value;
+      }
+      const promptData = { workflowId, inputs, inputJson };
+      statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
+
+      recorded += 1;
+      existingOutputs.add(imagePath);
+    } catch (imgErr) {
+      console.error('Failed to download image:', imgErr);
+    }
+  }
+
+  await syncSourceToData();
+  return recorded;
+}
+
+function scheduleOutputRecovery(jobId, promptId, workflowInputs, inputValuesMap, workflowId) {
+  setTimeout(() => {
+    (async () => {
+      const jobRow = statements.selectJobById.get(jobId);
+      if (!jobRow || jobRow.status === 'cancelled') return;
+      const imageOutputs = await fetchImageOutputsWithRetry(promptId, 5, 1000);
+      if (imageOutputs.length === 0) return;
+      await downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inputValuesMap, workflowId, Date.now());
+      broadcastJobUpdate(jobId);
+    })().catch((err) => {
+      console.warn('Failed to recover job outputs:', err);
+    });
+  }, 2000);
+}
+
 // Poll for job completion and download images
 async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId) {
   const maxAttempts = 3600; // 1 hour max (for large models)
@@ -969,6 +1148,11 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await new Promise(resolve => setTimeout(resolve, pollInterval));
+
+    const jobRow = statements.selectJobById.get(jobId);
+    if (!jobRow || jobRow.status === 'cancelled') {
+      return;
+    }
 
     try {
       // Check history for this prompt
@@ -992,118 +1176,22 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
           return;
         }
 
+        const latestJob = statements.selectJobById.get(jobId);
+        if (!latestJob || latestJob.status === 'cancelled') {
+          return;
+        }
+
         // Process outputs
-        const outputs = promptHistory.outputs || {};
-        const imageOutputs = [];
-
-        for (const [nodeId, nodeOutput] of Object.entries(outputs)) {
-          if (nodeOutput.images && Array.isArray(nodeOutput.images)) {
-            for (const img of nodeOutput.images) {
-              imageOutputs.push({
-                filename: img.filename,
-                subfolder: img.subfolder || '',
-                type: img.type || 'output'
-              });
-            }
-          }
+        let imageOutputs = collectImageOutputs(promptHistory.outputs || {});
+        if (imageOutputs.length === 0) {
+          imageOutputs = await fetchImageOutputsWithRetry(promptId, 3, 1000);
         }
 
-        // Download images and save to output folder
-        for (const imgInfo of imageOutputs) {
-          try {
-            const params = new URLSearchParams({
-              filename: imgInfo.filename,
-              subfolder: imgInfo.subfolder,
-              type: imgInfo.type
-            });
-            const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
-            if (!imageResponse.ok) continue;
-
-            const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-            const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
-            const imagePath = imgInfo.subfolder
-              ? path.join(imgInfo.subfolder, imgInfo.filename)
-              : imgInfo.filename;
-            const sourcePath = path.join(SOURCE_DIR, imagePath);
-            const dataPath = path.join(DATA_DIR, imagePath);
-            let wroteToSource = false;
-            let wroteToData = false;
-
-            try {
-              await ensureDir(path.dirname(sourcePath));
-              await fs.writeFile(sourcePath, imageBuffer);
-              wroteToSource = true;
-            } catch (err) {
-              if (err && (err.code === 'EACCES' || err.code === 'EPERM')) {
-                try {
-                  await ensureDir(path.dirname(dataPath));
-                  await fs.writeFile(dataPath, imageBuffer);
-                  wroteToData = true;
-                  const stats = await fs.stat(dataPath);
-                  await ensureThumbnail(dataPath, imagePath, stats, {
-                    scanned: 0,
-                    copied: 0,
-                    thumbnails: 0
-                  });
-                } catch (innerErr) {
-                  console.error('Failed to save output image to data dir:', innerErr);
-                }
-              } else {
-                throw err;
-              }
-            }
-
-            const outputExists = wroteToSource || wroteToData || existsSync(sourcePath) || existsSync(dataPath);
-            if (!outputExists) {
-              continue;
-            }
-
-            // Record the output
-            statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
-
-            // Save prompt data for this image
-            const inputs = workflowInputs
-              .map((wi) => {
-                const rawValue = inputValuesMap.get(wi.id);
-                if (rawValue === undefined) return null;
-                const userLabel = typeof wi.label === 'string' ? wi.label.trim() : '';
-                const systemLabel = wi.input_key;
-                const label = userLabel || systemLabel;
-                const numericValue = Number(rawValue);
-                const value =
-                  wi.input_type === 'number' || wi.input_type === 'seed'
-                    ? Number.isFinite(numericValue)
-                      ? numericValue
-                      : rawValue
-                    : rawValue;
-                return {
-                  inputId: wi.id,
-                  label,
-                  systemLabel,
-                  inputType: wi.input_type,
-                  value
-                };
-              })
-              .filter(Boolean);
-            const inputJson = {};
-            for (const input of inputs) {
-              const hasSystemLabel =
-                input.systemLabel && input.systemLabel !== input.label;
-              inputJson[input.label] = hasSystemLabel
-                ? { value: input.value, systemLabel: input.systemLabel }
-                : input.value;
-            }
-            const promptData = { workflowId, inputs, inputJson };
-            statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
-
-          } catch (imgErr) {
-            console.error('Failed to download image:', imgErr);
-          }
+        if (imageOutputs.length === 0) {
+          scheduleOutputRecovery(jobId, promptId, workflowInputs, inputValuesMap, workflowId);
+        } else {
+          await downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inputValuesMap, workflowId, now);
         }
-
-        // Trigger a sync to copy to data dir before marking complete
-        // This ensures outputs are accessible when the job update is broadcast
-        await syncSourceToData();
 
         // Mark job as complete
         statements.updateJobStatus.run('completed', null, null, now, jobId);

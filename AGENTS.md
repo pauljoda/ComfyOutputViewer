@@ -58,6 +58,7 @@ API endpoints:
 - `DELETE /api/workflows/:id` -> delete workflow
 - `POST /api/workflows/:id/run` -> execute workflow against ComfyUI
 - `GET /api/jobs/:id` -> get job status and outputs
+- `POST /api/jobs/:id/cancel` -> cancel tracking for a workflow job
 - `GET /api/images/:path/prompt` -> get prompt metadata for an image
 
 ### Client (Vite + React)
@@ -127,6 +128,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Added workflow job output recovery retries so completed runs restore preview thumbnails.
+- Added cancel tracking for running workflow jobs with cancelled status styling.
 - Kept the tag editor tool open while adding tags in the image detail modal.
 - Uploaded workflow input images into a local inputs folder with hash dedupe before sending them to ComfyUI.
 - Rebuilt the workflow image picker virtualization so scroll height matches the full list and sorted picker results newest-first.

@@ -1842,6 +1842,10 @@ body.slideshow-open {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.job-card.cancelled {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
 .job-card.queued {
   border-color: rgba(59, 130, 246, 0.2);
 }
@@ -1879,6 +1883,10 @@ body.slideshow-open {
 
 .job-card.error .job-status {
   color: #ef4444;
+}
+
+.job-card.cancelled .job-status {
+  color: var(--muted);
 }
 
 .job-card.running .job-status {

@@ -979,6 +979,27 @@ function WorkflowDetail({
     }
   };
 
+  const handleCancelJob = async (jobId: number) => {
+    setJobs((prev) =>
+      prev.map((job) =>
+        job.id === jobId
+          ? { ...job, status: 'cancelled', errorMessage: 'Cancelled', completedAt: Date.now() }
+          : job
+      )
+    );
+    try {
+      const response = await api<{ ok: boolean; status?: string }>(`/api/jobs/${jobId}/cancel`, {
+        method: 'POST'
+      });
+      if (!response?.ok) {
+        await loadJobs();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel job');
+      await loadJobs();
+    }
+  };
+
   const handleOpenOutput = async (job: Job, output: JobOutput) => {
     const visibleOutputs = job.outputs?.filter((item) => item.exists !== false) ?? [];
     const paths = visibleOutputs.map((item) => item.imagePath);
@@ -1345,7 +1366,13 @@ function WorkflowDetail({
         ) : (
           <div className="jobs-list">
             {jobs.map((job) => (
-              <JobCard key={job.id} job={job} now={jobClock} onOpenOutput={handleOpenOutput} />
+              <JobCard
+                key={job.id}
+                job={job}
+                now={jobClock}
+                onOpenOutput={handleOpenOutput}
+                onCancel={handleCancelJob}
+              />
             ))}
           </div>
         )}
@@ -1672,21 +1699,25 @@ type JobCardProps = {
   job: Job;
   now: number;
   onOpenOutput: (job: Job, output: JobOutput) => void;
+  onCancel: (jobId: number) => void;
 };
 
-function JobCard({ job, now, onOpenOutput }: JobCardProps) {
+function JobCard({ job, now, onOpenOutput, onCancel }: JobCardProps) {
   const isGenerating = job.status === 'pending' || job.status === 'queued' || job.status === 'running';
   const statusClass =
     job.status === 'completed'
       ? 'success'
       : job.status === 'error'
         ? 'error'
+        : job.status === 'cancelled'
+          ? 'cancelled'
         : job.status === 'queued'
           ? 'queued'
           : job.status === 'running'
             ? 'running'
             : 'pending';
-  const statusLabel = isGenerating ? 'Generating Image...' : job.status;
+  const statusLabel =
+    isGenerating ? 'Generating Image...' : job.status === 'cancelled' ? 'Cancelled' : job.status;
   const startedAt = job.startedAt ?? job.createdAt;
   const endedAt = job.completedAt ?? now;
   const durationMs = Math.max(0, endedAt - startedAt);
@@ -1703,6 +1734,15 @@ function JobCard({ job, now, onOpenOutput }: JobCardProps) {
             {new Date(job.createdAt).toLocaleString()}
           </span>
           <span className="job-duration">{formatDuration(durationMs)}</span>
+          {isGenerating && (
+            <button
+              type="button"
+              className="ghost small danger"
+              onClick={() => onCancel(job.id)}
+            >
+              Cancel
+            </button>
+          )}
         </span>
       </div>
       {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}

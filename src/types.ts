@@ -100,7 +100,7 @@ export type WorkflowInput = {
   sortOrder: number;
 };
 
-export type JobStatus = 'pending' | 'queued' | 'running' | 'completed' | 'error';
+export type JobStatus = 'pending' | 'queued' | 'running' | 'completed' | 'error' | 'cancelled';
 
 export type Job = {
   id: number;
