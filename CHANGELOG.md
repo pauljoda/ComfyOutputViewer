@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-02-07
+
+### Fixed
+- Prevented workflow image picker thumbnails from overlapping by sizing grid rows and items explicitly.
+
 ## [0.5.3] - 2026-02-07
 
 ### Fixed

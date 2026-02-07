@@ -2248,6 +2248,8 @@ body.slideshow-open {
 .picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: minmax(100px, 1fr);
+  align-content: start;
   gap: 8px;
   padding: 16px 20px;
   max-height: 60vh;
@@ -2264,6 +2266,9 @@ body.slideshow-open {
 }
 
 .picker-item {
+  display: block;
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
   border: none;
   background: var(--card);
