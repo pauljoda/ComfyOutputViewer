@@ -679,6 +679,8 @@ function WorkflowDetail({
   const [outputPaths, setOutputPaths] = useState<string[]>([]);
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
+  const [selectedInputPath, setSelectedInputPath] = useState<string | null>(null);
+  const [inputTool, setInputTool] = useState<ModalTool>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
 
@@ -892,6 +894,12 @@ function WorkflowDetail({
     }
   }, [selectedOutputPath]);
 
+  useEffect(() => {
+    if (selectedInputPath) {
+      setInputTool(null);
+    }
+  }, [selectedInputPath]);
+
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   };
@@ -979,13 +987,25 @@ function WorkflowDetail({
     }
     setOutputPaths(paths);
     setSelectedOutputPath(output.imagePath);
+    setSelectedInputPath(null);
     setOutputTool(null);
     await loadOutputImages(paths);
+  };
+
+  const handleOpenInputPreview = async (imagePath: string) => {
+    if (!imagePath) return;
+    setSelectedOutputPath(null);
+    setSelectedInputPath(imagePath);
+    setInputTool(null);
+    await loadOutputImage(imagePath);
   };
 
   const selectedOutputIndex = selectedOutputPath ? outputPaths.indexOf(selectedOutputPath) : -1;
   const selectedOutputImage = selectedOutputPath
     ? outputCache[selectedOutputPath] ?? buildFallbackImage(selectedOutputPath)
+    : null;
+  const selectedInputImage = selectedInputPath
+    ? outputCache[selectedInputPath] ?? buildFallbackImage(selectedInputPath)
     : null;
 
   useEffect(() => {
@@ -993,6 +1013,12 @@ function WorkflowDetail({
       loadOutputImage(selectedOutputPath);
     }
   }, [selectedOutputPath, loadOutputImage]);
+
+  useEffect(() => {
+    if (selectedInputPath) {
+      loadOutputImage(selectedInputPath);
+    }
+  }, [selectedInputPath, loadOutputImage]);
 
   // Use global availableTags from TagsContext for consistent tag suggestions across the app
 
@@ -1049,6 +1075,81 @@ function WorkflowDetail({
       refreshTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
+    }
+  };
+
+  const handleInputFavorite = async () => {
+    if (!selectedInputImage) return;
+    const nextValue = !selectedInputImage.favorite;
+    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, favorite: nextValue }));
+    try {
+      await api('/api/favorite', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedInputImage.id, value: nextValue })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update favorite');
+    }
+  };
+
+  const handleInputHidden = async () => {
+    if (!selectedInputImage) return;
+    const nextValue = !selectedInputImage.hidden;
+    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, hidden: nextValue }));
+    try {
+      await api('/api/hidden', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedInputImage.id, value: nextValue })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+    }
+  };
+
+  const handleInputRating = async (rating: number) => {
+    if (!selectedInputImage) return;
+    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, rating }));
+    try {
+      await api('/api/rating', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedInputImage.id, value: rating })
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update rating');
+    }
+  };
+
+  const handleInputTags = async (tags: string[]) => {
+    if (!selectedInputImage) return;
+    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, tags }));
+    try {
+      await api('/api/tags', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedInputImage.id, tags })
+      });
+      refreshTags();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update tags');
+    }
+  };
+
+  const handleInputDelete = async () => {
+    if (!selectedInputImage) return;
+    const confirmed = window.confirm('Remove this image from the library?');
+    if (!confirmed) return;
+    try {
+      await api('/api/delete', {
+        method: 'POST',
+        body: JSON.stringify({ path: selectedInputImage.id })
+      });
+      setOutputCache((prev) => {
+        const next = { ...prev };
+        delete next[selectedInputImage.id];
+        return next;
+      });
+      setSelectedInputPath(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete image');
     }
   };
 
@@ -1202,6 +1303,7 @@ function WorkflowDetail({
                       <ImageInputField
                         value={inputValues[input.id] || ''}
                         onChange={(value) => handleInputChange(input.id, value)}
+                        onPreview={handleOpenInputPreview}
                       />
                     ) : (
                       <input
@@ -1285,6 +1387,36 @@ function WorkflowDetail({
           }}
         />
       )}
+
+      {selectedInputImage && (
+        <ImageModal
+          image={selectedInputImage}
+          index={0}
+          total={1}
+          modalTool={inputTool}
+          availableTags={availableTags}
+          onUpdateTags={handleInputTags}
+          onToggleTags={() =>
+            setInputTool((current) => (current === 'tags' ? null : 'tags'))
+          }
+          onToggleRating={() =>
+            setInputTool((current) => (current === 'rating' ? null : 'rating'))
+          }
+          onTogglePrompt={() =>
+            setInputTool((current) => (current === 'prompt' ? null : 'prompt'))
+          }
+          onToggleFavorite={handleInputFavorite}
+          onToggleHidden={handleInputHidden}
+          onRate={handleInputRating}
+          onDelete={handleInputDelete}
+          onClose={() => {
+            setSelectedInputPath(null);
+            setInputTool(null);
+          }}
+          onPrev={() => {}}
+          onNext={() => {}}
+        />
+      )}
     </div>
   );
 }
@@ -1292,9 +1424,10 @@ function WorkflowDetail({
 type ImageInputFieldProps = {
   value: string;
   onChange: (value: string) => void;
+  onPreview?: (imagePath: string) => void;
 };
 
-function ImageInputField({ value, onChange }: ImageInputFieldProps) {
+function ImageInputField({ value, onChange, onPreview }: ImageInputFieldProps) {
   const [showPicker, setShowPicker] = useState(false);
   const isLocal = value.startsWith('local:');
   const displayValue = isLocal ? value.slice('local:'.length) : value;
@@ -1308,9 +1441,32 @@ function ImageInputField({ value, onChange }: ImageInputFieldProps) {
         ? displayValue
         : '';
 
+  const canPreview = Boolean(onPreview && isLocal && displayValue);
+
   return (
     <div className="image-input-field">
-      <div className="image-input-preview">
+      <div
+        className={`image-input-preview ${canPreview ? 'clickable' : ''}`}
+        role={canPreview ? 'button' : undefined}
+        tabIndex={canPreview ? 0 : undefined}
+        onClick={
+          canPreview
+            ? () => {
+              onPreview?.(displayValue);
+            }
+            : undefined
+        }
+        onKeyDown={
+          canPreview
+            ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onPreview?.(displayValue);
+              }
+            }
+            : undefined
+        }
+      >
         {previewSrc ? (
           <img src={previewSrc} alt="Selected" />
         ) : displayValue ? (
@@ -1357,7 +1513,9 @@ type ImagePickerModalProps = {
 };
 
 function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
-  const [images, setImages] = useState<Array<{ id: string; url: string; thumbUrl?: string }>>([]);
+  const [images, setImages] = useState<
+    Array<{ id: string; url: string; thumbUrl?: string; createdMs?: number; mtimeMs?: number }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const { ref: gridRef, width: gridWidth, height: gridHeight } = useElementSize<HTMLDivElement>();
   const [scrollTop, setScrollTop] = useState(0);
@@ -1374,9 +1532,23 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
     try {
       setLoading(true);
       const response = await api<{
-        images: Array<{ id: string; url: string; thumbUrl?: string; name: string }>;
+        images: Array<{
+          id: string;
+          url: string;
+          thumbUrl?: string;
+          name: string;
+          createdMs?: number;
+          mtimeMs?: number;
+        }>;
       }>('/api/images');
-      setImages(response.images);
+      const sorted = response.images.slice().sort((a, b) => {
+        const aTime =
+          Number.isFinite(a.createdMs) && a.createdMs ? a.createdMs : a.mtimeMs || 0;
+        const bTime =
+          Number.isFinite(b.createdMs) && b.createdMs ? b.createdMs : b.mtimeMs || 0;
+        return bTime - aTime;
+      });
+      setImages(sorted);
     } catch (err) {
       console.error('Failed to load images:', err);
     } finally {
@@ -1408,8 +1580,8 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
   const startIndex = startRow * columns;
   const endIndex = totalRows > 0 ? Math.min(images.length, (endRow + 1) * columns) : 0;
   const visibleImages = totalRows > 0 ? images.slice(startIndex, endIndex) : [];
-  const paddingTop = gridPaddingY + startRow * rowStride;
-  const paddingBottom = gridPaddingY + Math.max(0, (totalRows - endRow - 1) * rowStride);
+  const totalHeight =
+    totalRows > 0 ? gridPaddingY * 2 + totalRows * rowHeight + (totalRows - 1) * tileGap : 0;
 
   return (
     <div className="modal image-picker-modal">
@@ -1427,28 +1599,38 @@ function ImagePickerModal({ onSelect, onClose }: ImagePickerModalProps) {
           className="picker-grid"
           ref={gridRef}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-          style={{
-            gridTemplateColumns: `repeat(${columns}, ${columnWidth}px)`,
-            gridAutoRows: `${rowHeight}px`,
-            paddingTop: `${paddingTop}px`,
-            paddingBottom: `${paddingBottom}px`,
-            paddingLeft: `${gridPaddingX}px`,
-            paddingRight: `${gridPaddingX}px`
-          }}
         >
           {loading && <p className="picker-loading">Loading images...</p>}
           {!loading && images.length === 0 && (
             <p className="picker-empty">No images found</p>
           )}
-          {visibleImages.map((img) => (
+          {visibleImages.map((img, index) => {
+            const imageIndex = startIndex + index;
+            const row = Math.floor(imageIndex / columns);
+            const col = imageIndex % columns;
+            const top = gridPaddingY + row * rowStride;
+            const left = gridPaddingX + col * (columnWidth + tileGap);
+            return (
             <button
               key={img.id}
               className="picker-item"
               onClick={() => onSelect(img.id)}
+              style={{
+                position: 'absolute',
+                top: `${top}px`,
+                left: `${left}px`,
+                width: `${columnWidth}px`,
+                height: `${rowHeight}px`
+              }}
             >
               <img src={img.thumbUrl || img.url} alt={img.id} />
             </button>
-          ))}
+            );
+          })}
+          <div
+            className="picker-spacer"
+            style={{ height: `${totalHeight}px` }}
+          />
         </div>
       </div>
     </div>

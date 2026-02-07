@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.6] - 2026-02-07
+
+### Fixed
+- Rebuilt the workflow image picker virtualization to keep the scroll height in sync with the full image list.
+- Sorted workflow image picker results newest-first.
+- Opened selected workflow input thumbnails in the image detail modal.
+
 ## [0.5.5] - 2026-02-07
 
 ### Fixed
