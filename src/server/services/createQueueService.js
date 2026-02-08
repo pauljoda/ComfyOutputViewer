@@ -7,6 +7,9 @@ export function createQueueService({
   getPollJobCompletion,
   getBroadcastJobUpdate
 }) {
+  const mockDevMode = process.env.MOCK_DEV_MODE === '1';
+  const mockPromptPrefix = 'mock-seed:';
+
   function getPromptIdFromQueueItem(item) {
     if (!item) return null;
     if (typeof item === 'string') return item;
@@ -173,6 +176,12 @@ export function createQueueService({
         if (!promptId) {
           const errorMessage = 'Server restarted before prompt was queued.';
           statements.updateJobStatus.run('error', errorMessage, null, Date.now(), jobRow.id);
+          getBroadcastJobUpdate()?.(jobRow.id);
+          continue;
+        }
+
+        if (mockDevMode && promptId.startsWith(mockPromptPrefix)) {
+          runtimeState.promptJobIdByPromptId.set(promptId, jobRow.id);
           getBroadcastJobUpdate()?.(jobRow.id);
           continue;
         }

@@ -12,6 +12,7 @@ const INPUTS_DIR = path.join(DATA_DIR, 'inputs');
 const DB_PATH = path.join(DATA_DIR, '.comfy_viewer.sqlite');
 
 const MOCK_FOLDER_NAME = 'Mock Examples';
+const MOCK_PROMPT_PREFIX = 'mock-seed:';
 
 const MOCK_IMAGES = [
   {
@@ -286,7 +287,8 @@ async function main() {
   const { db, statements, runTransaction } = createDatabase(DB_PATH);
   try {
     seedMetadataAndPromptData(statements, runTransaction);
-    seedWorkflows(statements, runTransaction);
+    const workflowIdsByName = seedWorkflows(statements, runTransaction);
+    seedMockJobs({ db, statements, runTransaction, workflowIdsByName });
   } finally {
     if (typeof db.close === 'function') {
       db.close();
@@ -405,6 +407,222 @@ function seedWorkflows(statements, runTransaction) {
       }
     });
   }
+
+  const workflowIdsByName = new Map();
+  for (const row of statements.selectWorkflows.iterate()) {
+    workflowIdsByName.set(row.name, row.id);
+  }
+  return workflowIdsByName;
+}
+
+function seedMockJobs({ db, statements, runTransaction, workflowIdsByName }) {
+  const now = Date.now();
+
+  const textWorkflowId = workflowIdsByName.get('Mock Text to Image');
+  const remixWorkflowId = workflowIdsByName.get('Mock Image Remix');
+  if (!textWorkflowId || !remixWorkflowId) {
+    console.warn('[mock-seed] skipping job seed: missing mock workflows');
+    return;
+  }
+
+  const deletePrompts = db.prepare(
+    'DELETE FROM image_prompts WHERE job_id IN (SELECT id FROM jobs WHERE workflow_id IN (?, ?))'
+  );
+  const deleteJobs = db.prepare('DELETE FROM jobs WHERE workflow_id IN (?, ?)');
+  deletePrompts.run(textWorkflowId, remixWorkflowId);
+  deleteJobs.run(textWorkflowId, remixWorkflowId);
+
+  const scenarios = [
+    {
+      workflowId: textWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}completed:text2img:1`,
+      status: 'completed',
+      createdAt: now - 2 * 60 * 60 * 1000,
+      startedAt: now - 2 * 60 * 60 * 1000 + 12_000,
+      completedAt: now - 2 * 60 * 60 * 1000 + 95_000,
+      inputValues: {
+        prompt: 'cinematic mountain vista, dramatic clouds, ultra detail',
+        'negative prompt': 'noise, blur, bad anatomy',
+        seed: '778811221',
+        steps: '28'
+      },
+      outputs: ['landscapes/mountain-lake.jpg', 'street/night-city.jpg'],
+      promptSummary: 'Completed text-to-image sample output set.'
+    },
+    {
+      workflowId: textWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}running:text2img`,
+      status: 'running',
+      createdAt: now - 18 * 60 * 1000,
+      startedAt: now - 17 * 60 * 1000,
+      inputValues: {
+        prompt: 'futuristic skyline, neon signs, rain reflections',
+        'negative prompt': 'washed out, low detail',
+        seed: '993412',
+        steps: '30'
+      },
+      outputs: [],
+      promptSummary: 'Mock in-progress generation for live preview card.'
+    },
+    {
+      workflowId: textWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}queued:text2img`,
+      status: 'queued',
+      createdAt: now - 9 * 60 * 1000,
+      startedAt: null,
+      inputValues: {
+        prompt: 'portrait photo, soft cinematic light, 85mm lens',
+        'negative prompt': 'artifact, distorted face',
+        seed: '112233',
+        steps: '24'
+      },
+      outputs: [],
+      promptSummary: 'Mock queued generation.'
+    },
+    {
+      workflowId: textWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}error:text2img`,
+      status: 'error',
+      createdAt: now - 36 * 60 * 1000,
+      startedAt: now - 35 * 60 * 1000,
+      completedAt: now - 34 * 60 * 1000,
+      errorMessage: 'Mock failure: out of VRAM while sampling.',
+      inputValues: {
+        prompt: 'dense forest temple at dusk',
+        'negative prompt': 'jpeg artifacts',
+        seed: '445566',
+        steps: '40'
+      },
+      outputs: [],
+      promptSummary: 'Mock failed run.'
+    },
+    {
+      workflowId: remixWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}completed:remix:1`,
+      status: 'completed',
+      createdAt: now - 70 * 60 * 1000,
+      startedAt: now - 69 * 60 * 1000,
+      completedAt: now - 67 * 60 * 1000,
+      inputValues: {
+        'reference image': 'nature/forest-path.jpg',
+        'remix prompt': 'misty enchanted forest, fantasy grade',
+        seed: '111999',
+        denoise: '0.52'
+      },
+      outputs: ['nature/forest-path.jpg'],
+      promptSummary: 'Completed image-remix sample output.'
+    },
+    {
+      workflowId: remixWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}pending:remix`,
+      status: 'pending',
+      createdAt: now - 4 * 60 * 1000,
+      startedAt: null,
+      inputValues: {
+        'reference image': 'architecture/minimal-facade.jpg',
+        'remix prompt': 'architectural render, warm sunset',
+        seed: '555888',
+        denoise: '0.40'
+      },
+      outputs: [],
+      promptSummary: 'Mock pending remix job.'
+    },
+    {
+      workflowId: remixWorkflowId,
+      promptId: `${MOCK_PROMPT_PREFIX}cancelled:remix`,
+      status: 'cancelled',
+      createdAt: now - 48 * 60 * 1000,
+      startedAt: now - 47 * 60 * 1000,
+      completedAt: now - 46 * 60 * 1000,
+      errorMessage: 'Cancelled',
+      inputValues: {
+        'reference image': 'portraits/studio-subject.jpg',
+        'remix prompt': 'comic-book stylization',
+        seed: '777000',
+        denoise: '0.60'
+      },
+      outputs: [],
+      promptSummary: 'Mock cancelled remix job.'
+    }
+  ];
+
+  runTransaction(() => {
+    for (const scenario of scenarios) {
+      const insertResult = statements.insertJob.run(
+        scenario.workflowId,
+        scenario.promptId,
+        scenario.status,
+        scenario.createdAt
+      );
+      const jobId = Number(insertResult.lastInsertRowid);
+
+      if (scenario.status !== 'pending' && scenario.status !== 'queued') {
+        statements.updateJobStatus.run(
+          scenario.status,
+          scenario.errorMessage || null,
+          scenario.startedAt ?? null,
+          scenario.completedAt ?? null,
+          jobId
+        );
+      }
+
+      const workflowInputs = [];
+      for (const row of statements.selectWorkflowInputs.iterate(scenario.workflowId)) {
+        workflowInputs.push(row);
+      }
+      const scenarioInputs = new Map(
+        Object.entries(scenario.inputValues || {}).map(([key, value]) => [
+          key.trim().toLowerCase(),
+          String(value)
+        ])
+      );
+      for (const input of workflowInputs) {
+        const candidates = [
+          input.label,
+          input.input_key,
+          input.node_title ? `${input.node_title}.${input.input_key}` : null
+        ]
+          .filter(Boolean)
+          .map((entry) => String(entry).trim().toLowerCase());
+        let value = null;
+        for (const candidate of candidates) {
+          if (scenarioInputs.has(candidate)) {
+            value = scenarioInputs.get(candidate);
+            break;
+          }
+        }
+        if (value === null || value === undefined) continue;
+        statements.insertJobInput.run(jobId, input.id, value);
+      }
+
+      for (const outputPath of scenario.outputs || []) {
+        const normalizedOutputPath = normalizeRelPath(outputPath);
+        statements.insertJobOutput.run(
+          jobId,
+          normalizedOutputPath,
+          path.basename(normalizedOutputPath),
+          scenario.completedAt || scenario.createdAt,
+          null
+        );
+        const promptData = {
+          source: 'mock-dev-seed',
+          workflowId: scenario.workflowId,
+          summary: scenario.promptSummary || 'Mock seeded job output',
+          inputJson: Object.fromEntries(
+            Object.entries(scenario.inputValues || {}).map(([key, value]) => [key, value])
+          )
+        };
+        statements.insertImagePrompt.run(
+          normalizedOutputPath,
+          jobId,
+          JSON.stringify(promptData),
+          scenario.completedAt || scenario.createdAt
+        );
+      }
+    }
+  });
+
+  console.log(`[mock-seed] seeded ${scenarios.length} mock workflow jobs`);
 }
 
 function ensureMockFolder(statements, now) {

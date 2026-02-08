@@ -236,4 +236,62 @@ describe('registerWorkflowRoutes', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ ok: false, status: 'completed' });
   });
+
+  it('returns mock live payload details for seeded generating jobs in mock mode', async () => {
+    const previousMockMode = process.env.MOCK_DEV_MODE;
+    process.env.MOCK_DEV_MODE = '1';
+
+    try {
+      const app = express();
+      app.use(express.json());
+      const runningJob = {
+        id: 501,
+        workflow_id: 1,
+        prompt_id: 'mock-seed:running:text2img',
+        status: 'running',
+        error_message: null,
+        created_at: Date.now() - 15_000,
+        started_at: Date.now() - 12_000,
+        completed_at: null
+      };
+      const { deps } = createBaseDeps({
+        statements: {
+          ...createBaseDeps().deps.statements,
+          selectJobsByWorkflow: makeIterable([runningJob]),
+          selectJobById: makeGet(() => runningJob)
+        }
+      });
+      registerWorkflowRoutes(app, deps);
+
+      const response = await request(app).get('/api/workflows/1/jobs');
+
+      expect(response.status).toBe(200);
+      expect(response.body.jobs).toHaveLength(1);
+      expect(response.body.jobs[0].status).toBe('running');
+      expect(response.body.jobs[0].progress).toEqual(
+        expect.objectContaining({
+          value: 17,
+          max: 30,
+          node: 'KSampler'
+        })
+      );
+      expect(response.body.jobs[0].queue).toEqual(
+        expect.objectContaining({
+          state: 'running',
+          position: 1
+        })
+      );
+      expect(response.body.jobs[0].preview).toEqual(
+        expect.objectContaining({
+          url: '/images/portraits/studio-subject.jpg'
+        })
+      );
+    } finally {
+      if (previousMockMode === undefined) {
+        delete process.env.MOCK_DEV_MODE;
+      } else {
+        process.env.MOCK_DEV_MODE = previousMockMode;
+      }
+    }
+  });
 });

@@ -87,7 +87,9 @@ What it does:
 - Seeds `.mock-dev/source` and `.mock-dev/data` with example images from Picsum.
 - Seeds example metadata (tags, favorites, hidden flags, ratings, prompt summaries).
 - Seeds example workflows in a `Mock Examples` folder.
+- Seeds example workflow jobs in mixed states (`completed`, `running`, `queued`, `pending`, `error`, `cancelled`) so workflow cards are populated for screenshots.
 - Starts the app with:
+  - `MOCK_DEV_MODE=1` (enables stable mock live job payloads)
   - `COMFY_OUTPUT_DIR=.mock-dev/source`
   - `DATA_DIR=.mock-dev/data`
   - `COMFY_API_URL` unchanged (still uses your normal real ComfyUI endpoint).

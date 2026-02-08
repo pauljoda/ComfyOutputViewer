@@ -21,6 +21,60 @@ export function registerWorkflowRoutes(app, deps) {
     wsClients,
     setBroadcastJobUpdate
   } = deps;
+const MOCK_DEV_MODE = process.env.MOCK_DEV_MODE === '1';
+const MOCK_PROMPT_PREFIX = 'mock-seed:';
+
+function buildMockGeneratingState(row) {
+  if (!MOCK_DEV_MODE) return null;
+  if (!isGeneratingStatus(row.status)) return null;
+  if (typeof row.prompt_id !== 'string' || !row.prompt_id.startsWith(MOCK_PROMPT_PREFIX)) {
+    return null;
+  }
+  const now = Date.now();
+  if (row.status === 'running') {
+    return {
+      progress: { value: 17, max: 30, node: 'KSampler' },
+      overall: { current: 4, total: 12, percent: 36, updatedAt: now - 4000 },
+      preview: { url: '/images/portraits/studio-subject.jpg', updatedAt: now - 5000 },
+      queue: {
+        state: 'running',
+        position: 1,
+        total: 3,
+        ahead: 0,
+        remaining: 2,
+        updatedAt: now - 3500
+      }
+    };
+  }
+  if (row.status === 'queued') {
+    return {
+      progress: null,
+      overall: { current: 0, total: 12, percent: 0, updatedAt: now - 4500 },
+      preview: null,
+      queue: {
+        state: 'queued',
+        position: 2,
+        total: 4,
+        ahead: 1,
+        remaining: 3,
+        updatedAt: now - 3500
+      }
+    };
+  }
+  return {
+    progress: null,
+    overall: { current: 0, total: 10, percent: 0, updatedAt: now - 5000 },
+    preview: null,
+    queue: {
+      state: 'queued',
+      position: 4,
+      total: 4,
+      ahead: 3,
+      remaining: 4,
+      updatedAt: now - 3500
+    }
+  };
+}
 app.get('/api/workflow-folders', async (_req, res) => {
   try {
     const folders = [];
@@ -530,9 +584,14 @@ function buildJobPayload(jobId) {
   if (!row) return null;
 
   const generating = isGeneratingStatus(row.status);
-  const progress = generating ? runtimeState.jobProgressById.get(jobId) : null;
-  const preview = generating ? runtimeState.jobPreviewById.get(jobId) : null;
-  const overall = generating ? ensureOverallEntry(jobId, row.workflow_id) : null;
+  const mockState = buildMockGeneratingState(row);
+  const progress = generating
+    ? runtimeState.jobProgressById.get(jobId) ?? mockState?.progress ?? null
+    : null;
+  const preview = generating
+    ? runtimeState.jobPreviewById.get(jobId) ?? mockState?.preview ?? null
+    : null;
+  const overall = generating && !mockState?.overall ? ensureOverallEntry(jobId, row.workflow_id) : null;
   const queueInfo =
     generating && row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
   const fallbackQueue =
@@ -546,21 +605,24 @@ function buildJobPayload(jobId) {
           updatedAt: runtimeState.queueState.updatedAt
         }
       : null;
-  const queue = generating ? queueInfo ?? fallbackQueue : null;
+  const queue = generating ? queueInfo ?? mockState?.queue ?? fallbackQueue : null;
   const progressPercent =
     progress && Number.isFinite(progress.max) && progress.max > 0
       ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))
       : null;
-  const executedCount = overall ? overall.executedNodes.size : 0;
+  const executedCount = mockState?.overall ? mockState.overall.current : overall ? overall.executedNodes.size : 0;
+  const overallTotal = mockState?.overall ? mockState.overall.total : overall ? overall.totalNodes : 0;
   const overallPercent =
-    overall && overall.totalNodes > 0
+    mockState?.overall && Number.isFinite(mockState.overall.percent)
+      ? mockState.overall.percent
+      : overall && overall.totalNodes > 0
       ? Math.max(
           0,
           Math.min(
             100,
             ((executedCount +
               (progress && progress.max > 0 ? progress.value / progress.max : 0)) /
-              overall.totalNodes) *
+              overallTotal) *
               100
           )
         )
@@ -619,10 +681,17 @@ function buildJobPayload(jobId) {
     overall: overall
       ? {
           current: executedCount,
-          total: overall.totalNodes,
+          total: overallTotal,
           percent: overallPercent,
           updatedAt: overall.updatedAt
         }
+      : mockState?.overall
+        ? {
+            current: mockState.overall.current,
+            total: mockState.overall.total,
+            percent: mockState.overall.percent,
+            updatedAt: mockState.overall.updatedAt
+          }
       : null,
     preview: preview
       ? {
@@ -632,11 +701,11 @@ function buildJobPayload(jobId) {
       : null,
     queue,
     live: {
-      connected: runtimeState.comfyWsConnected,
+      connected: mockState ? true : runtimeState.comfyWsConnected,
       lastEventAt: runtimeState.comfyEventStats.lastEventAt,
       lastEventType: runtimeState.comfyEventStats.lastEventType,
-      previewSeen: runtimeState.comfyEventStats.counts.preview > 0,
-      lastPreviewAt: runtimeState.comfyEventStats.lastPreviewAt
+      previewSeen: mockState ? Boolean(preview) : runtimeState.comfyEventStats.counts.preview > 0,
+      lastPreviewAt: mockState ? preview?.updatedAt ?? null : runtimeState.comfyEventStats.lastPreviewAt
     }
   };
 }

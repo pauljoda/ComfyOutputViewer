@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.10] - 2026-02-08
+
+### Added
+- Extended mock sandbox seeding (`scripts/seed-mock-dev-data.mjs`) to prepopulate workflow jobs across multiple states (`completed`, `running`, `queued`, `pending`, `error`, `cancelled`) with sample inputs and completed-job outputs for richer workflow UI demos.
+
+### Changed
+- Added static mock live payload support for seeded generating jobs in `registerWorkflowRoutes` so running/queued/pending cards show meaningful progress/queue/preview data in sandbox mode.
+- Updated queue-resume behavior to skip polling seeded mock prompt IDs in mock mode, keeping demo job states stable for screenshots.
+- Updated `npm run dev:mock` to set `MOCK_DEV_MODE=1` and bumped version to `0.8.10`.
+
 ## [0.8.9] - 2026-02-08
 
 ### Added
