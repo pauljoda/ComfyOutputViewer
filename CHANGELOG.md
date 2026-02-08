@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.12] - 2026-02-08
+
+### Changed
+- Routed ComfyUI prompt queueing, history polling, image fetches, and uploads through the ComfyUI SDK client.
+
 ## [0.5.11] - 2026-02-08
 
 ### Added

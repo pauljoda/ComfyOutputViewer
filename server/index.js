@@ -10,6 +10,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { DatabaseSync } from 'node:sqlite';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { ComfyApi } from '@saintno/comfyui-sdk';
 
 dotenv.config();
 
@@ -32,6 +33,8 @@ const SOURCE_DIR = resolveDir(
 );
 const DATA_DIR = resolveDir(process.env.DATA_DIR || DEFAULT_DATA_DIR);
 const COMFY_API_URL = process.env.COMFY_API_URL || DEFAULT_COMFY_API_URL;
+const COMFY_CLIENT_ID =
+  process.env.COMFY_CLIENT_ID || `comfy-viewer-${os.hostname()}-${process.pid}`;
 const THUMB_DIR = path.join(DATA_DIR, '.thumbs');
 const INPUTS_DIR = path.join(DATA_DIR, 'inputs');
 const LEGACY_DB_PATH = path.join(DATA_DIR, '.comfy_viewer.json');
@@ -51,6 +54,8 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 const wsClients = new Set();
+let comfyApi;
+let comfyApiInit;
 
 wss.on('connection', (socket) => {
   wsClients.add(socket);
@@ -66,6 +71,50 @@ await ensureDir(INPUTS_DIR);
 const db = initDb();
 const statements = prepareStatements(db);
 await migrateLegacyDb();
+
+function getComfyApi() {
+  if (!comfyApi) {
+    comfyApi = new ComfyApi(COMFY_API_URL, COMFY_CLIENT_ID, { forceWs: false });
+    comfyApiInit = Promise.resolve(comfyApi.init?.() ?? comfyApi).catch((err) => {
+      comfyApiInit = null;
+      throw err;
+    });
+  }
+  return comfyApi;
+}
+
+async function getComfyApiReady() {
+  const api = getComfyApi();
+  if (comfyApiInit) {
+    await comfyApiInit;
+  }
+  return api;
+}
+
+async function fetchPromptHistory(promptId, { allowFallback = false } = {}) {
+  const api = await getComfyApiReady();
+  try {
+    const entry = await api.getHistory(promptId);
+    if (entry) return entry;
+  } catch (err) {
+    console.warn('Failed to fetch ComfyUI history entry:', err);
+  }
+  if (!allowFallback) return null;
+  try {
+    const histories = await api.getHistories();
+    return histories?.[promptId] ?? null;
+  } catch (err) {
+    console.warn('Failed to fetch ComfyUI histories:', err);
+  }
+  return null;
+}
+
+async function fetchComfyImageBuffer(imageInfo) {
+  const api = await getComfyApiReady();
+  const blob = await api.getImage(imageInfo);
+  const arrayBuffer = await blob.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
 
 app.use('/images', express.static(DATA_DIR));
 
@@ -692,28 +741,18 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     });
     broadcastJobUpdate(jobId);
 
-    // Generate a client ID for tracking
-    const clientId = `comfy-viewer-${jobId}-${now}`;
-
     // Send to ComfyUI
     try {
-      const response = await fetch(`${COMFY_API_URL}/prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: promptJson,
-          client_id: clientId
-        })
-      });
+      const api = await getComfyApiReady();
+      const result = await api.queuePrompt(0, promptJson);
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!result || !result.prompt_id) {
+        const errorText = 'Failed to queue prompt in ComfyUI';
         statements.updateJobStatus.run('error', errorText, now, now, jobId);
         broadcastJobUpdate(jobId);
         return res.status(500).json({ ok: false, error: errorText, jobId });
       }
 
-      const result = await response.json();
       const promptId = result.prompt_id;
 
       // Update job with prompt ID
@@ -837,12 +876,8 @@ app.post('/api/jobs/:id/recheck', async (req, res) => {
 
     let imageOutputs = await fetchImageOutputsWithRetry(jobRow.prompt_id, 3, 1000);
     if (imageOutputs.length === 0) {
-      const historyResponse = await fetch(`${COMFY_API_URL}/history/${jobRow.prompt_id}`);
-      if (historyResponse.ok) {
-        const history = await historyResponse.json();
-        const promptHistory = history[jobRow.prompt_id];
-        imageOutputs = collectImageOutputs(promptHistory?.outputs || {});
-      }
+      const promptHistory = await fetchPromptHistory(jobRow.prompt_id, { allowFallback: true });
+      imageOutputs = collectImageOutputs(promptHistory?.outputs || {});
     }
 
     if (imageOutputs.length === 0) {
@@ -1022,22 +1057,46 @@ app.post('/api/inputs/upload', async (req, res) => {
 // ComfyUI proxy endpoints
 app.post('/api/comfy/upload', async (req, res) => {
   try {
-    // For file uploads, we need to forward the request to ComfyUI
-    const headers = {};
-    if (req.headers['content-type']) {
-      headers['Content-Type'] = req.headers['content-type'];
-    }
-    if (req.headers['content-length']) {
-      headers['Content-Length'] = req.headers['content-length'];
-    }
-    const response = await fetch(`${COMFY_API_URL}/upload/image`, {
+    const request = new Request('http://localhost', {
       method: 'POST',
+      headers: req.headers,
       body: req,
-      duplex: 'half',
-      headers
+      duplex: 'half'
     });
-    const result = await response.json();
-    res.json(result);
+    const formData = await request.formData();
+    const file = formData.get('image');
+    if (!file || typeof file.arrayBuffer !== 'function') {
+      return res.status(400).send('Missing image upload');
+    }
+
+    const rawName = typeof file.name === 'string' ? file.name : 'image.png';
+    const fileName = path.basename(rawName) || 'image.png';
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const overrideRaw = formData.get('overwrite');
+    const override =
+      overrideRaw === null || overrideRaw === undefined
+        ? undefined
+        : overrideRaw === 'true' || overrideRaw === '1' || overrideRaw === true;
+    const subfolderRaw = formData.get('subfolder');
+    const subfolder = typeof subfolderRaw === 'string' ? subfolderRaw : undefined;
+
+    const api = await getComfyApiReady();
+    const uploadResult = await api.uploadImage(buffer, fileName, {
+      ...(override !== undefined ? { override } : null),
+      ...(subfolder ? { subfolder } : null)
+    });
+
+    if (!uploadResult || !uploadResult.info) {
+      return res.status(500).send('Failed to upload to ComfyUI');
+    }
+
+    res.json({
+      name: uploadResult.info.filename,
+      subfolder: uploadResult.info.subfolder,
+      type: uploadResult.info.type,
+      url: uploadResult.url
+    });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to upload to ComfyUI');
   }
@@ -1064,10 +1123,7 @@ async function fetchImageOutputsWithRetry(promptId, attempts = 3, delayMs = 1000
   for (let attempt = 0; attempt < attempts; attempt++) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
     try {
-      const historyResponse = await fetch(`${COMFY_API_URL}/history/${promptId}`);
-      if (!historyResponse.ok) continue;
-      const history = await historyResponse.json();
-      const promptHistory = history[promptId];
+      const promptHistory = await fetchPromptHistory(promptId);
       if (!promptHistory) continue;
       const imageOutputs = collectImageOutputs(promptHistory.outputs || {});
       if (imageOutputs.length > 0) return imageOutputs;
@@ -1116,15 +1172,11 @@ async function downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inp
         }
         statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
       } else {
-        const params = new URLSearchParams({
+        const imageBuffer = await fetchComfyImageBuffer({
           filename: imgInfo.filename,
-          subfolder: imgInfo.subfolder,
-          type: imgInfo.type
+          subfolder: imgInfo.subfolder || '',
+          type: imgInfo.type || 'output'
         });
-        const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
-        if (!imageResponse.ok) continue;
-
-        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
         const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
         let wroteToSource = false;
         let wroteToData = false;
@@ -1229,12 +1281,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
     try {
       // Check history for this prompt
-      const historyResponse = await fetch(`${COMFY_API_URL}/history/${promptId}`);
-      if (!historyResponse.ok) continue;
-
-      const history = await historyResponse.json();
-      const promptHistory = history[promptId];
-
+      const promptHistory = await fetchPromptHistory(promptId);
       if (!promptHistory) continue;
 
       // Check if execution is complete

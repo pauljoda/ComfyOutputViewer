@@ -1,6 +1,6 @@
 {
   "name": "comfy-output-viewer",
-  "version": "0.5.11",
+  "version": "0.5.12",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "start": "NODE_ENV=production PORT=8008 node server/index.js"
   },
   "dependencies": {
+    "@saintno/comfyui-sdk": "^0.2.49",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "react": "^18.3.1",
