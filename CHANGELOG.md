@@ -2,10 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.5.21] - 2026-02-08
+## [0.6.0] - 2026-02-08
 
 ### Added
-- Added overall job progress tracking using executed node counts and exposed it in workflow job cards.
+- Added overall job progress indicators in workflow job cards and surfaced live preview hints when ComfyUI previews are disabled.
+
+### Changed
+- Switched the job header progress pill to display overall progress.
 
 ### Fixed
 - De-duplicated workflow job outputs to prevent repeated thumbnails and broken navigation.

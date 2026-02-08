@@ -135,6 +135,8 @@ export type JobLiveStatus = {
   connected: boolean;
   lastEventAt: number | null;
   lastEventType: string | null;
+  previewSeen?: boolean;
+  lastPreviewAt?: number | null;
 };
 
 export type Job = {

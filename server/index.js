@@ -1465,7 +1465,9 @@ function buildJobPayload(jobId) {
     live: {
       connected: comfyWsConnected,
       lastEventAt: comfyEventStats.lastEventAt,
-      lastEventType: comfyEventStats.lastEventType
+      lastEventType: comfyEventStats.lastEventType,
+      previewSeen: comfyEventStats.counts.preview > 0,
+      lastPreviewAt: comfyEventStats.lastPreviewAt
     }
   };
 }

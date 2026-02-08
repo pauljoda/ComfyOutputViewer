@@ -1834,6 +1834,8 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
   const previewUrl = isGenerating ? job.preview?.url : null;
   const queueInfo = job.queue;
   const liveStatus = job.live;
+  const pillPercentValue =
+    overall && overall.total > 0 ? overallPercentValue : progressPercentValue;
   const queueStateLabel =
     queueInfo?.state === 'running'
       ? 'Running'
@@ -1871,8 +1873,8 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
             {statusLabel}
             {isGenerating && <span className="job-spinner" aria-hidden="true" />}
           </span>
-          {isGenerating && progressPercent !== null && (
-            <span className="job-progress-pill">{progressPercentValue}%</span>
+          {isGenerating && (overallPercent !== null || progressPercent !== null) && (
+            <span className="job-progress-pill">{pillPercentValue}%</span>
           )}
         </div>
         <div className="job-actions">
@@ -1904,6 +1906,9 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
             ) : (
               <div className="job-preview-placeholder">
                 <span>Live preview</span>
+                {liveStatus?.previewSeen === false && (
+                  <span className="job-preview-hint">Enable live preview in ComfyUI</span>
+                )}
               </div>
             )}
             <span className="job-preview-badge">Live</span>

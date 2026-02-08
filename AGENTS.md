@@ -128,7 +128,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
-- Added overall job progress tracking and deduplicated workflow outputs (v0.5.21).
+- Added overall job progress, updated the header pill to show overall %, and added live preview hints (v0.6.0).
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Marked jobs completed via ComfyUI execution events and restricted queue badges to active jobs (v0.5.20).
 - Refreshed the Nix npm dependency hash after the package-lock version bump.

@@ -2086,6 +2086,15 @@ body.slideshow-open {
   background: radial-gradient(circle at top, rgba(148, 163, 184, 0.2), transparent 65%);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.job-preview-hint {
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: rgba(148, 163, 184, 0.9);
 }
 
 .job-preview-badge {
