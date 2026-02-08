@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.8] - 2026-02-08
+
+### Fixed
+- Replaced gesture/swipe-driven image navigation in the detail modal with direct left/right half tap navigation wired to the same previous/next actions as the toolbar buttons.
+- Removed touch/pointer swipe tracking logic that was causing unstable mobile behavior and laggy/odd swipe interactions.
+- Kept zoom and pan enabled while adding pan/pinch guards so tap navigation does not fire immediately after gesture interactions.
+- Simplified modal image transitions by removing swipe-entry opacity state from image rendering.
+- Bumped version to 0.8.8 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.8.7] - 2026-02-08
 
 ### Fixed
