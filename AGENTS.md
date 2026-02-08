@@ -128,6 +128,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Resumed in-flight workflow job tracking after server restarts and bumped the app version to 0.6.3.
 - Reset workflow detail state when switching workflows mid-run and bumped the app version to 0.6.2.
 - Hid the live preview panel until frames arrive and bumped the app version to 0.6.1.
 - Added overall job progress, updated the header pill to show overall %, and added live preview hints (v0.6.0).

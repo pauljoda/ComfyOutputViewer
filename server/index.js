@@ -72,6 +72,7 @@ let queuePollTimer;
 let queueRemainingOverride = null;
 let lastActivePromptId = null;
 let currentExecutingPromptId = null;
+let resumeJobsPromise = null;
 let comfyWsConnected = false;
 let comfyWsConnectedId = null;
 let comfyWsReconnectPending = false;
@@ -678,6 +679,65 @@ function startQueuePolling() {
         console.warn('Failed to refresh ComfyUI queue:', err);
       });
   }, 2000);
+}
+
+async function resumeGeneratingJobs() {
+  if (resumeJobsPromise) return resumeJobsPromise;
+  resumeJobsPromise = (async () => {
+    const generatingJobs = [];
+    for (const row of statements.selectGeneratingJobDetails.iterate()) {
+      generatingJobs.push(row);
+    }
+    if (generatingJobs.length === 0) return;
+
+    try {
+      await getComfyApiReady();
+      await refreshQueueState();
+    } catch (err) {
+      console.warn('Failed to resume ComfyUI queue state:', err);
+    }
+
+    const runningIds = new Set(queueState.running.map(getPromptIdFromQueueItem).filter(Boolean));
+    const pendingIds = new Set(queueState.pending.map(getPromptIdFromQueueItem).filter(Boolean));
+    if (runningIds.size > 0) {
+      currentExecutingPromptId = Array.from(runningIds)[0];
+      lastActivePromptId = currentExecutingPromptId;
+    }
+
+    for (const jobRow of generatingJobs) {
+      const promptId = jobRow.prompt_id;
+      if (!promptId) {
+        const errorMessage = 'Server restarted before prompt was queued.';
+        statements.updateJobStatus.run('error', errorMessage, null, Date.now(), jobRow.id);
+        broadcastJobUpdate(jobRow.id);
+        continue;
+      }
+
+      promptJobIdByPromptId.set(promptId, jobRow.id);
+      ensureOverallEntry(jobRow.id, jobRow.workflow_id);
+
+      if (runningIds.has(promptId)) {
+        const startedAt = jobRow.started_at ?? Date.now();
+        statements.updateJobStatus.run('running', null, startedAt, null, jobRow.id);
+      } else if (pendingIds.has(promptId)) {
+        const startedAt = jobRow.started_at ?? null;
+        statements.updateJobStatus.run('queued', null, startedAt, null, jobRow.id);
+      }
+
+      const workflowInputs = [];
+      for (const row of statements.selectWorkflowInputs.iterate(jobRow.workflow_id)) {
+        workflowInputs.push(row);
+      }
+      const inputValuesMap = new Map();
+      for (const inputRow of statements.selectJobInputs.iterate(jobRow.id)) {
+        inputValuesMap.set(inputRow.input_id, inputRow.value);
+      }
+
+      pollJobCompletion(jobRow.id, promptId, workflowInputs, inputValuesMap, jobRow.workflow_id);
+      broadcastJobUpdate(jobRow.id);
+    }
+  })();
+  return resumeJobsPromise;
 }
 
 async function fetchPromptHistory(promptId, { allowFallback = false } = {}) {
@@ -2095,6 +2155,9 @@ if (isProd) {
 }
 
 await syncSourceToData();
+resumeGeneratingJobs().catch((err) => {
+  console.warn('Failed to resume in-progress jobs:', err);
+});
 
 if (Number.isFinite(SYNC_INTERVAL_MS) && SYNC_INTERVAL_MS > 0) {
   setInterval(() => {
@@ -2323,6 +2386,9 @@ function prepareStatements(database) {
     selectJobById: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE id = ?'),
     selectJobByPromptId: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE prompt_id = ?'),
     selectGeneratingJobs: database.prepare("SELECT id FROM jobs WHERE status IN ('pending', 'queued', 'running')"),
+    selectGeneratingJobDetails: database.prepare(
+      "SELECT id, workflow_id, prompt_id, status, started_at FROM jobs WHERE status IN ('pending', 'queued', 'running')"
+    ),
     insertJob: database.prepare('INSERT INTO jobs (workflow_id, prompt_id, status, created_at) VALUES (?, ?, ?, ?)'),
     updateJobStatus: database.prepare('UPDATE jobs SET status = ?, error_message = ?, started_at = ?, completed_at = ? WHERE id = ?'),
     updateJobPromptId: database.prepare('UPDATE jobs SET prompt_id = ? WHERE id = ?'),

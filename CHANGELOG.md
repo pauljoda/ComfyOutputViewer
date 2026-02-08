@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-02-08
+
+### Fixed
+- Resumed in-progress workflow jobs after server restarts by rehydrating queue state and polling for completion.
+
 ## [0.6.2] - 2026-02-08
 
 ### Fixed
