@@ -197,6 +197,19 @@
   }
 }
 
+/* iOS Safari: keep text-entry controls at 16px to prevent focus zoom on mobile */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 768px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not(
+        [type='image']
+      ):not([type='hidden']),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+}
+
 /* ============================================= */
 /*  Slideshow fade transitions                   */
 /* ============================================= */

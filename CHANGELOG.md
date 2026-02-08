@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.11] - 2026-02-08
+
+### Fixed
+- Reintroduced the iOS/mobile input-focus zoom safeguard in `src/client/globals.css` by forcing `16px` font size for text-entry controls in mobile WebKit, so selecting inputs no longer zooms and shifts the view.
+
 ## [0.8.10] - 2026-02-08
 
 ### Added
