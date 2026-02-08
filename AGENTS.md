@@ -130,6 +130,7 @@ If a request is purely informational and makes no changes, do not commit.
 ## Recent Changes
 - Added ComfyUI websocket progress updates to workflow job cards with a cleaner, mobile-friendly layout.
 - Bumped the app version to 0.5.13 after the job progress UI update.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Routed ComfyUI prompt queueing, history polling, image fetches, and uploads through the ComfyUI SDK client.
 - Bumped the app version to 0.5.12 and refreshed the Nix npm dependency hash after the lockfile update.
 - Added job output recheck handling for completed workflows and recorded outputs from existing files.
