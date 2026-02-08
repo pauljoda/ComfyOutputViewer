@@ -1,5 +1,5 @@
 import type { SyntheticEvent, TouchEvent } from 'react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
@@ -45,9 +45,6 @@ type PromptData = {
   createdAt: number;
 };
 
-const promptMetadataCache = new Map<string, PromptData | null>();
-const preloadedImageUrls = new Set<string>();
-
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.96;
 const FIT_HEIGHT_RATIO = 0.94;
@@ -58,8 +55,6 @@ type ImageModalProps = {
   image: ImageItem;
   index: number;
   total: number;
-  prevImageUrl?: string | null;
-  nextImageUrl?: string | null;
   modalTool: ModalTool;
   availableTags: string[];
   onUpdateTags: (tags: string[]) => void;
@@ -79,8 +74,6 @@ export default function ImageModal({
   image,
   index,
   total,
-  prevImageUrl = null,
-  nextImageUrl = null,
   modalTool,
   availableTags,
   onUpdateTags,
@@ -97,87 +90,48 @@ export default function ImageModal({
 }: ImageModalProps) {
   const navigate = useNavigate();
   const [tagInput, setTagInput] = useState('');
-  const [displaySrc, setDisplaySrc] = useState(image.thumbUrl || image.url);
   const [promptData, setPromptData] = useState<PromptData | null>(null);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptAvailable, setPromptAvailable] = useState(false);
 
-  const loadPromptData = useCallback(async (options?: { signal?: AbortSignal; showLoading?: boolean }) => {
-    const signal = options?.signal;
-    const showLoading = options?.showLoading ?? false;
-    if (promptMetadataCache.has(image.id)) {
-      const cached = promptMetadataCache.get(image.id) ?? null;
-      setPromptData(cached);
-      setPromptAvailable(Boolean(cached));
-      if (!cached && modalTool === 'prompt') {
-        setPromptError('No prompt data found for this image');
-      }
-      return;
-    }
+  const loadPromptData = async (signal?: AbortSignal) => {
     try {
-      if (showLoading) {
-        setPromptLoading(true);
-        setPromptError(null);
-      }
+      setPromptLoading(true);
+      setPromptError(null);
       const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
         signal
       });
-      promptMetadataCache.set(image.id, data);
       setPromptData(data);
       setPromptAvailable(true);
     } catch (err) {
       if (signal?.aborted) return;
-      const message = err instanceof Error ? err.message : 'No prompt data found for this image';
-      const missing = /no prompt data found|404|not found/i.test(message);
-      if (missing) {
-        promptMetadataCache.set(image.id, null);
-      }
       setPromptAvailable(false);
       setPromptData(null);
       if (modalTool === 'prompt') {
-        setPromptError(message);
+        setPromptError(err instanceof Error ? err.message : 'No prompt data found');
       }
     } finally {
-      if (!signal?.aborted && showLoading) {
+      if (!signal?.aborted) {
         setPromptLoading(false);
       }
     }
-  }, [image.id, modalTool]);
+  };
 
   useEffect(() => {
-    const cached = promptMetadataCache.get(image.id) ?? null;
-    const hasCached = promptMetadataCache.has(image.id);
-    setPromptData(cached);
-    setPromptAvailable(Boolean(cached));
-    setPromptError(null);
-    setPromptLoading(false);
-
-    if (hasCached) {
-      return;
-    }
-
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      loadPromptData({ signal: controller.signal, showLoading: false });
-    }, 180);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
+    setPromptAvailable(false);
+    setPromptData(null);
+    setPromptError(null);
+    loadPromptData(controller.signal);
+    return () => controller.abort();
   }, [image.id]);
 
   useEffect(() => {
-    if (modalTool !== 'prompt') return;
-    if (promptData) return;
-    if (promptMetadataCache.has(image.id) && !promptMetadataCache.get(image.id)) {
-      setPromptError('No prompt data found for this image');
-      return;
+    if (modalTool === 'prompt' && promptAvailable && !promptData && !promptLoading) {
+      loadPromptData();
     }
-    const controller = new AbortController();
-    loadPromptData({ signal: controller.signal, showLoading: true });
-    return () => controller.abort();
-  }, [image.id, loadPromptData, modalTool, promptData]);
+  }, [modalTool, promptAvailable, promptData, promptLoading]);
 
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -189,11 +143,13 @@ export default function ImageModal({
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
   const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragMovedRef = useRef(false);
+  const [swipeIncoming, setSwipeIncoming] = useState(false);
   const [minScale, setMinScale] = useState(DEFAULT_MIN_SCALE);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const debugRafRef = useRef(0);
   const [debugInfo, setDebugInfo] = useState<null | Record<string, string>>(null);
   const lastStateRef = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
+  const [transformReady, setTransformReady] = useState(false);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -290,6 +246,7 @@ export default function ImageModal({
 
   const applyFitScale = (img: HTMLImageElement, attempt = 0) => {
     const wrapper = transformRef.current?.instance.wrapperComponent;
+    const currentScale = transformRef.current?.state.scale ?? 1;
     if (!wrapper || !img) {
       if (attempt < MAX_FIT_ATTEMPTS) {
         window.requestAnimationFrame(() => applyFitScale(img, attempt + 1));
@@ -297,8 +254,9 @@ export default function ImageModal({
       return;
     }
     const wrapperRect = wrapper.getBoundingClientRect();
-    const baseWidth = img.naturalWidth || img.width;
-    const baseHeight = img.naturalHeight || img.height;
+    const nodeRect = img.getBoundingClientRect();
+    const baseWidth = nodeRect.width / currentScale || img.naturalWidth || img.width;
+    const baseHeight = nodeRect.height / currentScale || img.naturalHeight || img.height;
     if (!wrapperRect.width || !wrapperRect.height || !baseWidth || !baseHeight) {
       if (attempt < MAX_FIT_ATTEMPTS) {
         window.requestAnimationFrame(() => applyFitScale(img, attempt + 1));
@@ -429,60 +387,6 @@ export default function ImageModal({
     setTagInput('');
   }, [image.id]);
 
-  useEffect(() => {
-    const thumbSrc = image.thumbUrl || image.url;
-    const fullSrc = image.url;
-    let cancelled = false;
-
-    setDisplaySrc(thumbSrc);
-
-    if (thumbSrc === fullSrc) {
-      preloadedImageUrls.add(fullSrc);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (preloadedImageUrls.has(fullSrc)) {
-      setDisplaySrc(fullSrc);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const preload = new Image();
-    preload.decoding = 'async';
-    preload.src = fullSrc;
-    const promote = () => {
-      if (cancelled) return;
-      preloadedImageUrls.add(fullSrc);
-      setDisplaySrc(fullSrc);
-    };
-    preload.onload = promote;
-    preload.onerror = () => {
-      if (cancelled) return;
-    };
-
-    return () => {
-      cancelled = true;
-      preload.onload = null;
-      preload.onerror = null;
-    };
-  }, [image.id, image.thumbUrl, image.url]);
-
-  useEffect(() => {
-    const candidates = [prevImageUrl, nextImageUrl].filter(
-      (value): value is string => Boolean(value && value !== image.url)
-    );
-    for (const candidate of candidates) {
-      if (preloadedImageUrls.has(candidate)) continue;
-      preloadedImageUrls.add(candidate);
-      const preload = new Image();
-      preload.decoding = 'async';
-      preload.src = candidate;
-    }
-  }, [image.url, nextImageUrl, prevImageUrl]);
-
   const handleAddTagValue = (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized) return;
@@ -536,8 +440,8 @@ export default function ImageModal({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     const elapsed = Date.now() - start.time;
-    const minDistance = 48;
-    const axisRatio = 1.2;
+    const minDistance = 84;
+    const axisRatio = 1.4;
     if (elapsed > 800 || Math.max(absX, absY) < minDistance) return;
     if (absX > absY * axisRatio) {
       lastSwipeAtRef.current = Date.now();
@@ -551,18 +455,20 @@ export default function ImageModal({
     }
   };
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     scaleRef.current = 1;
     fitScaleRef.current = 1;
     isPanningRef.current = false;
     isPinchingRef.current = false;
     setMinScale(DEFAULT_MIN_SCALE);
     transformRef.current?.resetTransform(0);
-    setPromptLoading(false);
+    setSwipeIncoming(true);
+    const timer = window.setTimeout(() => setSwipeIncoming(false), 200);
+    return () => window.clearTimeout(timer);
   }, [image.id]);
 
   useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return;
+    if (!transformReady || typeof ResizeObserver === 'undefined') return;
     let raf = 0;
     let observer: ResizeObserver | null = null;
     let cancelled = false;
@@ -592,7 +498,7 @@ export default function ImageModal({
       if (raf) window.cancelAnimationFrame(raf);
       observer?.disconnect();
     };
-  }, [image.id]);
+  }, [image.id, transformReady]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { x: event.clientX, y: event.clientY };
@@ -635,6 +541,7 @@ export default function ImageModal({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90" role="dialog" aria-modal="true">
       <TransformWrapper
+        key={image.id}
         ref={transformRef}
         initialScale={1}
         minScale={minScale}
@@ -656,13 +563,14 @@ export default function ImageModal({
           scheduleDebugUpdate('transform', state);
         }}
         onInit={() => {
+          setTransformReady(true);
           scheduleDebugUpdate('init');
         }}
       >
         <>
           {/* Top bar */}
           <div
-            className="relative z-10 flex flex-col bg-background/90 sm:bg-background/80 sm:backdrop-blur-sm"
+            className="relative z-10 flex flex-col bg-background/80 backdrop-blur-sm"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-1 px-2 py-1.5">
@@ -876,7 +784,7 @@ export default function ImageModal({
           {/* Image body */}
           <div
             data-modal-body
-            className="relative flex-1 overflow-hidden px-3 touch-none"
+            className="relative flex-1 overflow-hidden px-3"
             onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
             onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
             onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
@@ -893,11 +801,9 @@ export default function ImageModal({
                 contentStyle={{ width: '100%', height: '100%' }}
               >
                 <img
-                  className="max-h-full max-w-full"
-                  src={displaySrc}
+                  className={`max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
+                  src={image.url}
                   alt={image.name}
-                  decoding="async"
-                  fetchPriority="high"
                   style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
                   onLoad={handleImageLoad}
                   ref={handleImageRef}
@@ -916,7 +822,7 @@ export default function ImageModal({
 
           {/* Bottom bar */}
           <div
-            className="relative z-10 flex items-center justify-between bg-background/90 px-2 py-1.5 sm:bg-background/80 sm:backdrop-blur-sm"
+            className="relative z-10 flex items-center justify-between bg-background/80 px-2 py-1.5 backdrop-blur-sm"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-1">

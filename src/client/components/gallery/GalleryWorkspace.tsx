@@ -222,14 +222,6 @@ export default function GalleryWorkspace() {
     ? filteredImages.findIndex((image) => image.id === selectedId)
     : -1;
   const selectedImage = selectedIndex >= 0 ? filteredImages[selectedIndex] : null;
-  const prevImageUrl =
-    selectedIndex >= 0 && filteredImages.length > 1
-      ? filteredImages[(selectedIndex - 1 + filteredImages.length) % filteredImages.length].url
-      : null;
-  const nextImageUrl =
-    selectedIndex >= 0 && filteredImages.length > 1
-      ? filteredImages[(selectedIndex + 1) % filteredImages.length].url
-      : null;
 
   useEffect(() => {
     if (selectedId) {
@@ -707,8 +699,6 @@ export default function GalleryWorkspace() {
           image={selectedImage}
           index={selectedIndex}
           total={filteredImages.length}
-          prevImageUrl={prevImageUrl}
-          nextImageUrl={nextImageUrl}
           modalTool={modalTool}
           availableTags={availableTags}
           onUpdateTags={(tags) => handleUpdateTags(selectedImage.id, tags)}

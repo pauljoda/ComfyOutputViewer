@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.6] - 2026-02-08
+
+### Fixed
+- Restored image detail interaction behavior to the pre-regression model used before recent modal performance experiments, while preserving the redesigned toolbar/visual UI.
+- Reverted modal image source handling from progressive thumb/full promotion back to direct full-image rendering to eliminate snap/jump artifacts during open and navigation.
+- Reverted swipe gesture thresholds and transition timing to the prior stable settings to restore reliable mobile swipe behavior.
+- Reverted fit-scale and transform lifecycle logic to the previously stable flow (`TransformWrapper` remount per image, resize observer gating, transform reset timing) to prevent odd modal movement.
+- Removed adjacent-image preload wiring introduced during recent perf tuning after it regressed modal interaction consistency.
+- Bumped version to 0.8.6 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.8.5] - 2026-02-08
 
 ### Changed
