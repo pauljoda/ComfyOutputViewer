@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.7] - 2026-02-08
+
+### Fixed
+- Applied a WebKit-focused modal rendering fix to address severe mobile image-movement lag that persisted after restoring pre-regression interaction logic.
+- Removed experimental transform/compositor hints (`will-change`, `translateZ`, forced modal touch-action) that regressed iOS interaction smoothness.
+- Kept the Safari-specific modal chrome fallback that disables costly `backdrop-filter` on iOS while preserving desktop styling.
+- Restricted modal debug overlay activation to explicit `?debug=1` query usage only, avoiding accidental persisted debug overhead from prior sessions.
+- Bumped version to 0.8.7 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.8.6] - 2026-02-08
 
 ### Fixed

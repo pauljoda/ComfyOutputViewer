@@ -153,7 +153,7 @@ export default function ImageModal({
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
-    return params.get('debug') === '1' || window.localStorage.getItem('comfy_debug') === '1';
+    return params.get('debug') === '1';
   }, []);
 
   const handlePrev = () => onPrev();
@@ -539,7 +539,12 @@ export default function ImageModal({
     }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black/90" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/90"
+      role="dialog"
+      aria-modal="true"
+      data-image-modal="true"
+    >
       <TransformWrapper
         key={image.id}
         ref={transformRef}
@@ -570,7 +575,7 @@ export default function ImageModal({
         <>
           {/* Top bar */}
           <div
-            className="relative z-10 flex flex-col bg-background/80 backdrop-blur-sm"
+            className="image-modal-chrome relative z-10 flex flex-col bg-background/80 backdrop-blur-sm"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-1 px-2 py-1.5">
@@ -784,7 +789,7 @@ export default function ImageModal({
           {/* Image body */}
           <div
             data-modal-body
-            className="relative flex-1 overflow-hidden px-3"
+            className="image-modal-body relative flex-1 overflow-hidden px-3"
             onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
             onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
             onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
@@ -801,7 +806,7 @@ export default function ImageModal({
                 contentStyle={{ width: '100%', height: '100%' }}
               >
                 <img
-                  className={`max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
+                  className={`image-modal-image max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
                   src={image.url}
                   alt={image.name}
                   style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
@@ -822,7 +827,7 @@ export default function ImageModal({
 
           {/* Bottom bar */}
           <div
-            className="relative z-10 flex items-center justify-between bg-background/80 px-2 py-1.5 backdrop-blur-sm"
+            className="image-modal-chrome relative z-10 flex items-center justify-between bg-background/80 px-2 py-1.5 backdrop-blur-sm"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center gap-1">
