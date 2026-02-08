@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.8] - 2026-02-08
+
+### Changed
+- Added explicit Vite allowed host configuration for local and remote access by allowing `localhost`, `127.0.0.1`, `.local`, and `comfy-viewer.pauljoda.com`.
+- Applied the same host allowlist to both Vite dev server and preview server while keeping LAN bind on `0.0.0.0`.
+- Bumped version to 0.7.8 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.7.7] - 2026-02-08
 
 ### Added
