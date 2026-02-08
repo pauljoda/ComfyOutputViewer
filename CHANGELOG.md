@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.16] - 2026-02-08
+
+### Fixed
+- Ensured the ComfyUI websocket handshake reconnects using the assigned session id so progress/preview events stream correctly.
+
+## [0.5.15] - 2026-02-08
+
+### Fixed
+- Normalized ComfyUI websocket messages so progress and live preview frames update reliably on the server.
+
 ## [0.5.14] - 2026-02-08
 
 ### Added

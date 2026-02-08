@@ -71,6 +71,65 @@ let queuePollTimer;
 let queueRemainingOverride = null;
 let lastActivePromptId = null;
 let currentExecutingPromptId = null;
+let comfyWsConnected = false;
+let comfyWsConnectedId = null;
+let comfyWsReconnectPending = false;
+
+class ComfyWebSocketAdapter {
+  static CONNECTING = WebSocket.CONNECTING;
+  static OPEN = WebSocket.OPEN;
+  static CLOSING = WebSocket.CLOSING;
+  static CLOSED = WebSocket.CLOSED;
+
+  constructor(url, options) {
+    this.socket = new WebSocket(url, options);
+    this.socket.binaryType = 'arraybuffer';
+
+    this.socket.on('open', () => {
+      if (typeof this.onopen === 'function') {
+        this.onopen();
+      }
+    });
+    this.socket.on('close', (code, reason) => {
+      if (typeof this.onclose === 'function') {
+        this.onclose({ code, reason });
+      }
+    });
+    this.socket.on('error', (err) => {
+      if (typeof this.onerror === 'function') {
+        this.onerror(err);
+      }
+    });
+    this.socket.on('message', (data, isBinary) => {
+      if (typeof this.onmessage !== 'function') return;
+      let payload = data;
+      if (isBinary) {
+        if (data instanceof ArrayBuffer) {
+          payload = data;
+        } else if (Buffer.isBuffer(data)) {
+          payload = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+        }
+      } else if (Buffer.isBuffer(data)) {
+        payload = data.toString();
+      } else if (typeof data !== 'string') {
+        payload = String(data);
+      }
+      this.onmessage({ data: payload });
+    });
+  }
+
+  get readyState() {
+    return this.socket.readyState;
+  }
+
+  send(data) {
+    this.socket.send(data);
+  }
+
+  close() {
+    this.socket.close();
+  }
+}
 
 wss.on('connection', (socket) => {
   wsClients.add(socket);
@@ -91,7 +150,7 @@ function getComfyApi() {
   if (!comfyApi) {
     comfyApi = new ComfyApi(COMFY_API_URL, COMFY_CLIENT_ID, {
       forceWs: false,
-      customWebSocketImpl: WebSocket
+      customWebSocketImpl: ComfyWebSocketAdapter
     });
     bindComfyApiListeners(comfyApi);
     comfyApiInit = Promise.resolve(comfyApi.init?.() ?? comfyApi)
@@ -109,6 +168,7 @@ async function getComfyApiReady() {
   if (comfyApiInit) {
     await comfyApiInit;
   }
+  await ensureComfyWsReady(api);
   return api;
 }
 
@@ -127,9 +187,16 @@ function bindComfyApiListeners(api) {
       currentExecutingPromptId = event.detail.prompt_id;
       const jobId = getJobIdForPrompt(event.detail.prompt_id);
       if (jobId) {
+        const now = Date.now();
+        const existing = jobProgressById.get(jobId);
+        jobProgressById.set(jobId, {
+          value: existing?.value ?? 0,
+          max: existing?.max ?? 0,
+          node: event.detail.node ?? existing?.node ?? null,
+          updatedAt: now
+        });
         const jobRow = statements.selectJobById.get(jobId);
         if (jobRow && (jobRow.status === 'pending' || jobRow.status === 'queued')) {
-          const now = Date.now();
           const startedAt = jobRow.started_at ?? now;
           statements.updateJobStatus.run('running', null, startedAt, jobRow.completed_at ?? null, jobId);
         }
@@ -158,13 +225,88 @@ function bindComfyApiListeners(api) {
       queueRemainingOverride = remaining;
       queueState.remaining = remaining;
     }
+    if (event?.detail?.sid) {
+      const sid = event.detail.sid;
+      if (comfyWsConnected && comfyWsConnectedId && comfyWsConnectedId !== sid && !comfyWsReconnectPending) {
+        comfyWsReconnectPending = true;
+        setTimeout(() => {
+          try {
+            api.reconnectWs(true);
+          } catch (err) {
+            console.warn('Failed to reconnect ComfyUI websocket for sid update:', err);
+            comfyWsReconnectPending = false;
+          }
+        }, 0);
+      }
+    }
   });
   api.on('b_preview', (event) => {
     handleComfyPreview(event.detail).catch((err) => {
       console.warn('Failed to handle ComfyUI preview frame:', err);
     });
   });
+  api.on('connected', () => {
+    comfyWsConnected = true;
+    comfyWsConnectedId = api.id;
+    comfyWsReconnectPending = false;
+  });
+  api.on('reconnected', () => {
+    comfyWsConnected = true;
+    comfyWsConnectedId = api.id;
+    comfyWsReconnectPending = false;
+  });
+  api.on('disconnected', () => {
+    comfyWsConnected = false;
+  });
   startQueuePolling();
+}
+
+async function ensureComfyWsReady(api) {
+  const socketClient = api?.socket?.client;
+  const isOpen = socketClient && socketClient.readyState === ComfyWebSocketAdapter.OPEN;
+  if (comfyWsConnected && isOpen) return;
+
+  if (!isOpen) {
+    try {
+      api.reconnectWs(true);
+    } catch (err) {
+      console.warn('Failed to trigger ComfyUI websocket reconnect:', err);
+    }
+  }
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(null);
+    }, 4000);
+
+    const stop = api.on('connected', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      stop?.();
+      resolve(null);
+    });
+
+    const stopReconnected = api.on('reconnected', () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      stop?.();
+      stopReconnected?.();
+      resolve(null);
+    });
+
+    if (isOpen) {
+      settled = true;
+      clearTimeout(timeout);
+      stop?.();
+      stopReconnected?.();
+      resolve(null);
+    }
+  });
 }
 
 function isGeneratingStatus(status) {
@@ -220,7 +362,7 @@ function clearJobTransient(jobId) {
 
 async function handleComfyPreview(blob) {
   if (!blob || typeof blob.arrayBuffer !== 'function') return;
-  const promptId = lastActivePromptId;
+  const promptId = currentExecutingPromptId || lastActivePromptId;
   if (!promptId) return;
   const jobId = getJobIdForPrompt(promptId);
   if (!jobId) return;
