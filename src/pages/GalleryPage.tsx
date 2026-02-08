@@ -159,6 +159,15 @@ export default function GalleryPage() {
     }
   }, []);
 
+  const handleApiFailure = useCallback(
+    async (err: unknown, fallback: string) => {
+      const message = err instanceof Error ? err.message : fallback;
+      await refresh();
+      setError(message);
+    },
+    [refresh]
+  );
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -227,7 +236,7 @@ export default function GalleryPage() {
     }
   }, [multiSelect]);
 
-  const handleToggleFavorite = async (image: ImageItem) => {
+  const handleToggleFavorite = useCallback(async (image: ImageItem) => {
     const nextValue = !image.favorite;
     setData((prev) => ({
       ...prev,
@@ -238,11 +247,11 @@ export default function GalleryPage() {
     try {
       await setFavorite(image.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update favorite');
+      await handleApiFailure(err, 'Failed to update favorite');
     }
-  };
+  }, [handleApiFailure]);
 
-  const handleToggleHidden = async (image: ImageItem) => {
+  const handleToggleHidden = useCallback(async (image: ImageItem) => {
     const nextValue = !image.hidden;
     setData((prev) => ({
       ...prev,
@@ -253,11 +262,11 @@ export default function GalleryPage() {
     try {
       await setHidden(image.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+      await handleApiFailure(err, 'Failed to update hidden state');
     }
-  };
+  }, [handleApiFailure]);
 
-  const handleUpdateRating = async (image: ImageItem, rating: number) => {
+  const handleUpdateRating = useCallback(async (image: ImageItem, rating: number) => {
     const nextRating = clamp(Math.round(rating), 0, 5);
     setData((prev) => ({
       ...prev,
@@ -268,9 +277,9 @@ export default function GalleryPage() {
     try {
       await setRating(image.id, nextRating);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update rating');
+      await handleApiFailure(err, 'Failed to update rating');
     }
-  };
+  }, [handleApiFailure]);
 
   const handleAddSelectedTag = (value: string) => {
     const normalized = normalizeTagInput(value);
@@ -345,17 +354,17 @@ export default function GalleryPage() {
     });
   };
 
-  const handleToggleSelectedId = (imageId: string) => {
+  const handleToggleSelectedId = useCallback((imageId: string) => {
     setSelectedIds((prev) =>
       prev.includes(imageId) ? prev.filter((id) => id !== imageId) : [...prev, imageId]
     );
-  };
+  }, []);
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setSelectedIds([]);
-  };
+  }, []);
 
-  const handleUpdateTags = async (imageId: string, nextTags: string[]) => {
+  const handleUpdateTags = useCallback(async (imageId: string, nextTags: string[]) => {
     const normalized = normalizeTags(nextTags);
     setData((prev) => ({
       ...prev,
@@ -366,9 +375,9 @@ export default function GalleryPage() {
     try {
       await setTags(imageId, normalized);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update tags');
+      await handleApiFailure(err, 'Failed to update tags');
     }
-  };
+  }, [handleApiFailure]);
 
   const handleDeleteImage = async (image: ImageItem) => {
     const confirmed = window.confirm(
@@ -387,15 +396,14 @@ export default function GalleryPage() {
       const suffix = response.blacklisted > 0 ? ' and blacklisted it from sync.' : '.';
       setStatus(`Removed "${image.name}"${suffix}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete image');
-      await refresh();
+      await handleApiFailure(err, 'Failed to delete image');
     }
   };
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedCount = selectedIds.length;
 
-  const handleBulkFavorite = async () => {
+  const handleBulkFavorite = useCallback(async () => {
     if (!selectedCount) return;
     setData((prev) => ({
       ...prev,
@@ -406,11 +414,11 @@ export default function GalleryPage() {
     try {
       await bulkFavorite(selectedIds, true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update favorites');
+      await handleApiFailure(err, 'Failed to update favorites');
     }
-  };
+  }, [handleApiFailure, selectedCount, selectedIdSet, selectedIds]);
 
-  const handleBulkHidden = async () => {
+  const handleBulkHidden = useCallback(async () => {
     if (!selectedCount) return;
     setData((prev) => ({
       ...prev,
@@ -421,11 +429,11 @@ export default function GalleryPage() {
     try {
       await bulkHidden(selectedIds, true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+      await handleApiFailure(err, 'Failed to update hidden state');
     }
-  };
+  }, [handleApiFailure, selectedCount, selectedIdSet, selectedIds]);
 
-  const handleBulkRating = async (rating: number) => {
+  const handleBulkRating = useCallback(async (rating: number) => {
     if (!selectedCount) return;
     const nextRating = clamp(Math.round(rating), 0, 5);
     setData((prev) => ({
@@ -437,9 +445,9 @@ export default function GalleryPage() {
     try {
       await bulkRating(selectedIds, nextRating);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update ratings');
+      await handleApiFailure(err, 'Failed to update ratings');
     }
-  };
+  }, [handleApiFailure, selectedCount, selectedIdSet, selectedIds]);
 
   const handleBulkDelete = async () => {
     if (!selectedCount) return;
@@ -460,12 +468,11 @@ export default function GalleryPage() {
         response.blacklisted > 0 ? `; blacklisted ${response.blacklisted}.` : '.';
       setStatus(`Removed ${response.deleted} images${suffix}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete images');
-      await refresh();
+      await handleApiFailure(err, 'Failed to delete images');
     }
   };
 
-  const handleBulkTag = async (value: string) => {
+  const handleBulkTag = useCallback(async (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized || !selectedCount) return;
     const updates = data.images
@@ -484,9 +491,9 @@ export default function GalleryPage() {
     try {
       await bulkTags(updates);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update tags');
+      await handleApiFailure(err, 'Failed to update tags');
     }
-  };
+  }, [data.images, handleApiFailure, selectedCount, selectedIdSet]);
 
   const handleSync = async () => {
     try {
@@ -585,13 +592,13 @@ export default function GalleryPage() {
     return Math.max(MIN_TILE_SIZE, Math.floor(available / effectiveColumns));
   }, [galleryWidth, effectiveColumns]);
 
-  const handleSelectImage = (imageId: string) => {
+  const handleSelectImage = useCallback((imageId: string) => {
     if (multiSelect) {
       handleToggleSelectedId(imageId);
     } else {
       setSelectedId(imageId);
     }
-  };
+  }, [handleToggleSelectedId, multiSelect]);
 
   return (
     <div

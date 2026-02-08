@@ -14,7 +14,8 @@ type GalleryProps = {
   onToggleHidden: (image: ImageItem) => void;
 };
 
-const Gallery = React.forwardRef<HTMLElement, GalleryProps>(
+const Gallery = React.memo(
+  React.forwardRef<HTMLElement, GalleryProps>(
   (
     {
       images,
@@ -40,17 +41,6 @@ const Gallery = React.forwardRef<HTMLElement, GalleryProps>(
       });
     }, []);
 
-    const getContentStyle = (image: ImageItem): React.CSSProperties | undefined => {
-      if (tileFit !== 'contain') return undefined;
-      const ratio = ratios[image.id];
-      if (!ratio) {
-        return { width: tileSize, height: tileSize };
-      }
-      const width = ratio >= 1 ? tileSize * ratio : tileSize;
-      const height = ratio >= 1 ? tileSize : tileSize / ratio;
-      return { width: Math.round(width), height: Math.round(height) };
-    };
-
     return (
       <main
         ref={ref}
@@ -66,19 +56,21 @@ const Gallery = React.forwardRef<HTMLElement, GalleryProps>(
           <ImageCard
             key={image.id}
             image={image}
+            ratio={ratios[image.id]}
+            tileSize={tileSize}
             tileFit={tileFit}
             selected={selectedIds.has(image.id)}
             multiSelect={multiSelect}
-            style={getContentStyle(image)}
-            onSelect={() => onSelectImage(image.id)}
-            onToggleFavorite={() => onToggleFavorite(image)}
-            onToggleHidden={() => onToggleHidden(image)}
-            onImageLoad={(element) => handleImageLoad(image.id, element)}
+            onSelectImage={onSelectImage}
+            onToggleFavorite={onToggleFavorite}
+            onToggleHidden={onToggleHidden}
+            onImageLoad={handleImageLoad}
           />
         ))}
       </main>
     );
   }
+  )
 );
 
 Gallery.displayName = 'Gallery';

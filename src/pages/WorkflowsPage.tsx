@@ -856,8 +856,8 @@ function WorkflowDetail({
     };
   }, []);
 
-  const loadOutputImage = useCallback(async (imagePath: string) => {
-    if (outputCache[imagePath]) return;
+  const loadOutputImage = useCallback(async (imagePath: string, options: { force?: boolean } = {}) => {
+    if (!options.force && outputCache[imagePath]) return;
     try {
       const image = await api<ImageItem>(`/api/images/${encodeURIComponent(imagePath)}`);
       // Ensure tags is always an array for consistency
@@ -877,6 +877,19 @@ function WorkflowDetail({
   const loadOutputImages = useCallback(async (paths: string[]) => {
     await Promise.all(paths.map((path) => loadOutputImage(path)));
   }, [loadOutputImage]);
+
+  const refreshOutputImage = useCallback(async (imagePath: string) => {
+    await loadOutputImage(imagePath, { force: true });
+  }, [loadOutputImage]);
+
+  const handleOutputUpdateFailure = useCallback(
+    async (imagePath: string, err: unknown, fallback: string) => {
+      const message = err instanceof Error ? err.message : fallback;
+      await refreshOutputImage(imagePath);
+      setError(message);
+    },
+    [refreshOutputImage]
+  );
 
   const updateOutputCache = useCallback((imagePath: string, updater: (image: ImageItem) => ImageItem) => {
     setOutputCache((prev) => {
@@ -1143,7 +1156,7 @@ function WorkflowDetail({
     try {
       await setFavorite(selectedOutputImage.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update favorite');
+      await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update favorite');
     }
   };
 
@@ -1154,7 +1167,11 @@ function WorkflowDetail({
     try {
       await setHidden(selectedOutputImage.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+      await handleOutputUpdateFailure(
+        selectedOutputImage.id,
+        err,
+        'Failed to update hidden state'
+      );
     }
   };
 
@@ -1164,7 +1181,7 @@ function WorkflowDetail({
     try {
       await setRating(selectedOutputImage.id, rating);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update rating');
+      await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update rating');
     }
   };
 
@@ -1176,7 +1193,7 @@ function WorkflowDetail({
       // Refresh global tags so new tags appear in suggestions across the app
       refreshTags();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update tags');
+      await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update tags');
     }
   };
 
@@ -1187,7 +1204,7 @@ function WorkflowDetail({
     try {
       await setFavorite(selectedInputImage.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update favorite');
+      await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update favorite');
     }
   };
 
@@ -1198,7 +1215,11 @@ function WorkflowDetail({
     try {
       await setHidden(selectedInputImage.id, nextValue);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update hidden state');
+      await handleOutputUpdateFailure(
+        selectedInputImage.id,
+        err,
+        'Failed to update hidden state'
+      );
     }
   };
 
@@ -1208,7 +1229,7 @@ function WorkflowDetail({
     try {
       await setRating(selectedInputImage.id, rating);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update rating');
+      await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update rating');
     }
   };
 
@@ -1219,7 +1240,7 @@ function WorkflowDetail({
       await setTags(selectedInputImage.id, tags);
       refreshTags();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update tags');
+      await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update tags');
     }
   };
 

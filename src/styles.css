@@ -550,6 +550,8 @@ body.slideshow-open {
   aspect-ratio: 1 / 1;
   width: 100%;
   height: 100%;
+  content-visibility: auto;
+  contain-intrinsic-size: var(--tile-size, 180px) var(--tile-size, 180px);
 }
 
 .card.selected {

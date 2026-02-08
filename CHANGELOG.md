@@ -11,6 +11,14 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Stabilized gallery modal navigation handlers to avoid stale closures in key navigation.
 
+## [0.6.5] - 2026-02-08
+
+### Changed
+- Optimized gallery card rendering for large libraries via memoization and browser content-visibility hints.
+
+### Fixed
+- Refresh image metadata on failed optimistic updates to keep UI state consistent with the server.
+
 ## [0.6.3] - 2026-02-08
 
 ### Fixed

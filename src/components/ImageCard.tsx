@@ -1,36 +1,76 @@
-import type { CSSProperties } from 'react';
+import { memo, useCallback, useMemo } from 'react';
+import type { MouseEvent, SyntheticEvent } from 'react';
 import type { ImageItem, TileFit } from '../types';
 
 type ImageCardProps = {
   image: ImageItem;
+  ratio?: number;
+  tileSize: number;
   tileFit: TileFit;
   selected: boolean;
   multiSelect: boolean;
-  style?: CSSProperties;
-  onSelect: () => void;
-  onToggleFavorite: () => void;
-  onToggleHidden: () => void;
-  onImageLoad: (element: HTMLImageElement) => void;
+  onSelectImage: (id: string) => void;
+  onToggleFavorite: (image: ImageItem) => void;
+  onToggleHidden: (image: ImageItem) => void;
+  onImageLoad: (id: string, element: HTMLImageElement) => void;
 };
 
-export default function ImageCard({
+function ImageCard({
   image,
+  ratio,
+  tileSize,
   tileFit,
   selected,
   multiSelect,
-  style,
-  onSelect,
+  onSelectImage,
   onToggleFavorite,
   onToggleHidden,
   onImageLoad
 }: ImageCardProps) {
+  const style = useMemo(() => {
+    if (tileFit !== 'contain') return undefined;
+    if (!ratio) {
+      return { width: tileSize, height: tileSize };
+    }
+    const width = ratio >= 1 ? tileSize * ratio : tileSize;
+    const height = ratio >= 1 ? tileSize : tileSize / ratio;
+    return { width: Math.round(width), height: Math.round(height) };
+  }, [ratio, tileFit, tileSize]);
+
+  const handleSelect = useCallback(() => {
+    onSelectImage(image.id);
+  }, [image.id, onSelectImage]);
+
+  const handleToggleHidden = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onToggleHidden(image);
+    },
+    [image, onToggleHidden]
+  );
+
+  const handleToggleFavorite = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      onToggleFavorite(image);
+    },
+    [image, onToggleFavorite]
+  );
+
+  const handleImageLoad = useCallback(
+    (event: SyntheticEvent<HTMLImageElement>) => {
+      onImageLoad(image.id, event.currentTarget);
+    },
+    [image.id, onImageLoad]
+  );
+
   return (
     <button
       className={`card ${tileFit} ${image.hidden ? 'hidden' : ''} ${
         selected ? 'selected' : ''
       } ${multiSelect ? 'multi-select' : ''}`}
       type="button"
-      onClick={onSelect}
+      onClick={handleSelect}
       style={style}
     >
       <img
@@ -39,7 +79,7 @@ export default function ImageCard({
         loading="lazy"
         decoding="async"
         fetchPriority="low"
-        onLoad={(event) => onImageLoad(event.currentTarget)}
+        onLoad={handleImageLoad}
         onError={(event) => {
           if (!image.thumbUrl) return;
           const target = event.currentTarget;
@@ -68,10 +108,7 @@ export default function ImageCard({
           <button
             className={image.hidden ? 'card-action hide active' : 'card-action hide'}
             type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleHidden();
-            }}
+            onClick={handleToggleHidden}
             aria-label={image.hidden ? 'Unhide' : 'Hide'}
             title={image.hidden ? 'Hidden' : 'Hide'}
           >
@@ -106,10 +143,7 @@ export default function ImageCard({
           <button
             className={image.favorite ? 'card-action fav active' : 'card-action fav'}
             type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleFavorite();
-            }}
+            onClick={handleToggleFavorite}
             aria-label={image.favorite ? 'Unfavorite' : 'Favorite'}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -129,3 +163,5 @@ export default function ImageCard({
     </button>
   );
 }
+
+export default memo(ImageCard);
