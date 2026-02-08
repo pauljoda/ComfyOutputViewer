@@ -45,6 +45,7 @@ Built with React + TypeScript frontend and Node.js/Express backend with SQLite s
 ### Theming
 
 - **Light, Dark, and System** — Three theme modes with automatic system preference detection.
+- **Modern Design** — Glassmorphism panels, orange/violet accent palette, Inter font, and smooth micro-interactions throughout.
 
 ---
 

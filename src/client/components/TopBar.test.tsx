@@ -21,6 +21,9 @@ function createProps(overrides = {}) {
     availableTags: ['portrait', 'night'],
     showUntagged: false,
     imageCount: 3,
+    loading: false,
+    status: '',
+    error: null,
     onOpenDrawer: vi.fn(),
     onToggleTool: vi.fn(),
     onDismissTool: vi.fn(),
@@ -87,7 +90,7 @@ describe('TopBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'portrait' }));
     expect(props.onAddFilterTag).toHaveBeenCalledWith('portrait');
 
-    fireEvent.pointerDown(container.querySelector('.filter-pill') as HTMLElement);
+    fireEvent.pointerDown(container.querySelector('header') as HTMLElement);
     expect(props.onDismissTool).toHaveBeenCalled();
   });
 });

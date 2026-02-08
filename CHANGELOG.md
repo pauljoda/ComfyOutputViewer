@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.7.10] - 2026-02-08
+## [0.8.9] - 2026-02-08
 
 ### Added
 - Added a dedicated mock sandbox seeding script at `scripts/seed-mock-dev-data.mjs` that downloads sample images into `.mock-dev/source`, mirrors them into `.mock-dev/data`, and seeds example gallery metadata (favorites, hidden, ratings, tags, and prompt summaries).
@@ -12,22 +12,120 @@ All notable changes to this project will be documented in this file.
 - Added `npm run mock:seed` to refresh sandbox dataset content.
 - Added `npm run dev:mock` to seed and run development against dummy source/data directories while keeping `COMFY_API_URL` unchanged for real ComfyUI API calls.
 - Documented mock sandbox mode and `MOCK_DEV_ROOT` in `README.md` and `.env.example`.
+- Restored swipe-based image navigation in the detail modal and removed left/right half-screen tap navigation.
+- Bumped version to 0.8.9 and refreshed `flake.nix` npmDepsHash after the package-lock update.
 
-## [0.7.9] - 2026-02-08
+## [0.8.8] - 2026-02-08
 
 ### Fixed
-- Backported the gallery column-sizing fix from `redesign/modern-ui` by updating `useElementSize` to use consistent content-box measurements on initial mount (client size minus padding), preventing padding from skewing column calculations.
+- Replaced gesture/swipe-driven image navigation in the detail modal with direct left/right half tap navigation wired to the same previous/next actions as the toolbar buttons.
+- Removed touch/pointer swipe tracking logic that was causing unstable mobile behavior and laggy/odd swipe interactions.
+- Kept zoom and pan enabled while adding pan/pinch guards so tap navigation does not fire immediately after gesture interactions.
+- Simplified modal image transitions by removing swipe-entry opacity state from image rendering.
+- Bumped version to 0.8.8 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
+## [0.8.7] - 2026-02-08
+
+### Fixed
+- Applied a WebKit-focused modal rendering fix to address severe mobile image-movement lag that persisted after restoring pre-regression interaction logic.
+- Removed experimental transform/compositor hints (`will-change`, `translateZ`, forced modal touch-action) that regressed iOS interaction smoothness.
+- Kept the Safari-specific modal chrome fallback that disables costly `backdrop-filter` on iOS while preserving desktop styling.
+- Restricted modal debug overlay activation to explicit `?debug=1` query usage only, avoiding accidental persisted debug overhead from prior sessions.
+- Bumped version to 0.8.7 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
+## [0.8.6] - 2026-02-08
+
+### Fixed
+- Restored image detail interaction behavior to the pre-regression model used before recent modal performance experiments, while preserving the redesigned toolbar/visual UI.
+- Reverted modal image source handling from progressive thumb/full promotion back to direct full-image rendering to eliminate snap/jump artifacts during open and navigation.
+- Reverted swipe gesture thresholds and transition timing to the prior stable settings to restore reliable mobile swipe behavior.
+- Reverted fit-scale and transform lifecycle logic to the previously stable flow (`TransformWrapper` remount per image, resize observer gating, transform reset timing) to prevent odd modal movement.
+- Removed adjacent-image preload wiring introduced during recent perf tuning after it regressed modal interaction consistency.
+- Bumped version to 0.8.6 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
+## [0.8.5] - 2026-02-08
 
 ### Changed
-- Backported gallery scroll/render performance tweaks from `redesign/modern-ui`: removed `fetchPriority="low"` from gallery card images, switched cards from `content-visibility: auto` to `contain: layout style paint`, and added lightweight image placeholder/fade-in styling plus horizontal overflow clipping in the gallery container.
-- Updated `useElementSize` client tests to validate padding-aware content-box measurement behavior.
+- Performed a deeper detail-view performance pass focused on mobile lag and swipe fluidity.
+- Added modal progressive image loading (`thumbUrl` first, full image promoted after decode) to improve perceived open time and image-to-image responsiveness.
+- Simplified modal image transitions by removing extra swipe fade state and opacity transition churn between images.
+- Reworked modal fit-scale calculations to use natural image dimensions instead of transformed layout reads for lighter per-image setup.
+- Tightened mobile gesture behavior by reducing swipe thresholds, applying earlier transform reset via layout effect, and reducing mobile GPU blur work on modal bars.
+- Added `touch-action` handling on the modal stage to reduce gesture interference and improve swipe consistency.
+- Kept adjacent-image preloading and prompt-metadata caching/deferred loading from v0.8.4 to preserve smooth navigation on large libraries.
+- Bumped version to 0.8.5 and refreshed `flake.nix` npmDepsHash after the package-lock update.
 
-## [0.7.8] - 2026-02-08
+## [0.8.4] - 2026-02-08
 
 ### Changed
-- Added explicit Vite allowed host configuration for local and remote access by allowing `localhost`, `127.0.0.1`, `.local`, and `comfy-viewer.pauljoda.com`.
-- Applied the same host allowlist to both Vite dev server and preview server while keeping LAN bind on `0.0.0.0`.
-- Bumped version to 0.7.8 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+- Improved image detail modal responsiveness by reducing heavy work during initial open and image-to-image navigation.
+- Deferred prompt-metadata fetches for newly opened images to a short background prefetch window and only show prompt loading UI when the prompt panel is explicitly opened.
+- Added lightweight in-memory prompt metadata caching to avoid repeated prompt API roundtrips when revisiting images.
+- Added adjacent-image preloading (previous/next) in the modal flow so navigation feels faster and more fluid.
+- Removed `TransformWrapper` remount-on-image behavior to reduce navigation churn and keep modal interactions smoother.
+- Tightened modal transition timing and prioritized modal image decode/fetch for faster visible paint.
+
+## [0.8.3] - 2026-02-08
+
+### Changed
+- Ran a release-readiness quality pass across the client UI to tighten accessibility, consistency, and interaction semantics.
+- Converted gallery cards from nested button markup to a keyboard-accessible card container with explicit button role semantics, removing invalid nested interactive HTML.
+- Added stronger icon-button accessibility coverage (`aria-label`) across modal/workflow controls and upgraded multiple modal overlays to explicit backdrop buttons with dialog metadata.
+- Improved browser theming consistency by syncing `color-scheme` and `<meta name="theme-color">` with light/dark mode changes.
+- Replaced broad `transition-all` usage in key interactive/progress components with explicit property transitions for better rendering performance.
+- Added small UX/copy consistency polish (`…` loading labels, live status regions, improved form labeling/autocomplete hints).
+- Added minor gallery memory hygiene by clearing stale ratio caches when the image window changes.
+
+### Fixed
+- Removed React test warnings caused by nested `<button>` markup in gallery image cards.
+- Eliminated `act(...)` warnings in `TagsContext` tests by waiting for initial async tag refresh before assertions.
+- Updated slideshow settings modal tests to target the new explicit backdrop close control.
+
+## [0.8.2] - 2026-02-08
+
+### Changed
+- Improved gallery first-load performance for large libraries with progressive rendering that starts with a larger initial batch and prefetches additional batches before they enter the viewport.
+- Updated progressive gallery loading to use an off-screen intersection sentinel with generous root margin buffering so users do not see new batches pop in while scrolling.
+- Added a short, clean card entrance animation for initial gallery appearance and disabled that entry animation for later progressive batches to keep scrolling smooth.
+- Smoothed image reveal behavior by fading in loaded thumbnails to reduce visible loading flashes on incoming cards.
+
+## [0.8.1] - 2026-02-08
+
+### Added
+- Added animated mesh gradient background with slow-drifting aurora of accent/secondary colors behind the app shell.
+- Added floating ambient orbs — two large blurred decorative circles that drift subtly in the background for depth.
+- Added animated shimmer sweep on the navigation bottom border.
+- Added gradient text fill on the app title (accent to secondary).
+- Added card hover lift, glow, and subtle tilt rotation with smooth spring-like transition.
+- Added spinning conic-gradient border on selected cards using CSS `@property` for a dynamic "border beam" effect.
+- Added heart burst animation on favorite toggle — scale bounce with glow pulse.
+- Added rating badge metallic shimmer sweep animation.
+- Added tag chip pop-in animation with staggered bounce entrance.
+- Added filter pill ambient pulse glow.
+- Added tool button scale-up and glow on hover.
+- Added dramatic modal entrance with scale-from-0.92 and blur-clearing effect.
+- Added status message slide-in from right with spring overshoot and gradient accent border.
+- Added accent-to-secondary gradient on custom scrollbar thumbs.
+- Added Ken Burns slow-zoom effect on slideshow images.
+- Added gallery empty state with pulsing orb and expanding ring animation.
+- Added `prefers-reduced-motion` media query that disables all animations and transitions globally.
+
+## [0.8.0] - 2026-02-08
+
+### Changed
+- Redesigned the full UI with a modern aesthetic: new orange/violet color palette, glassmorphism toolbar and panels, Inter font stack, and gradient accents throughout.
+- Overhauled the gallery grid to fill the full viewport width with consistent 12px tile gap and 16px horizontal padding, replacing the previous narrower centered layout.
+- Merged the StatusBar into the TopBar component, showing loading state, status messages, and error alerts inline with an image count badge on the filter pill.
+- Modernized all modals and tool popovers with floating glass panels, slide-in animations, increased backdrop blur, and full-viewport scrims.
+- Redesigned card overlays with solid dark backgrounds instead of per-element backdrop-filter blur, eliminating GPU-intensive compositing on large galleries.
+- Wrapped all `:hover` card effects in `@media (hover: hover)` to fix the mobile double-tap issue where the first tap triggered hover state instead of selection.
+- Replaced `content-visibility: auto` with `contain: layout style paint` on gallery cards and added placeholder backgrounds with fade-in animations to reduce image loading flash during scroll.
+- Fixed `useElementSize` hook to use consistent content-box measurements (clientWidth minus padding) for both initial mount and ResizeObserver callbacks, resolving grid column calculation errors when gallery padding was present.
+- Removed `scrollbar-gutter: stable` from the gallery to reclaim permanent scrollbar space.
+- Shrunk mobile toolbar buttons and filter pills to prevent overflow on narrow screens.
+- Matched the workflows sidebar glass style to the tag drawer with translucent background and 32px backdrop blur.
+- Kept the version subtitle visible at the 768px breakpoint instead of hiding it.
+- Tightened nav bar padding and simplified button styles from gradients to flat colors.
 
 ## [0.7.7] - 2026-02-08
 

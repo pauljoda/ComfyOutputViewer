@@ -1,5 +1,7 @@
+import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 const allowedHosts = [
   'localhost',
@@ -9,7 +11,12 @@ const allowedHosts = [
 ];
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src/client')
+    }
+  },
   server: {
     port: 8008,
     strictPort: true,
@@ -18,7 +25,8 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8009',
       '/images': 'http://localhost:8009'
-    }
+    },
+    allowedHosts: ['comfy-viewer.pauljoda.com', 'localhost']
   },
   preview: {
     port: 8008,

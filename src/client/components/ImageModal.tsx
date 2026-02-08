@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import {
+  X, Heart, Star, EyeOff, Download, Trash2, ChevronLeft, ChevronRight,
+  ZoomIn, ZoomOut, RotateCcw, Hash, Info
+} from 'lucide-react';
+import { Button } from './ui/button';
 import type { ImageItem, ModalTool } from '../types';
 import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
@@ -41,8 +46,8 @@ type PromptData = {
 };
 
 const DEFAULT_MIN_SCALE = 0.1;
-const FIT_WIDTH_RATIO = 0.92;
-const FIT_HEIGHT_RATIO = 0.78;
+const FIT_WIDTH_RATIO = 0.96;
+const FIT_HEIGHT_RATIO = 0.94;
 const MAX_FIT_ATTEMPTS = 12;
 const FIT_EPSILON = 0.01;
 
@@ -148,36 +153,16 @@ export default function ImageModal({
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
-    return params.get('debug') === '1' || window.localStorage.getItem('comfy_debug') === '1';
+    return params.get('debug') === '1';
   }, []);
 
-  const handlePrev = () => {
-    onPrev();
-  };
-
-  const handleNext = () => {
-    onNext();
-  };
-
-  const handleClose = () => {
-    onClose();
-  };
-
-  const handleToggleTags = () => {
-    onToggleTags();
-  };
-
-  const handleToggleRating = () => {
-    onToggleRating();
-  };
-
-  const handleTogglePrompt = () => {
-    onTogglePrompt();
-  };
-
-  const handlePromptOverlayClick = () => {
-    onTogglePrompt();
-  };
+  const handlePrev = () => onPrev();
+  const handleNext = () => onNext();
+  const handleClose = () => onClose();
+  const handleToggleTags = () => onToggleTags();
+  const handleToggleRating = () => onToggleRating();
+  const handleTogglePrompt = () => onTogglePrompt();
+  const handlePromptOverlayClick = () => onTogglePrompt();
 
   const handleLoadWorkflow = () => {
     if (!promptWorkflowId) return;
@@ -193,25 +178,14 @@ export default function ImageModal({
       console.warn('Failed to store workflow prefill payload:', err);
     }
     navigate(`/workflows/${promptWorkflowId}`, {
-      state: {
-        prefill: prefillPayload
-      }
+      state: { prefill: prefillPayload }
     });
     onClose();
   };
 
-  const handleDelete = () => {
-    onDelete();
-  };
-
-  const handleZoomIn = () => {
-    transformRef.current?.zoomIn(0.35);
-  };
-
-  const handleZoomOut = () => {
-    transformRef.current?.zoomOut(0.35);
-  };
-
+  const handleDelete = () => onDelete();
+  const handleZoomIn = () => transformRef.current?.zoomIn(0.35);
+  const handleZoomOut = () => transformRef.current?.zoomOut(0.35);
   const handleResetZoom = () => {
     const img = imageRef.current;
     if (img) {
@@ -232,8 +206,8 @@ export default function ImageModal({
       const wrapper = transformRef.current?.instance.wrapperComponent;
       const content = transformRef.current?.instance.contentComponent;
       const img = imageRef.current;
-      const modalBody = document.querySelector('.modal-body') as HTMLElement | null;
-      const modalStage = document.querySelector('.modal-stage') as HTMLElement | null;
+      const modalBody = document.querySelector('[data-modal-body]') as HTMLElement | null;
+      const modalStage = document.querySelector('[data-modal-stage]') as HTMLElement | null;
       const wrapperRect = wrapper?.getBoundingClientRect();
       const contentRect = content?.getBoundingClientRect();
       const imgRect = img?.getBoundingClientRect();
@@ -249,28 +223,12 @@ export default function ImageModal({
         reason,
         image: image.name,
         viewport: `${format(window.innerWidth)} x ${format(window.innerHeight)}`,
-        doc: `${format(document.documentElement.clientWidth)} x ${format(
-          document.documentElement.clientHeight
-        )}`,
-        visual: visualViewport
-          ? `${format(visualViewport.width)} x ${format(visualViewport.height)}`
-          : 'n/a',
-        body: modalBody
-          ? `${format(modalBody.getBoundingClientRect().width)} x ${format(
-              modalBody.getBoundingClientRect().height
-            )}`
-          : 'n/a',
-        stage: modalStage
-          ? `${format(modalStage.getBoundingClientRect().width)} x ${format(
-              modalStage.getBoundingClientRect().height
-            )}`
-          : 'n/a',
-        wrapper: wrapperRect
-          ? `${format(wrapperRect.width)} x ${format(wrapperRect.height)}`
-          : 'n/a',
-        content: contentRect
-          ? `${format(contentRect.width)} x ${format(contentRect.height)}`
-          : 'n/a',
+        doc: `${format(document.documentElement.clientWidth)} x ${format(document.documentElement.clientHeight)}`,
+        visual: visualViewport ? `${format(visualViewport.width)} x ${format(visualViewport.height)}` : 'n/a',
+        body: modalBody ? `${format(modalBody.getBoundingClientRect().width)} x ${format(modalBody.getBoundingClientRect().height)}` : 'n/a',
+        stage: modalStage ? `${format(modalStage.getBoundingClientRect().width)} x ${format(modalStage.getBoundingClientRect().height)}` : 'n/a',
+        wrapper: wrapperRect ? `${format(wrapperRect.width)} x ${format(wrapperRect.height)}` : 'n/a',
+        content: contentRect ? `${format(contentRect.width)} x ${format(contentRect.height)}` : 'n/a',
         imgRect: imgRect ? `${format(imgRect.width)} x ${format(imgRect.height)}` : 'n/a',
         natural: img ? `${img.naturalWidth} x ${img.naturalHeight}` : 'n/a',
         rendered: img ? `${img.width} x ${img.height}` : 'n/a',
@@ -342,9 +300,6 @@ export default function ImageModal({
   };
 
   const tagQuery = normalizeTagInput(tagInput);
-  // Compute suggestions directly (not memoized) to ensure we always use the latest
-  // availableTags and image.tags from props, avoiding stale closure issues
-  // Defensive: ensure imageTags and availableTags are always arrays
   const imageTags = Array.isArray(image.tags) ? image.tags : [];
   const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
   const suggestions = safeAvailableTags.filter(
@@ -398,14 +353,10 @@ export default function ImageModal({
     }> = [];
     const jobInputs = promptData.jobInputs ?? [];
     const jobInputByLabel = new Map(
-      jobInputs
-        .filter((input) => input.label)
-        .map((input) => [String(input.label), input])
+      jobInputs.filter((input) => input.label).map((input) => [String(input.label), input])
     );
     const jobInputByKey = new Map(
-      jobInputs
-        .filter((input) => input.inputKey)
-        .map((input) => [String(input.inputKey), input])
+      jobInputs.filter((input) => input.inputKey).map((input) => [String(input.inputKey), input])
     );
     const promptSource =
       promptData.promptData?.inputs && promptData.promptData.inputs.length > 0
@@ -417,12 +368,7 @@ export default function ImageModal({
         const byKey = input.systemLabel ? jobInputByKey.get(String(input.systemLabel)) : undefined;
         const inputId = input.inputId ?? byLabel?.inputId ?? byKey?.inputId;
         const value = input.value === null || input.value === undefined ? '' : String(input.value);
-        entries.push({
-          inputId,
-          label: input.label,
-          systemLabel: input.systemLabel,
-          value
-        });
+        entries.push({ inputId, label: input.label, systemLabel: input.systemLabel, value });
       });
     } else if (jobInputs.length > 0) {
       jobInputs.forEach((input) => {
@@ -452,9 +398,7 @@ export default function ImageModal({
     setTagInput('');
   };
 
-  const handleAddTag = () => {
-    handleAddTagValue(tagInput);
-  };
+  const handleAddTag = () => handleAddTagValue(tagInput);
 
   const handleRemoveTag = (tag: string) => {
     onUpdateTags(image.tags.filter((entry) => entry !== tag));
@@ -483,17 +427,14 @@ export default function ImageModal({
     const start = swipeStartRef.current;
     swipeStartRef.current = null;
     if (!start) return;
-
     if (isPanningRef.current || isPinchingRef.current || scaleRef.current > 1.02) {
       swipeLastRef.current = null;
       return;
     }
-
     const touch = event.changedTouches[0];
     const endX = touch?.clientX ?? swipeLastRef.current?.x ?? start.x;
     const endY = touch?.clientY ?? swipeLastRef.current?.y ?? start.y;
     swipeLastRef.current = null;
-
     const dx = endX - start.x;
     const dy = endY - start.y;
     const absX = Math.abs(dx);
@@ -501,19 +442,13 @@ export default function ImageModal({
     const elapsed = Date.now() - start.time;
     const minDistance = 84;
     const axisRatio = 1.4;
-
     if (elapsed > 800 || Math.max(absX, absY) < minDistance) return;
-
     if (absX > absY * axisRatio) {
       lastSwipeAtRef.current = Date.now();
-      if (dx < 0) {
-        handleNext();
-      } else {
-        handlePrev();
-      }
+      if (dx < 0) handleNext();
+      else handlePrev();
       return;
     }
-
     if (absY > absX * axisRatio) {
       lastSwipeAtRef.current = Date.now();
       handleClose();
@@ -528,9 +463,7 @@ export default function ImageModal({
     setMinScale(DEFAULT_MIN_SCALE);
     transformRef.current?.resetTransform(0);
     setSwipeIncoming(true);
-    const timer = window.setTimeout(() => {
-      setSwipeIncoming(false);
-    }, 200);
+    const timer = window.setTimeout(() => setSwipeIncoming(false), 200);
     return () => window.clearTimeout(timer);
   }, [image.id]);
 
@@ -577,9 +510,7 @@ export default function ImageModal({
     if (!start) return;
     const dx = event.clientX - start.x;
     const dy = event.clientY - start.y;
-    if (Math.hypot(dx, dy) > 6) {
-      dragMovedRef.current = true;
-    }
+    if (Math.hypot(dx, dy) > 6) dragMovedRef.current = true;
   };
 
   const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -602,8 +533,18 @@ export default function ImageModal({
     handleClose();
   };
 
+  const toolBtnClass = (active: boolean) =>
+    `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+      active ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'
+    }`;
+
   return (
-    <div className="modal" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-black/90"
+      role="dialog"
+      aria-modal="true"
+      data-image-modal="true"
+    >
       <TransformWrapper
         key={image.id}
         ref={transformRef}
@@ -617,18 +558,10 @@ export default function ImageModal({
         wheel={{ step: 0.2 }}
         pinch={{ step: 8 }}
         doubleClick={{ mode: 'zoomIn', step: 1 }}
-        onPanningStart={() => {
-          isPanningRef.current = true;
-        }}
-        onPanningStop={() => {
-          isPanningRef.current = false;
-        }}
-        onPinchingStart={() => {
-          isPinchingRef.current = true;
-        }}
-        onPinchingStop={() => {
-          isPinchingRef.current = false;
-        }}
+        onPanningStart={() => { isPanningRef.current = true; }}
+        onPanningStop={() => { isPanningRef.current = false; }}
+        onPinchingStart={() => { isPinchingRef.current = true; }}
+        onPinchingStop={() => { isPinchingRef.current = false; }}
         onTransformed={(_, state) => {
           scaleRef.current = state.scale;
           lastStateRef.current = state;
@@ -640,230 +573,132 @@ export default function ImageModal({
         }}
       >
         <>
-          <div className="modal-topbar" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-topbar-row">
-              <div className="modal-title-group">
+          {/* Top bar */}
+          <div
+            className="image-modal-chrome relative z-10 flex flex-col bg-background/80 backdrop-blur-sm"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-1 px-2 py-1.5">
+              <button className={toolBtnClass(false)} type="button" onClick={handleClose} title="Close" aria-label="Close image viewer">
+                <X className="h-4 w-4" />
+              </button>
+              <div className="ml-auto flex items-center gap-1">
                 <button
-                  className="tool-button modal-close"
-                  type="button"
-                  onClick={handleClose}
-                  title="Close"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M6 6l12 12M18 6l-12 12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="modal-actions modal-actions-primary">
-                <button
-                  className={modalTool === 'tags' ? 'tool-button active' : 'tool-button'}
+                  className={toolBtnClass(modalTool === 'tags')}
                   type="button"
                   onClick={handleToggleTags}
                   title="Tags"
+                  aria-label="Edit tags"
                 >
-                  #
+                  <Hash className="h-4 w-4" />
                 </button>
                 <button
-                  className={image.favorite ? 'tool-button favorite active' : 'tool-button favorite'}
+                  className={`${toolBtnClass(false)} ${image.favorite ? 'text-favorite' : ''}`}
                   type="button"
                   onClick={onToggleFavorite}
                   title="Favorite"
+                  aria-label={image.favorite ? 'Unfavorite image' : 'Favorite image'}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 20.5l-1.1-1C6 15 3 12.2 3 8.7 3 6 5 4 7.6 4c1.6 0 3.1.8 4 2.1C12.5 4.8 14 4 15.6 4 18.2 4 20 6 20 8.7c0 3.5-3 6.3-7.9 10.8L12 20.5z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <Heart className={`h-4 w-4 ${image.favorite ? 'fill-current' : ''}`} />
                 </button>
                 <button
-                  className={
-                    modalTool === 'rating'
-                      ? 'tool-button rating-button active'
-                      : image.rating > 0
-                        ? 'tool-button rating-button rated'
-                        : 'tool-button rating-button'
-                  }
+                  className={`${toolBtnClass(modalTool === 'rating')} ${image.rating > 0 && modalTool !== 'rating' ? 'text-rating' : ''}`}
                   type="button"
                   onClick={handleToggleRating}
                   title={image.rating > 0 ? `Rating ${image.rating}/5` : 'Rate'}
                   aria-label={image.rating > 0 ? `Rating ${image.rating} of 5` : 'Rate'}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 3.8l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" />
-                  </svg>
+                  <Star className={`h-4 w-4 ${image.rating > 0 ? 'fill-current' : ''}`} />
                 </button>
                 {promptAvailable && (
                   <button
-                    className={modalTool === 'prompt' ? 'tool-button active' : 'tool-button'}
+                    className={toolBtnClass(modalTool === 'prompt')}
                     type="button"
                     onClick={handleTogglePrompt}
                     title="View prompt"
                     aria-label="View prompt data"
                   >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="9"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                      />
-                      <path
-                        d="M12 10v6"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.7"
-                        strokeLinecap="round"
-                      />
-                      <circle cx="12" cy="7" r="1.2" fill="currentColor" />
-                    </svg>
+                    <Info className="h-4 w-4" />
                   </button>
                 )}
                 <button
-                  className={image.hidden ? 'tool-button modal-hide active' : 'tool-button modal-hide'}
+                  className={`${toolBtnClass(false)} ${image.hidden ? 'text-destructive' : ''}`}
                   type="button"
                   onClick={onToggleHidden}
                   title="Hide"
+                  aria-label={image.hidden ? 'Unhide image' : 'Hide image'}
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                    />
-                    <path
-                      d="M4 4l16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <EyeOff className="h-4 w-4" />
                 </button>
                 <a
-                  className="tool-button"
+                  className={toolBtnClass(false)}
                   href={image.url}
                   download={image.name}
                   title="Download"
                   aria-label="Download"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5v9"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M8 10l4 4 4-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="M5 19h14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <Download className="h-4 w-4" />
                 </a>
                 <button
-                  className="tool-button danger"
+                  className={`${toolBtnClass(false)} hover:text-destructive`}
                   type="button"
                   onClick={handleDelete}
                   title="Remove"
                   aria-label="Remove"
                 >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M4 7h16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M9 7V5h6v2M9 10v7M12 10v7M15 10v7M6 7l1 12h10l1-12"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+                  <Trash2 className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
+            {/* Tool panels (tags, rating) */}
             {modalTool && modalTool !== 'prompt' && (
-              <div className="modal-tool-popover">
+              <div className="border-t border-white/10 bg-background/90 p-3">
                 {modalTool === 'tags' && (
-                  <div className="tool-panel tag-editor">
-                    <div className="tag-chip-list">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
                       {image.tags.length === 0 && (
-                        <span className="tag-empty">No tags yet.</span>
+                        <span className="text-xs text-muted-foreground">No tags yet.</span>
                       )}
                       {image.tags.map((tag) => (
                         <button
                           key={tag}
-                          className="tag-chip"
+                          className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
                           type="button"
                           onClick={() => handleRemoveTag(tag)}
                           title="Remove tag"
                         >
                           {tag}
-                          <span aria-hidden="true">×</span>
+                          <span aria-hidden="true">&times;</span>
                         </button>
                       ))}
                     </div>
-                    <label className="control">
-                      <span>Add tag</span>
-                      <div className="tag-input-row">
-                        <input
-                          list={suggestionId}
-                          value={tagInput}
-                          onChange={(event) => setTagInput(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              handleAddTag();
-                            }
-                          }}
-                          placeholder="Type a tag…"
-                        />
-                        <button
-                          className="button"
-                          type="button"
-                          onClick={handleAddTag}
-                          disabled={!tagInput.trim()}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        list={suggestionId}
+                        name="modalTag"
+                        autoComplete="off"
+                        value={tagInput}
+                        onChange={(event) => setTagInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            handleAddTag();
+                          }
+                        }}
+                        placeholder="Type a tag…"
+                        className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                      />
+                      <Button size="sm" onClick={handleAddTag} disabled={!tagInput.trim()}>
+                        Add
+                      </Button>
+                    </div>
                     {suggestions.length > 0 && (
-                      <div className="tag-chip-list tag-suggestions">
+                      <div className="flex flex-wrap gap-1">
                         {suggestions.map((tag) => (
                           <button
                             key={tag}
-                            className="tag-chip"
+                            className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
                             type="button"
                             onClick={() => handleAddTagValue(tag)}
                             title="Add tag"
@@ -878,19 +713,19 @@ export default function ImageModal({
                         <option key={tag} value={tag} />
                       ))}
                     </datalist>
-                    <div className="hint">Pinch to zoom, drag to pan.</div>
+                    <div className="text-xs text-muted-foreground">Pinch to zoom, drag to pan.</div>
                   </div>
                 )}
                 {modalTool === 'rating' && (
-                  <div className="tool-panel rating-panel">
-                    <span className="rating-panel-title">Rate this image</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-foreground">Rate this image</span>
                     <RatingStars
                       value={image.rating}
                       onChange={onRate}
                       allowClear
                       label="Image rating"
                     />
-                    <span className="hint">
+                    <span className="text-xs text-muted-foreground">
                       Click a star to rate. Click the same star to clear.
                     </span>
                   </div>
@@ -899,69 +734,62 @@ export default function ImageModal({
             )}
           </div>
 
+          {/* Prompt overlay */}
           {modalTool === 'prompt' && promptAvailable && (
-            <div className="prompt-overlay" onClick={handlePromptOverlayClick}>
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4" onClick={handlePromptOverlayClick}>
               <div
-                className="prompt-card"
+                className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border bg-background text-foreground"
                 role="dialog"
                 aria-label="Prompt metadata"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="prompt-card-header">
-                  <div className="prompt-card-heading">
-                    <span className="prompt-panel-title">Generation prompt</span>
+                <div className="flex items-center justify-between border-b p-4">
+                  <div>
+                    <div className="text-sm font-semibold">Generation prompt</div>
                     {promptData && (
-                      <span className="prompt-card-subtitle">
+                      <div className="text-xs text-muted-foreground">
                         Generated {new Date(promptData.createdAt).toLocaleString()}
-                      </span>
+                      </div>
                     )}
                   </div>
-                  <div className="prompt-card-actions">
+                  <div className="flex items-center gap-2">
                     {promptWorkflowId ? (
-                      <button
-                        className="button prompt-card-action"
-                        type="button"
-                        onClick={handleLoadWorkflow}
-                      >
+                      <Button size="sm" onClick={handleLoadWorkflow}>
                         Load Workflow
-                      </button>
+                      </Button>
                     ) : (
-                      <span className="prompt-card-missing">Workflow not saved</span>
+                      <span className="text-xs text-muted-foreground">Workflow not saved</span>
                     )}
                     <button
-                      className="prompt-card-close"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
                       type="button"
                       onClick={handleTogglePrompt}
                       aria-label="Close prompt"
                     >
-                      <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M6 6l12 12M18 6l-12 12"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                        />
-                      </svg>
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-                <div className="prompt-card-body prompt-panel">
-                  {promptLoading && <p className="prompt-loading">Loading...</p>}
-                  {promptError && <p className="prompt-error">{promptError}</p>}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {promptLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+                  {promptError && <p className="text-sm text-destructive">{promptError}</p>}
                   {promptJson && (
-                    <pre className="prompt-json">{JSON.stringify(promptJson, null, 2)}</pre>
+                    <pre className="whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs">
+                      {JSON.stringify(promptJson, null, 2)}
+                    </pre>
                   )}
                   {!promptJson && promptData && (
-                    <p className="prompt-empty">No input data recorded.</p>
+                    <p className="text-sm text-muted-foreground">No input data recorded.</p>
                   )}
                 </div>
               </div>
             </div>
           )}
 
+          {/* Image body */}
           <div
-            className="modal-body"
+            data-modal-body
+            className="image-modal-body relative flex-1 overflow-hidden px-3"
             onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
             onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
             onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
@@ -970,129 +798,59 @@ export default function ImageModal({
             onPointerUp={handlePointerEnd}
             onPointerCancel={handlePointerEnd}
           >
-              <div className="modal-stage">
-                <TransformComponent
-                  wrapperClass="zoom-wrapper"
-                  contentClass="zoom-content"
-                  wrapperStyle={{ width: '100%', height: '100%' }}
-                  contentStyle={{ width: '100%', height: '100%' }}
-                >
-                  <img
-                    className={`modal-image${swipeIncoming ? ' swipe-in' : ''}`}
-                    src={image.url}
-                    alt={image.name}
-                    style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
-                    onLoad={handleImageLoad}
-                    ref={handleImageRef}
-                  />
-                </TransformComponent>
-              </div>
-              {debugEnabled && debugInfo && (
-                <div className="modal-debug">
-                  <div>Zoom debug</div>
-                  <div>reason: {debugInfo.reason}</div>
-                  <div>image: {debugInfo.image}</div>
-                  <div>viewport: {debugInfo.viewport}</div>
-                  <div>doc: {debugInfo.doc}</div>
-                  <div>visual: {debugInfo.visual}</div>
-                  <div>body: {debugInfo.body}</div>
-                  <div>stage: {debugInfo.stage}</div>
-                  <div>wrapper: {debugInfo.wrapper}</div>
-                  <div>content: {debugInfo.content}</div>
-                  <div>imgRect: {debugInfo.imgRect}</div>
-                  <div>natural: {debugInfo.natural}</div>
-                  <div>rendered: {debugInfo.rendered}</div>
-                  <div>client: {debugInfo.client}</div>
-                  <div>complete: {debugInfo.complete}</div>
-                  <div>base: {debugInfo.base}</div>
-                  <div>dpr: {debugInfo.dpr}</div>
-                  <div>scale: {debugInfo.scale}</div>
-                  <div>fitScale: {debugInfo.fitScale}</div>
-                  <div>minScale: {debugInfo.minScale}</div>
-                  <div>refScale: {debugInfo.transformScale}</div>
-                </div>
-              )}
+            <div data-modal-stage className="flex h-full w-full items-center justify-center">
+              <TransformComponent
+                wrapperClass="zoom-wrapper"
+                contentClass="zoom-content"
+                wrapperStyle={{ width: '100%', height: '100%' }}
+                contentStyle={{ width: '100%', height: '100%' }}
+              >
+                <img
+                  className={`image-modal-image max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
+                  src={image.url}
+                  alt={image.name}
+                  style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
+                  onLoad={handleImageLoad}
+                  ref={handleImageRef}
+                />
+              </TransformComponent>
             </div>
+            {debugEnabled && debugInfo && (
+              <div className="absolute bottom-0 left-0 z-30 max-w-xs bg-black/80 p-2 text-[10px] text-white/80">
+                <div>Zoom debug</div>
+                {Object.entries(debugInfo).map(([key, val]) => (
+                  <div key={key}>{key}: {val}</div>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <div className="modal-bottombar" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-bottombar-row">
-              <div className="modal-actions modal-actions-primary">
-                <button className="tool-button" type="button" onClick={handlePrev} title="Previous">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M15 6l-6 6 6 6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-                <button className="tool-button" type="button" onClick={handleNext} title="Next">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M9 6l6 6-6 6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <div className="modal-progress" aria-live="polite">
-                {total > 0 ? `${index + 1}/${total}` : ''}
-              </div>
-              <div className="modal-actions modal-actions-secondary">
-                <button className="tool-button" type="button" onClick={handleZoomOut} title="Zoom out">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M5 12h14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <button className="tool-button" type="button" onClick={handleZoomIn} title="Zoom in">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5v14M5 12h14"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-                <button
-                  className="tool-button"
-                  type="button"
-                  onClick={handleResetZoom}
-                  title="Reset"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5a7 7 0 1 1-6.4 9.8"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M5 5v4h4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              </div>
+          {/* Bottom bar */}
+          <div
+            className="image-modal-chrome relative z-10 flex items-center justify-between bg-background/80 px-2 py-1.5 backdrop-blur-sm"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center gap-1">
+              <button className={toolBtnClass(false)} type="button" onClick={handlePrev} title="Previous" aria-label="Previous image">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button className={toolBtnClass(false)} type="button" onClick={handleNext} title="Next" aria-label="Next image">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="text-xs text-white/70" aria-live="polite">
+              {total > 0 ? `${index + 1}/${total}` : ''}
+            </div>
+            <div className="flex items-center gap-1">
+              <button className={toolBtnClass(false)} type="button" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out">
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button className={toolBtnClass(false)} type="button" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in">
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button className={toolBtnClass(false)} type="button" onClick={handleResetZoom} title="Reset" aria-label="Reset zoom">
+                <RotateCcw className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </>

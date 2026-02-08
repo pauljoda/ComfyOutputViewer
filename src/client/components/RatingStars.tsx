@@ -23,6 +23,7 @@ export default function RatingStars({
   allowClear = false
 }: RatingStarsProps) {
   const stars = Array.from({ length: max }, (_, index) => index + 1);
+  const iconSize = size === 'sm' ? 14 : 18;
   const handleSelect = (rating: number) => {
     if (!onChange || disabled) return;
     const next = allowClear && rating === value ? 0 : rating;
@@ -31,7 +32,7 @@ export default function RatingStars({
 
   return (
     <div
-      className={`rating-stars ${size === 'sm' ? 'compact' : ''} ${className}`.trim()}
+      className={`inline-flex items-center gap-0.5 ${className}`.trim()}
       role={onChange ? 'radiogroup' : undefined}
       aria-label={label}
     >
@@ -41,14 +42,22 @@ export default function RatingStars({
           <button
             key={rating}
             type="button"
-            className={active ? 'rating-star active' : 'rating-star'}
+            className="border-0 bg-transparent p-0 cursor-pointer transition-colors disabled:pointer-events-none disabled:opacity-50"
             onClick={() => handleSelect(rating)}
             disabled={disabled}
             aria-pressed={onChange ? active : undefined}
             aria-label={`Set rating to ${rating} star${rating === 1 ? '' : 's'}`}
             title={`Set rating to ${rating} star${rating === 1 ? '' : 's'}`}
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg
+              width={iconSize}
+              height={iconSize}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className={active ? 'fill-rating text-rating' : 'fill-none text-muted-foreground hover:text-rating'}
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
               <path d={STAR_PATH} />
             </svg>
           </button>

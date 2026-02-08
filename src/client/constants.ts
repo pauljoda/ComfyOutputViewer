@@ -6,6 +6,7 @@ export const MIN_TILE_SIZE = 80;
 
 export const STORAGE_KEYS = {
   theme: 'cov_theme',
+  accentColor: 'cov_accent_color',
   columns: 'cov_columns',
   tileFit: 'cov_tile_fit',
   hideHidden: 'cov_hide_hidden',

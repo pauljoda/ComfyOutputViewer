@@ -30,13 +30,9 @@ export function useElementSize<T extends HTMLElement>() {
 
     const measure = () => {
       const style = getComputedStyle(element);
-      const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
-      const paddingRight = Number.parseFloat(style.paddingRight) || 0;
-      const paddingTop = Number.parseFloat(style.paddingTop) || 0;
-      const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
-      const width = Math.max(0, element.clientWidth - paddingLeft - paddingRight);
-      const height = Math.max(0, element.clientHeight - paddingTop - paddingBottom);
-      updateSize(Math.round(width), Math.round(height));
+      const w = element.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+      const h = element.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0);
+      updateSize(Math.round(w), Math.round(h));
     };
 
     measure();

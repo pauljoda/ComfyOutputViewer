@@ -3,7 +3,6 @@ import { useOutletContext } from 'react-router-dom';
 import TagDrawer from '../TagDrawer';
 import Gallery from '../Gallery';
 import ImageModal from '../ImageModal';
-import StatusBar from '../StatusBar';
 import TopBar from '../TopBar';
 import SlideshowSettingsModal from '../SlideshowSettingsModal';
 import SlideshowView from '../SlideshowView';
@@ -602,7 +601,7 @@ export default function GalleryWorkspace() {
 
   return (
     <div
-      className="gallery-page"
+      className="flex flex-col"
       style={{ '--top-bar-height': `${topBarHeight}px` } as React.CSSProperties}
     >
       <TopBar
@@ -624,6 +623,9 @@ export default function GalleryWorkspace() {
         availableTags={availableTags}
         showUntagged={showUntagged}
         imageCount={filteredImages.length}
+        loading={loading}
+        status={status}
+        error={error}
         onOpenDrawer={() => {
           setDrawerOpen(true);
           setActiveTool(null);
@@ -653,7 +655,7 @@ export default function GalleryWorkspace() {
       />
 
       {activeTool && (
-        <div className="tool-scrim" aria-hidden="true" onClick={() => setActiveTool(null)} />
+        <div className="fixed inset-0 z-30 bg-black/20" aria-hidden="true" onClick={() => setActiveTool(null)} />
       )}
 
       <TagDrawer
@@ -677,13 +679,6 @@ export default function GalleryWorkspace() {
         }}
         onClose={() => setDrawerOpen(false)}
         onSync={handleSync}
-      />
-
-      <StatusBar
-        loading={loading}
-        imageCount={filteredImages.length}
-        status={status}
-        error={error}
       />
 
       <Gallery
