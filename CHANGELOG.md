@@ -13,7 +13,6 @@ All notable changes to this project will be documented in this file.
 - Added spinning conic-gradient border on selected cards using CSS `@property` for a dynamic "border beam" effect.
 - Added heart burst animation on favorite toggle — scale bounce with glow pulse.
 - Added rating badge metallic shimmer sweep animation.
-- Added staggered card fade-in with cascading 30ms delays and slide-up effect for the first 20 cards.
 - Added tag chip pop-in animation with staggered bounce entrance.
 - Added filter pill ambient pulse glow.
 - Added tool button scale-up and glow on hover.

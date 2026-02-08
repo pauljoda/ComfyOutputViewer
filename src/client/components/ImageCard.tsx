@@ -9,7 +9,6 @@ type ImageCardProps = {
   tileFit: TileFit;
   selected: boolean;
   multiSelect: boolean;
-  cardIndex?: number;
   onSelectImage: (id: string) => void;
   onToggleFavorite: (image: ImageItem) => void;
   onToggleHidden: (image: ImageItem) => void;
@@ -23,22 +22,20 @@ function ImageCard({
   tileFit,
   selected,
   multiSelect,
-  cardIndex,
   onSelectImage,
   onToggleFavorite,
   onToggleHidden,
   onImageLoad
 }: ImageCardProps) {
   const style = useMemo(() => {
-    const idx = { '--card-index': Math.min(cardIndex ?? 0, 20) } as React.CSSProperties;
-    if (tileFit !== 'contain') return idx;
+    if (tileFit !== 'contain') return undefined;
     if (!ratio) {
-      return { ...idx, width: tileSize, height: tileSize };
+      return { width: tileSize, height: tileSize };
     }
     const width = ratio >= 1 ? tileSize * ratio : tileSize;
     const height = ratio >= 1 ? tileSize : tileSize / ratio;
-    return { ...idx, width: Math.round(width), height: Math.round(height) };
-  }, [ratio, tileFit, tileSize, cardIndex]);
+    return { width: Math.round(width), height: Math.round(height) };
+  }, [ratio, tileFit, tileSize]);
 
   const handleSelect = useCallback(() => {
     onSelectImage(image.id);

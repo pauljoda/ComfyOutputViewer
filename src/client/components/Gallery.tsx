@@ -58,7 +58,7 @@ const Gallery = React.memo(
             <p className="gallery-empty-text">No images to show</p>
           </div>
         )}
-        {images.map((image, index) => (
+        {images.map((image) => (
           <ImageCard
             key={image.id}
             image={image}
@@ -67,7 +67,6 @@ const Gallery = React.memo(
             tileFit={tileFit}
             selected={selectedIds.has(image.id)}
             multiSelect={multiSelect}
-            cardIndex={index}
             onSelectImage={onSelectImage}
             onToggleFavorite={onToggleFavorite}
             onToggleHidden={onToggleHidden}
