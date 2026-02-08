@@ -128,6 +128,8 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Parsed ComfyUI progress values and expanded websocket debug output; bumped version to 0.5.18.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Added ComfyUI websocket status debug endpoint and live update warning UI for workflow jobs.
 - Hardened queue prompt ID extraction and bumped the app version to 0.5.17.
 - Refreshed the Nix npm dependency hash after the package-lock version bump.

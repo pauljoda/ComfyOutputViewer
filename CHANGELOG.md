@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.18] - 2026-02-08
+
+### Fixed
+- Parsed progress values from ComfyUI websocket events and expanded websocket debug output for active jobs.
+
 ## [0.5.17] - 2026-02-08
 
 ### Added

@@ -80,6 +80,8 @@ const comfyEventStats = {
   lastProgressAt: null,
   lastPreviewAt: null,
   lastExecutingAt: null,
+  lastProgress: null,
+  lastProgressRaw: null,
   counts: {
     all: 0,
     progress: 0,
@@ -362,11 +364,14 @@ function getJobIdForPrompt(promptId) {
 
 function handleComfyProgress(progress) {
   if (!progress || !progress.prompt_id) return;
+  comfyEventStats.lastProgressRaw = progress;
   const jobId = getJobIdForPrompt(progress.prompt_id);
   if (!jobId) return;
   const now = Date.now();
-  const value = Number.isFinite(progress.value) ? progress.value : 0;
-  const max = Number.isFinite(progress.max) ? progress.max : 0;
+  const rawValue = Number(progress.value);
+  const rawMax = Number(progress.max);
+  const value = Number.isFinite(rawValue) ? rawValue : 0;
+  const max = Number.isFinite(rawMax) ? rawMax : 0;
   const node = progress.node ?? null;
   const existing = jobProgressById.get(jobId);
   if (
@@ -379,6 +384,7 @@ function handleComfyProgress(progress) {
     return;
   }
   jobProgressById.set(jobId, { value, max, node, updatedAt: now });
+  comfyEventStats.lastProgress = { value, max, node, updatedAt: now };
 
   const jobRow = statements.selectJobById.get(jobId);
   if (jobRow && (jobRow.status === 'pending' || jobRow.status === 'queued')) {
@@ -409,6 +415,7 @@ async function handleComfyPreview(blob) {
   const type = blob.type || 'image/jpeg';
   const dataUrl = `data:${type};base64,${buffer.toString('base64')}`;
   jobPreviewById.set(jobId, { url: dataUrl, updatedAt: now });
+  comfyEventStats.lastPreviewAt = now;
   broadcastJobUpdate(jobId);
 }
 
@@ -1235,7 +1242,19 @@ function buildJobPayload(jobId) {
   const generating = isGeneratingStatus(row.status);
   const progress = generating ? jobProgressById.get(jobId) : null;
   const preview = generating ? jobPreviewById.get(jobId) : null;
-  const queue = row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
+  const queueInfo = row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
+  const fallbackQueue =
+    generating && queueState.updatedAt
+      ? {
+          state: 'unknown',
+          position: null,
+          total: queueState.running.length + queueState.pending.length,
+          ahead: null,
+          remaining: queueState.remaining,
+          updatedAt: queueState.updatedAt
+        }
+      : null;
+  const queue = queueInfo ?? fallbackQueue;
   const progressPercent =
     progress && Number.isFinite(progress.max) && progress.max > 0
       ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))
@@ -1580,6 +1599,9 @@ app.get('/api/comfy/ws-status', async (_req, res) => {
     const api = getComfyApi();
     const runningIds = queueState.running.map(getPromptIdFromQueueItem).filter(Boolean);
     const pendingIds = queueState.pending.map(getPromptIdFromQueueItem).filter(Boolean);
+    const currentJobId = currentExecutingPromptId ? getJobIdForPrompt(currentExecutingPromptId) : null;
+    const jobProgress = currentJobId ? jobProgressById.get(currentJobId) : null;
+    const jobPreview = currentJobId ? jobPreviewById.get(currentJobId) : null;
     res.json({
       connected: comfyWsConnected,
       connectedId: comfyWsConnectedId,
@@ -1597,7 +1619,14 @@ app.get('/api/comfy/ws-status', async (_req, res) => {
       events: {
         ...comfyEventStats,
         counts: { ...comfyEventStats.counts }
-      }
+      },
+      currentJob: currentJobId
+        ? {
+            id: currentJobId,
+            progress: jobProgress ?? null,
+            preview: jobPreview ?? null
+          }
+        : null
     });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to load ComfyUI websocket status');
