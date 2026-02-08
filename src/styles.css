@@ -2177,6 +2177,11 @@ body.slideshow-open {
   color: var(--muted);
 }
 
+.job-live-warning {
+  font-size: 11px;
+  color: #f97316;
+}
+
 @keyframes progress-sweep {
   0% {
     transform: translateX(-40%);

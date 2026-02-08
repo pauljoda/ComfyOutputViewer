@@ -1815,6 +1815,7 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
   const nodeLabel = progress?.node ? `Node ${progress.node}` : null;
   const previewUrl = isGenerating ? job.preview?.url : null;
   const queueInfo = job.queue;
+  const liveStatus = job.live;
   const queueStateLabel =
     queueInfo?.state === 'running'
       ? 'Running'
@@ -1835,6 +1836,12 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
       : null;
   const showQueueMeta = Boolean(queueInfo && (queuePositionLabel || queueRemainingLabel));
   const hasProgress = Boolean(progress && progressMax > 0);
+  const showLiveWarning =
+    isGenerating &&
+    liveStatus &&
+    liveStatus.connected === false &&
+    !progress &&
+    !previewUrl;
 
   return (
     <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
@@ -1908,6 +1915,11 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
                 <span>{progressLabel ? `Step ${progressLabel}` : 'Working...'}</span>
                 {nodeLabel && <span className="job-progress-node">{nodeLabel}</span>}
               </div>
+              {showLiveWarning && (
+                <div className="job-live-warning">
+                  Live updates unavailable (ComfyUI websocket not connected).
+                </div>
+              )}
             </div>
           )}
         </div>

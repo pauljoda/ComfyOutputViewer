@@ -74,6 +74,20 @@ let currentExecutingPromptId = null;
 let comfyWsConnected = false;
 let comfyWsConnectedId = null;
 let comfyWsReconnectPending = false;
+const comfyEventStats = {
+  lastEventAt: null,
+  lastEventType: null,
+  lastProgressAt: null,
+  lastPreviewAt: null,
+  lastExecutingAt: null,
+  counts: {
+    all: 0,
+    progress: 0,
+    preview: 0,
+    executing: 0,
+    status: 0
+  }
+};
 
 class ComfyWebSocketAdapter {
   static CONNECTING = WebSocket.CONNECTING;
@@ -179,12 +193,25 @@ function bindComfyApiListeners(api) {
     if (event?.detail?.prompt_id) {
       lastActivePromptId = event.detail.prompt_id;
     }
+    comfyEventStats.lastEventAt = Date.now();
+    comfyEventStats.lastEventType = 'progress';
+    comfyEventStats.lastProgressAt = comfyEventStats.lastEventAt;
+    comfyEventStats.counts.progress += 1;
     handleComfyProgress(event.detail);
+  });
+  api.on('all', (event) => {
+    comfyEventStats.lastEventAt = Date.now();
+    comfyEventStats.lastEventType = event?.detail?.type || 'all';
+    comfyEventStats.counts.all += 1;
   });
   api.on('executing', (event) => {
     if (event?.detail?.prompt_id) {
       lastActivePromptId = event.detail.prompt_id;
       currentExecutingPromptId = event.detail.prompt_id;
+      comfyEventStats.lastEventAt = Date.now();
+      comfyEventStats.lastEventType = 'executing';
+      comfyEventStats.lastExecutingAt = comfyEventStats.lastEventAt;
+      comfyEventStats.counts.executing += 1;
       const jobId = getJobIdForPrompt(event.detail.prompt_id);
       if (jobId) {
         const now = Date.now();
@@ -225,6 +252,9 @@ function bindComfyApiListeners(api) {
       queueRemainingOverride = remaining;
       queueState.remaining = remaining;
     }
+    comfyEventStats.lastEventAt = Date.now();
+    comfyEventStats.lastEventType = 'status';
+    comfyEventStats.counts.status += 1;
     if (event?.detail?.sid) {
       const sid = event.detail.sid;
       if (comfyWsConnected && comfyWsConnectedId && comfyWsConnectedId !== sid && !comfyWsReconnectPending) {
@@ -241,6 +271,10 @@ function bindComfyApiListeners(api) {
     }
   });
   api.on('b_preview', (event) => {
+    comfyEventStats.lastEventAt = Date.now();
+    comfyEventStats.lastEventType = 'preview';
+    comfyEventStats.lastPreviewAt = comfyEventStats.lastEventAt;
+    comfyEventStats.counts.preview += 1;
     handleComfyPreview(event.detail).catch((err) => {
       console.warn('Failed to handle ComfyUI preview frame:', err);
     });
@@ -379,11 +413,26 @@ async function handleComfyPreview(blob) {
 }
 
 function getPromptIdFromQueueItem(item) {
-  if (!Array.isArray(item)) return null;
-  const candidate = item[1];
-  if (typeof candidate === 'string') return candidate;
-  const direct = item.find?.((value) => typeof value === 'string');
-  return typeof direct === 'string' ? direct : null;
+  if (!item) return null;
+  if (typeof item === 'string') return item;
+  if (Array.isArray(item)) {
+    const candidate = item[1];
+    if (typeof candidate === 'string') return candidate;
+    for (const entry of item) {
+      const nested = getPromptIdFromQueueItem(entry);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  if (typeof item === 'object') {
+    if (typeof item.prompt_id === 'string') return item.prompt_id;
+    if (typeof item.promptId === 'string') return item.promptId;
+    for (const value of Object.values(item)) {
+      const nested = getPromptIdFromQueueItem(value);
+      if (nested) return nested;
+    }
+  }
+  return null;
 }
 
 function getQueueInfoForPrompt(promptId) {
@@ -1245,7 +1294,12 @@ function buildJobPayload(jobId) {
           updatedAt: preview.updatedAt
         }
       : null,
-    queue
+    queue,
+    live: {
+      connected: comfyWsConnected,
+      lastEventAt: comfyEventStats.lastEventAt,
+      lastEventType: comfyEventStats.lastEventType
+    }
   };
 }
 
@@ -1518,6 +1572,35 @@ app.get('/api/comfy/stats', async (_req, res) => {
     res.json(stats);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to load ComfyUI system stats');
+  }
+});
+
+app.get('/api/comfy/ws-status', async (_req, res) => {
+  try {
+    const api = getComfyApi();
+    const runningIds = queueState.running.map(getPromptIdFromQueueItem).filter(Boolean);
+    const pendingIds = queueState.pending.map(getPromptIdFromQueueItem).filter(Boolean);
+    res.json({
+      connected: comfyWsConnected,
+      connectedId: comfyWsConnectedId,
+      apiId: api?.id ?? null,
+      lastActivePromptId,
+      currentExecutingPromptId,
+      queue: {
+        running: queueState.running.length,
+        pending: queueState.pending.length,
+        remaining: queueState.remaining,
+        updatedAt: queueState.updatedAt,
+        runningIds,
+        pendingIds
+      },
+      events: {
+        ...comfyEventStats,
+        counts: { ...comfyEventStats.counts }
+      }
+    });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to load ComfyUI websocket status');
   }
 });
 

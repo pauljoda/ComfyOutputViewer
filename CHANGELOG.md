@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.17] - 2026-02-08
+
+### Added
+- Added a ComfyUI websocket status debug endpoint and surfaced websocket connectivity warnings on live jobs.
+
+### Fixed
+- Hardened queue prompt ID extraction to improve queue metadata accuracy.
+
 ## [0.5.16] - 2026-02-08
 
 ### Fixed

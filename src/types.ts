@@ -124,6 +124,12 @@ export type JobQueueInfo = {
   updatedAt?: number;
 };
 
+export type JobLiveStatus = {
+  connected: boolean;
+  lastEventAt: number | null;
+  lastEventType: string | null;
+};
+
 export type Job = {
   id: number;
   workflowId: number;
@@ -138,6 +144,7 @@ export type Job = {
   progress?: JobProgress | null;
   preview?: JobPreview | null;
   queue?: JobQueueInfo | null;
+  live?: JobLiveStatus | null;
 };
 
 export type JobOutput = {
