@@ -706,8 +706,14 @@ function WorkflowDetail({
   const prefillAppliedRef = useRef<string | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
   const recheckAttemptsRef = useRef<Set<number>>(new Set());
+  const workflowIdRef = useRef(workflow.id);
+
+  workflowIdRef.current = workflow.id;
 
   const mergeJobUpdate = useCallback((job: Job) => {
+    if (job.workflowId !== workflowIdRef.current) {
+      return;
+    }
     setJobs((prev) => {
       const next = prev.filter((item) => item.id !== job.id);
       next.push(job);
@@ -745,10 +751,55 @@ function WorkflowDetail({
     }
   }, []);
 
+  const loadWorkflowDetails = useCallback(async (targetWorkflowId?: number) => {
+    const workflowId = targetWorkflowId ?? workflowIdRef.current;
+    try {
+      const response = await api<{ workflow: Workflow; inputs: WorkflowInput[] }>(
+        `/api/workflows/${workflowId}`
+      );
+      if (workflowIdRef.current !== workflowId) return;
+      setInputs(response.inputs);
+      // Initialize input values with defaults
+      const defaults: Record<number, string> = {};
+      for (const input of response.inputs) {
+        defaults[input.id] = input.defaultValue || '';
+      }
+      setInputValues(defaults);
+      setError(null);
+    } catch (err) {
+      if (workflowIdRef.current !== workflowId) return;
+      setError(err instanceof Error ? err.message : 'Failed to load workflow details');
+    }
+  }, []);
+
+  const loadJobs = useCallback(async (targetWorkflowId?: number) => {
+    const workflowId = targetWorkflowId ?? workflowIdRef.current;
+    try {
+      const response = await api<{ jobs: Job[] }>(`/api/workflows/${workflowId}/jobs`);
+      if (workflowIdRef.current !== workflowId) return;
+      setJobs(response.jobs);
+    } catch (err) {
+      console.error('Failed to load jobs:', err);
+    }
+  }, []);
+
   useEffect(() => {
-    loadWorkflowDetails();
-    loadJobs();
-  }, [workflow.id, workflow.updatedAt]);
+    setInputs([]);
+    setInputValues({});
+    setJobs([]);
+    setRunning(false);
+    setError(null);
+    setOutputCache({});
+    setOutputPaths([]);
+    setSelectedOutputPath(null);
+    setOutputTool(null);
+    setSelectedInputPath(null);
+    setInputTool(null);
+    recheckAttemptsRef.current = new Set();
+    prefillAppliedRef.current = null;
+    loadWorkflowDetails(workflow.id);
+    loadJobs(workflow.id);
+  }, [workflow.id, workflow.updatedAt, loadJobs, loadWorkflowDetails]);
 
   useEffect(() => {
     loadSystemStats();
@@ -796,32 +847,6 @@ function WorkflowDetail({
     prefillAppliedRef.current = prefillKey;
     onPrefillApplied?.();
   }, [prefill, inputs, workflow.id, onPrefillApplied]);
-
-  const loadWorkflowDetails = async () => {
-    try {
-      const response = await api<{ workflow: Workflow; inputs: WorkflowInput[] }>(
-        `/api/workflows/${workflow.id}`
-      );
-      setInputs(response.inputs);
-      // Initialize input values with defaults
-      const defaults: Record<number, string> = {};
-      for (const input of response.inputs) {
-        defaults[input.id] = input.defaultValue || '';
-      }
-      setInputValues(defaults);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load workflow details');
-    }
-  };
-
-  const loadJobs = useCallback(async () => {
-    try {
-      const response = await api<{ jobs: Job[] }>(`/api/workflows/${workflow.id}/jobs`);
-      setJobs(response.jobs);
-    } catch (err) {
-      console.error('Failed to load jobs:', err);
-    }
-  }, [workflow.id]);
 
   const buildFallbackImage = useCallback((imagePath: string): ImageItem => {
     const name = imagePath.split('/').pop() || imagePath;
@@ -1011,7 +1036,7 @@ function WorkflowDetail({
           console.warn('Failed to load new job:', err);
         }
       }
-      await loadJobs();
+      await loadJobs(workflow.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to run workflow');
     } finally {
@@ -1032,11 +1057,11 @@ function WorkflowDetail({
         method: 'POST'
       });
       if (!response?.ok) {
-        await loadJobs();
+        await loadJobs(workflow.id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel job');
-      await loadJobs();
+      await loadJobs(workflow.id);
     }
   };
 
@@ -1048,13 +1073,13 @@ function WorkflowDetail({
         if (response?.job) {
           mergeJobUpdate(response.job);
         } else {
-          await loadJobs();
+          await loadJobs(workflow.id);
         }
       } catch (err) {
         console.warn('Failed to recheck job outputs:', err);
       }
     },
-    [loadJobs, mergeJobUpdate]
+    [loadJobs, mergeJobUpdate, workflow.id]
   );
 
   useEffect(() => {
@@ -1899,18 +1924,9 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
         </div>
       </div>
       <div className="job-body">
-        {isGenerating && (
+        {isGenerating && previewUrl && (
           <div className="job-preview">
-            {previewUrl ? (
-              <img src={previewUrl} alt="Live preview" loading="lazy" />
-            ) : (
-              <div className="job-preview-placeholder">
-                <span>Live preview</span>
-                {liveStatus?.previewSeen === false && (
-                  <span className="job-preview-hint">Enable live preview in ComfyUI</span>
-                )}
-              </div>
-            )}
+            <img src={previewUrl} alt="Live preview" loading="lazy" />
             <span className="job-preview-badge">Live</span>
           </div>
         )}

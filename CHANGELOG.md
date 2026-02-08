@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-02-08
+
+### Fixed
+- Reset workflow detail state and guarded async job loads so switching workflows mid-run shows the new workflow immediately.
+
+## [0.6.1] - 2026-02-08
+
+### Changed
+- Hid the live preview panel when ComfyUI has not emitted preview frames yet.
+
 ## [0.6.0] - 2026-02-08
 
 ### Added
