@@ -10,7 +10,8 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8009',
       '/images': 'http://localhost:8009'
-    }
+    },
+    allowedHosts: ['comfy-viewer.pauljoda.com', 'localhost']
   },
   preview: {
     port: 8008,
