@@ -4,20 +4,21 @@ import packageJson from '../package.json';
 import { STORAGE_KEYS } from './constants';
 import type { ThemeMode } from './types';
 import { useElementSize } from './hooks/useElementSize';
+import { useLocalStorageState } from './hooks/useLocalStorageState';
+import { enumSerializer } from './utils/storage';
+
+const themeSerializer = enumSerializer<ThemeMode>('system', ['system', 'light', 'dark']);
 
 export default function App() {
-  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.theme);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored;
-    }
-    return 'system';
-  });
+  const [themeMode, setThemeMode] = useLocalStorageState(
+    STORAGE_KEYS.theme,
+    'system',
+    themeSerializer
+  );
   const [goHomeSignal, setGoHomeSignal] = useState(0);
   const { ref: navRef, height: navHeight } = useElementSize<HTMLElement>();
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.theme, themeMode);
     const root = document.documentElement;
     const applyTheme = (mode: 'light' | 'dark') => {
       root.dataset.theme = mode;

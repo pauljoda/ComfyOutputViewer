@@ -3,7 +3,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ImageModal from '../components/ImageModal';
 import { useTags } from '../contexts/TagsContext';
 import { useElementSize } from '../hooks/useElementSize';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 import { api } from '../lib/api';
+import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../lib/imagesApi';
 import type { Workflow, WorkflowInput, WorkflowFolder, Job, JobOutput, ImageItem, ModalTool } from '../types';
 
 type WorkflowPrefillEntry = {
@@ -57,12 +59,8 @@ export default function WorkflowsPage() {
   const [missingWorkflowId, setMissingWorkflowId] = useState<number | null>(null);
   const [importMode, setImportMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    window.matchMedia('(max-width: 900px)').matches ? false : true
-  );
-  const [isMobile, setIsMobile] = useState(() =>
-    window.matchMedia('(max-width: 900px)').matches
-  );
+  const isMobile = useMediaQuery('(max-width: 900px)');
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile);
   const [prefill, setPrefill] = useState<WorkflowPrefill | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [draggedWorkflow, setDraggedWorkflow] = useState<Workflow | null>(null);
@@ -73,14 +71,8 @@ export default function WorkflowsPage() {
   const [editingFolderName, setEditingFolderName] = useState('');
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 900px)');
-    const handler = (event: MediaQueryListEvent) => {
-      setIsMobile(event.matches);
-      setSidebarOpen(event.matches ? false : true);
-    };
-    media.addEventListener('change', handler);
-    return () => media.removeEventListener('change', handler);
-  }, []);
+    setSidebarOpen(isMobile ? false : true);
+  }, [isMobile]);
 
   const loadWorkflows = useCallback(async () => {
     try {
@@ -1149,10 +1141,7 @@ function WorkflowDetail({
     const nextValue = !selectedOutputImage.favorite;
     updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, favorite: nextValue }));
     try {
-      await api('/api/favorite', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedOutputImage.id, value: nextValue })
-      });
+      await setFavorite(selectedOutputImage.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorite');
     }
@@ -1163,10 +1152,7 @@ function WorkflowDetail({
     const nextValue = !selectedOutputImage.hidden;
     updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, hidden: nextValue }));
     try {
-      await api('/api/hidden', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedOutputImage.id, value: nextValue })
-      });
+      await setHidden(selectedOutputImage.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
@@ -1176,10 +1162,7 @@ function WorkflowDetail({
     if (!selectedOutputImage) return;
     updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, rating }));
     try {
-      await api('/api/rating', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedOutputImage.id, value: rating })
-      });
+      await setRating(selectedOutputImage.id, rating);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update rating');
     }
@@ -1189,10 +1172,7 @@ function WorkflowDetail({
     if (!selectedOutputImage) return;
     updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, tags }));
     try {
-      await api('/api/tags', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedOutputImage.id, tags })
-      });
+      await setTags(selectedOutputImage.id, tags);
       // Refresh global tags so new tags appear in suggestions across the app
       refreshTags();
     } catch (err) {
@@ -1205,10 +1185,7 @@ function WorkflowDetail({
     const nextValue = !selectedInputImage.favorite;
     updateOutputCache(selectedInputImage.id, (current) => ({ ...current, favorite: nextValue }));
     try {
-      await api('/api/favorite', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedInputImage.id, value: nextValue })
-      });
+      await setFavorite(selectedInputImage.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorite');
     }
@@ -1219,10 +1196,7 @@ function WorkflowDetail({
     const nextValue = !selectedInputImage.hidden;
     updateOutputCache(selectedInputImage.id, (current) => ({ ...current, hidden: nextValue }));
     try {
-      await api('/api/hidden', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedInputImage.id, value: nextValue })
-      });
+      await setHidden(selectedInputImage.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
@@ -1232,10 +1206,7 @@ function WorkflowDetail({
     if (!selectedInputImage) return;
     updateOutputCache(selectedInputImage.id, (current) => ({ ...current, rating }));
     try {
-      await api('/api/rating', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedInputImage.id, value: rating })
-      });
+      await setRating(selectedInputImage.id, rating);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update rating');
     }
@@ -1245,10 +1216,7 @@ function WorkflowDetail({
     if (!selectedInputImage) return;
     updateOutputCache(selectedInputImage.id, (current) => ({ ...current, tags }));
     try {
-      await api('/api/tags', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedInputImage.id, tags })
-      });
+      await setTags(selectedInputImage.id, tags);
       refreshTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
@@ -1260,10 +1228,7 @@ function WorkflowDetail({
     const confirmed = window.confirm('Remove this image from the library?');
     if (!confirmed) return;
     try {
-      await api('/api/delete', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedInputImage.id })
-      });
+      await deleteImage(selectedInputImage.id);
       setOutputCache((prev) => {
         const next = { ...prev };
         delete next[selectedInputImage.id];
@@ -1280,10 +1245,7 @@ function WorkflowDetail({
     const confirmed = window.confirm('Remove this image from the library?');
     if (!confirmed) return;
     try {
-      await api('/api/delete', {
-        method: 'POST',
-        body: JSON.stringify({ path: selectedOutputImage.id })
-      });
+      await deleteImage(selectedOutputImage.id);
       setJobs((prev) =>
         prev.map((job) => ({
           ...job,

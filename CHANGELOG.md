@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4] - 2026-02-08
+
+### Changed
+- Consolidated image metadata API calls into a shared client helper.
+- Centralized localStorage persistence and media query handling with shared hooks for gallery/workflow settings.
+
+### Fixed
+- Stabilized gallery modal navigation handlers to avoid stale closures in key navigation.
+
 ## [0.6.3] - 2026-02-08
 
 ### Fixed

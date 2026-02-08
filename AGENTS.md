@@ -128,6 +128,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Consolidated image metadata API calls into a shared client helper, centralized localStorage/media query handling via new hooks, and bumped version to 0.6.4.
 - Resumed in-flight workflow job tracking after server restarts and bumped the app version to 0.6.3.
 - Reset workflow detail state when switching workflows mid-run and bumped the app version to 0.6.2.
 - Hid the live preview panel until frames arrive and bumped the app version to 0.6.1.

@@ -17,14 +17,33 @@ import {
 } from '../constants';
 import { useTags } from '../contexts/TagsContext';
 import { useElementSize } from '../hooks/useElementSize';
+import { useLocalStorageState } from '../hooks/useLocalStorageState';
 import { api } from '../lib/api';
-import { clamp, filterImages, isSortMode, sortImages } from '../utils/images';
+import {
+  bulkDelete,
+  bulkFavorite,
+  bulkHidden,
+  bulkRating,
+  bulkTags,
+  deleteImage,
+  setFavorite,
+  setHidden,
+  setRating,
+  setTags
+} from '../lib/imagesApi';
+import { clamp, filterImages, sortImages } from '../utils/images';
 import { normalizeTagInput, normalizeTags } from '../utils/tags';
 import {
+  booleanSerializer,
+  enumSerializer,
+  numberSerializer,
+  type StorageSerializer
+} from '../utils/storage';
+import {
   DEFAULT_SORT,
+  SORT_MODES,
   type ActiveTool,
   type ApiResponse,
-  type DeleteResponse,
   type ImageItem,
   type ModalTool,
   type SlideshowSettings,
@@ -41,6 +60,27 @@ const emptyData: ApiResponse = {
   dataDir: ''
 };
 
+const columnsSerializer: StorageSerializer<number> = {
+  parse: (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 0;
+    const rounded = Math.round(parsed);
+    if (rounded < COLUMN_MIN) return 0;
+    return clamp(rounded, COLUMN_MIN, COLUMN_MAX);
+  },
+  serialize: (value) => String(value)
+};
+
+const tileFitSerializer: StorageSerializer<TileFit> = {
+  parse: (value) => {
+    if (value === 'contain' || value === 'content') return 'contain';
+    return 'cover';
+  },
+  serialize: (value) => value
+};
+
+const sortSerializer = enumSerializer<SortMode>(DEFAULT_SORT, SORT_MODES);
+
 export default function GalleryPage() {
   const { themeMode, setThemeMode, goHomeSignal } = useOutletContext<{
     themeMode: ThemeMode;
@@ -55,18 +95,16 @@ export default function GalleryPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showUntagged, setShowUntagged] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [minRating, setMinRating] = useState<number>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.ratingMin);
-    if (stored === null) return 0;
-    const parsed = Number(stored);
-    return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 5) : 0;
-  });
-  const [maxRating, setMaxRating] = useState<number>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.ratingMax);
-    if (stored === null) return 5;
-    const parsed = Number(stored);
-    return Number.isFinite(parsed) ? clamp(Math.round(parsed), 0, 5) : 5;
-  });
+  const [minRating, setMinRating] = useLocalStorageState(
+    STORAGE_KEYS.ratingMin,
+    0,
+    numberSerializer(0, { min: 0, max: 5, round: true })
+  );
+  const [maxRating, setMaxRating] = useLocalStorageState(
+    STORAGE_KEYS.ratingMax,
+    5,
+    numberSerializer(5, { min: 0, max: 5, round: true })
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -75,22 +113,26 @@ export default function GalleryPage() {
   const [modalTool, setModalTool] = useState<ModalTool>(null);
   const { ref: topBarRef, height: topBarHeight } = useElementSize<HTMLElement>();
   const { ref: galleryRef, width: galleryWidth } = useElementSize<HTMLElement>();
-  const [columns, setColumns] = useState<number>(() => {
-    const stored = Number(window.localStorage.getItem(STORAGE_KEYS.columns));
-    return Number.isFinite(stored) && stored >= COLUMN_MIN ? stored : 0;
-  });
-  const [tileFit, setTileFit] = useState<TileFit>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.tileFit);
-    return stored === 'contain' || stored === 'content' ? 'contain' : 'cover';
-  });
-  const [hideHidden, setHideHidden] = useState<boolean>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.hideHidden);
-    return stored ? stored === 'true' : true;
-  });
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEYS.sort);
-    return isSortMode(stored) ? stored : DEFAULT_SORT;
-  });
+  const [columns, setColumns] = useLocalStorageState(
+    STORAGE_KEYS.columns,
+    0,
+    columnsSerializer
+  );
+  const [tileFit, setTileFit] = useLocalStorageState(
+    STORAGE_KEYS.tileFit,
+    'cover',
+    tileFitSerializer
+  );
+  const [hideHidden, setHideHidden] = useLocalStorageState(
+    STORAGE_KEYS.hideHidden,
+    true,
+    booleanSerializer(true)
+  );
+  const [sortMode, setSortMode] = useLocalStorageState(
+    STORAGE_KEYS.sort,
+    DEFAULT_SORT,
+    sortSerializer
+  );
 
   // Slideshow state
   const [showSlideshowSettings, setShowSlideshowSettings] = useState(false);
@@ -122,30 +164,10 @@ export default function GalleryPage() {
   }, [refresh]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.tileFit, tileFit);
-  }, [tileFit]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.hideHidden, String(hideHidden));
-  }, [hideHidden]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.ratingMin, String(minRating));
-  }, [minRating]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.ratingMax, String(maxRating));
-  }, [maxRating]);
-
-  useEffect(() => {
     if (minRating > maxRating) {
       setMaxRating(minRating);
     }
   }, [minRating, maxRating]);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.sort, sortMode);
-  }, [sortMode]);
 
   const maxColumns = useMemo(() => {
     if (!galleryWidth) return COLUMN_MAX;
@@ -165,11 +187,6 @@ export default function GalleryPage() {
     }
   }, [columns, maxColumns]);
 
-  useEffect(() => {
-    if (columns > 0) {
-      window.localStorage.setItem(STORAGE_KEYS.columns, String(columns));
-    }
-  }, [columns]);
 
   // Update global tags context whenever images change
   useEffect(() => {
@@ -219,10 +236,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/favorite', {
-        method: 'POST',
-        body: JSON.stringify({ path: image.id, value: nextValue })
-      });
+      await setFavorite(image.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorite');
     }
@@ -237,10 +251,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/hidden', {
-        method: 'POST',
-        body: JSON.stringify({ path: image.id, value: nextValue })
-      });
+      await setHidden(image.id, nextValue);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
@@ -255,10 +266,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/rating', {
-        method: 'POST',
-        body: JSON.stringify({ path: image.id, value: nextRating })
-      });
+      await setRating(image.id, nextRating);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update rating');
     }
@@ -356,10 +364,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/tags', {
-        method: 'POST',
-        body: JSON.stringify({ path: imageId, tags: normalized })
-      });
+      await setTags(imageId, normalized);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
     }
@@ -378,10 +383,7 @@ export default function GalleryPage() {
       images: prev.images.filter((item) => item.id !== image.id)
     }));
     try {
-      const response = await api<DeleteResponse>('/api/delete', {
-        method: 'POST',
-        body: JSON.stringify({ path: image.id })
-      });
+      const response = await deleteImage(image.id);
       const suffix = response.blacklisted > 0 ? ' and blacklisted it from sync.' : '.';
       setStatus(`Removed "${image.name}"${suffix}`);
     } catch (err) {
@@ -402,10 +404,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/favorite/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ paths: selectedIds, value: true })
-      });
+      await bulkFavorite(selectedIds, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update favorites');
     }
@@ -420,10 +419,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/hidden/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ paths: selectedIds, value: true })
-      });
+      await bulkHidden(selectedIds, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update hidden state');
     }
@@ -439,10 +435,7 @@ export default function GalleryPage() {
       )
     }));
     try {
-      await api('/api/rating/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ paths: selectedIds, value: nextRating })
-      });
+      await bulkRating(selectedIds, nextRating);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update ratings');
     }
@@ -462,10 +455,7 @@ export default function GalleryPage() {
       images: prev.images.filter((item) => !selection.has(item.id))
     }));
     try {
-      const response = await api<DeleteResponse>('/api/delete/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ paths })
-      });
+      const response = await bulkDelete(paths);
       const suffix =
         response.blacklisted > 0 ? `; blacklisted ${response.blacklisted}.` : '.';
       setStatus(`Removed ${response.deleted} images${suffix}`);
@@ -492,10 +482,7 @@ export default function GalleryPage() {
     }));
     if (updates.length === 0) return;
     try {
-      await api('/api/tags/bulk', {
-        method: 'POST',
-        body: JSON.stringify({ updates })
-      });
+      await bulkTags(updates);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update tags');
     }
@@ -514,17 +501,17 @@ export default function GalleryPage() {
     }
   };
 
-  const movePrev = () => {
+  const movePrev = useCallback(() => {
     if (!filteredImages.length || selectedIndex < 0) return;
     const nextIndex = (selectedIndex - 1 + filteredImages.length) % filteredImages.length;
     setSelectedId(filteredImages[nextIndex].id);
-  };
+  }, [filteredImages, selectedIndex]);
 
-  const moveNext = () => {
+  const moveNext = useCallback(() => {
     if (!filteredImages.length || selectedIndex < 0) return;
     const nextIndex = (selectedIndex + 1) % filteredImages.length;
     setSelectedId(filteredImages[nextIndex].id);
-  };
+  }, [filteredImages, selectedIndex]);
 
   useEffect(() => {
     if (!selectedImage) return;
@@ -541,7 +528,7 @@ export default function GalleryPage() {
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedImage, selectedIndex, filteredImages]);
+  }, [selectedImage, moveNext, movePrev]);
 
   const toggleTool = useCallback((tool: ToolPanel) => {
     setActiveTool((current) => (current === tool ? null : tool));
