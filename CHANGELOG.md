@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.9] - 2026-02-08
+
+### Fixed
+- Backported the gallery column-sizing fix from `redesign/modern-ui` by updating `useElementSize` to use consistent content-box measurements on initial mount (client size minus padding), preventing padding from skewing column calculations.
+
+### Changed
+- Backported gallery scroll/render performance tweaks from `redesign/modern-ui`: removed `fetchPriority="low"` from gallery card images, switched cards from `content-visibility: auto` to `contain: layout style paint`, and added lightweight image placeholder/fade-in styling plus horizontal overflow clipping in the gallery container.
+- Updated `useElementSize` client tests to validate padding-aware content-box measurement behavior.
+
 ## [0.7.8] - 2026-02-08
 
 ### Changed

@@ -142,6 +142,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Backported modern-ui gallery fixes by making `useElementSize` measure content-box dimensions consistently (client width/height minus padding) to correct column calculations, applied scroll/render tuning in gallery cards (`contain: layout style paint`, image placeholder/fade-in, removed `fetchPriority="low"`), updated `useElementSize` tests for padding-aware sizing, and bumped version to 0.7.9.
 - Added Vite host allowlist configuration for `localhost`, `127.0.0.1`, `.local`, and `comfy-viewer.pauljoda.com` across both `server` and `preview` while keeping LAN bind on `0.0.0.0`, bumped version to 0.7.8, and refreshed `flake.nix` npmDepsHash.
 - Added a full Vitest testing system with server/client configs, test setup, and npm scripts (`test`, `test:all`, targeted watch/coverage commands), plus broad coverage for core routes/services/state and major client utilities/hooks/components/workspaces; stabilized workflow workspace test routing assertions, ignored generated `coverage/` artifacts in `.gitignore`, and bumped version to 0.7.7.
 - Extracted Comfy runtime/event handling into `src/server/services/createComfyRuntimeService.js`, extracted queue/resume orchestration into `src/server/services/createQueueService.js`, preserved callback-based route/runtime contracts, and bumped version to 0.7.6.

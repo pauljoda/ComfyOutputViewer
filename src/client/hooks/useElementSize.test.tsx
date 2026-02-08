@@ -21,18 +21,16 @@ function ElementSizeComponent() {
   return (
     <div>
       <div
+        style={{ padding: '10px 12px' }}
         ref={(node) => {
           if (node) {
-            vi.spyOn(node, 'getBoundingClientRect').mockReturnValue({
-              width: 320,
-              height: 180,
-              top: 0,
-              left: 0,
-              right: 320,
-              bottom: 180,
-              x: 0,
-              y: 0,
-              toJSON: () => ({})
+            Object.defineProperty(node, 'clientWidth', {
+              configurable: true,
+              value: 344
+            });
+            Object.defineProperty(node, 'clientHeight', {
+              configurable: true,
+              value: 200
             });
           }
           ref(node);

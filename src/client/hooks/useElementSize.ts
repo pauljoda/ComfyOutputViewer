@@ -29,8 +29,14 @@ export function useElementSize<T extends HTMLElement>() {
     if (!element) return;
 
     const measure = () => {
-      const rect = element.getBoundingClientRect();
-      updateSize(Math.round(rect.width), Math.round(rect.height));
+      const style = getComputedStyle(element);
+      const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
+      const paddingRight = Number.parseFloat(style.paddingRight) || 0;
+      const paddingTop = Number.parseFloat(style.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+      const width = Math.max(0, element.clientWidth - paddingLeft - paddingRight);
+      const height = Math.max(0, element.clientHeight - paddingTop - paddingBottom);
+      updateSize(Math.round(width), Math.round(height));
     };
 
     measure();
