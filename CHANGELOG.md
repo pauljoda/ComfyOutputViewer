@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.19] - 2026-02-08
+
+### Fixed
+- Returned live progress/preview/queue metadata from the workflow jobs list API so polling updates the UI.
+
 ## [0.5.18] - 2026-02-08
 
 ### Fixed

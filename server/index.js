@@ -1059,28 +1059,10 @@ app.get('/api/workflows/:id/jobs', async (req, res) => {
     const workflowId = Number(req.params.id);
     const jobs = [];
     for (const row of statements.selectJobsByWorkflow.iterate(workflowId)) {
-      const outputs = [];
-      for (const outputRow of statements.selectJobOutputs.iterate(row.id)) {
-        outputs.push({
-          id: outputRow.id,
-          jobId: outputRow.job_id,
-          imagePath: outputRow.image_path,
-          comfyFilename: outputRow.comfy_filename,
-          createdAt: outputRow.created_at,
-          thumbUrl: getThumbUrl(outputRow.image_path)
-        });
+      const payload = buildJobPayload(row.id);
+      if (payload) {
+        jobs.push(payload);
       }
-      jobs.push({
-        id: row.id,
-        workflowId: row.workflow_id,
-        promptId: row.prompt_id,
-        status: row.status,
-        errorMessage: row.error_message,
-        createdAt: row.created_at,
-        startedAt: row.started_at,
-        completedAt: row.completed_at,
-        outputs
-      });
     }
     res.json({ jobs });
   } catch (err) {
