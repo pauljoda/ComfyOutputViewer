@@ -128,15 +128,21 @@ Required steps before finishing any action (in order):
 3) Update this `AGENTS.md` with all changes and current projects.
 4) Add needed files to git, add non-needed files to `.gitignore`, and create a detailed commit.
 
+Testing workflow:
+- If a user asks to "run all tests" (or equivalent), run the full suite with `npm run test` (alias: `npm run test:all`), which executes both `test:server` and `test:client`.
+- For coverage requests, run `npm run test:coverage`.
+
 If a request is purely informational and makes no changes, do not commit.
 
 ## Current Projects
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
+- Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added a full Vitest testing system with server/client configs, test setup, and npm scripts (`test`, `test:all`, targeted watch/coverage commands), plus broad coverage for core routes/services/state and major client utilities/hooks/components/workspaces; bumped version to 0.7.7.
 - Extracted Comfy runtime/event handling into `src/server/services/createComfyRuntimeService.js`, extracted queue/resume orchestration into `src/server/services/createQueueService.js`, preserved callback-based route/runtime contracts, and bumped version to 0.7.6.
 - Extracted image/file sync/delete/thumbnail responsibilities into `src/server/services/createImageService.js`, extracted workflow output/finalization/polling responsibilities into `src/server/services/createWorkflowExecutionService.js`, preserved route/runtime contracts via dependency injection, and bumped version to 0.7.5.
 - Fixed DB/runtime regressions from workflow route modularization by wiring shared job-update broadcasting back into `src/server/index.js`, fixing folder reorder updates to avoid nulling folder names, tightening SQLite job-output index migration writes, and bumped version to 0.7.4.

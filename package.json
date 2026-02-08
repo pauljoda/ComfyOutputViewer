@@ -1,13 +1,22 @@
 {
   "name": "comfy-output-viewer",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"node --watch src/server/index.js\" \"vite\"",
     "build": "vite build",
     "preview": "vite preview --port 8008",
-    "start": "NODE_ENV=production PORT=8008 node src/server/index.js"
+    "start": "NODE_ENV=production PORT=8008 node src/server/index.js",
+    "test": "npm run test:server && npm run test:client",
+    "test:all": "npm run test",
+    "test:server": "vitest run --config vitest.server.config.ts",
+    "test:client": "vitest run --config vitest.client.config.ts",
+    "test:server:watch": "vitest --config vitest.server.config.ts",
+    "test:client:watch": "vitest --config vitest.client.config.ts",
+    "test:coverage": "npm run test:server:coverage && npm run test:client:coverage",
+    "test:server:coverage": "vitest run --config vitest.server.config.ts --coverage --coverage.reportsDirectory=coverage/server",
+    "test:client:coverage": "vitest run --config vitest.client.config.ts --coverage --coverage.reportsDirectory=coverage/client"
   },
   "dependencies": {
     "@saintno/comfyui-sdk": "^0.2.49",
@@ -21,12 +30,19 @@
     "ws": "^8.19.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.12.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
+    "@vitest/coverage-v8": "^4.0.18",
     "concurrently": "^8.2.2",
+    "jsdom": "^28.0.0",
+    "supertest": "^7.2.2",
     "typescript": "^5.6.3",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "vitest": "^4.0.18"
   }
 }

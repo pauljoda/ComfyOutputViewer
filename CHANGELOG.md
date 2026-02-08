@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.7] - 2026-02-08
+
+### Added
+- Added a unified Vitest-based testing system across server and client with dedicated configs: `vitest.server.config.ts` (Node) and `vitest.client.config.ts` (jsdom + React).
+- Added comprehensive backend coverage for route modules (`registerImageRoutes`, `registerWorkflowRoutes`, `registerComfyRoutes`), service modules (`createImageService`, `createQueueService`, `createComfyRuntimeService`, `createWorkflowExecutionService`), metadata repository behavior, and runtime state.
+- Added comprehensive frontend coverage for API/util helpers, storage/tag/image logic, core hooks, app shell/page wrappers, gallery/workflow workspaces, and key UI components (cards, drawers, top bar, status, rating, slideshow).
+
+### Changed
+- Added first-class npm scripts for full-suite execution and targeted runs:
+  - `npm test` / `npm run test:all`
+  - `npm run test:server`, `npm run test:client`
+  - watch variants for server/client
+  - coverage variants for server/client and combined coverage workflow
+- Documented the new testing workflow in `README.md` and codified full-suite expectations in `AGENTS.md` when users request running all tests.
+
 ## [0.7.6] - 2026-02-08
 
 ### Changed

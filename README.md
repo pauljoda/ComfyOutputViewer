@@ -189,6 +189,27 @@ npm run preview  # Preview production build
 npm run start    # Run production server
 ```
 
+## Testing
+
+```bash
+npm run test            # Full suite (server + client)
+npm run test:all        # Alias for full suite
+npm run test:server     # Server tests only (Node environment)
+npm run test:client     # Client tests only (jsdom environment)
+npm run test:coverage   # Coverage for both suites
+```
+
+Watch mode:
+
+```bash
+npm run test:server:watch
+npm run test:client:watch
+```
+
+Test setup highlights:
+- Server tests: route integration and service/state unit coverage under `src/server/**/*.test.{js,ts}`.
+- Client tests: component/hook/util coverage under `src/client/**/*.test.{ts,tsx}` with Testing Library and jsdom.
+
 ---
 
 ## License
