@@ -10,40 +10,38 @@ type SystemStatsPanelProps = {
 export default function SystemStatsPanel({ stats, error, updatedAt }: SystemStatsPanelProps) {
   const updatedLabel = updatedAt ? new Date(updatedAt).toLocaleTimeString() : null;
   return (
-    <div className="system-stats-card">
-      <div className="system-stats-header">
-        <div className="system-stats-title">
-          <span>System Stats</span>
+    <div className="rounded-lg border bg-card p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm font-medium">System Stats</span>
           {stats?.system && (
-            <span className="system-stats-sub">
+            <span className="ml-2 text-xs text-muted-foreground">
               Python {stats.system.python_version} · {stats.system.os}
             </span>
           )}
         </div>
-        {updatedLabel && <span className="system-stats-time">{updatedLabel}</span>}
+        {updatedLabel && <span className="text-xs text-muted-foreground">{updatedLabel}</span>}
       </div>
-      {error && <div className="system-stats-error">{error}</div>}
-      {!error && !stats && <div className="system-stats-loading">Loading...</div>}
+      {error && <div className="text-xs text-destructive">{error}</div>}
+      {!error && !stats && <div className="text-xs text-muted-foreground">Loading…</div>}
       {stats && stats.devices?.length > 0 && (
-        <div className="system-stats-grid">
+        <div className="space-y-2">
           {stats.devices.map((device) => {
             const total = device.torch_vram_total ?? device.vram_total;
             const free = device.torch_vram_free ?? device.vram_free;
             const used = Math.max(0, total - free);
             const percent = total > 0 ? Math.round((used / total) * 100) : 0;
             return (
-              <div key={`${device.name}-${device.index}`} className="system-device-card">
-                <div className="system-device-header">
-                  <span className="system-device-name">
-                    {device.name || `Device ${device.index}`}
-                  </span>
-                  <span className="system-device-type">{device.type}</span>
+              <div key={`${device.name}-${device.index}`} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{device.name || `Device ${device.index}`}</span>
+                  <span className="text-muted-foreground">{device.type}</span>
                 </div>
-                <div className="system-device-meta">
+                <div className="text-xs text-muted-foreground">
                   {formatBytes(used)} / {formatBytes(total)} VRAM
                 </div>
-                <div className="system-device-bar">
-                  <span style={{ width: `${percent}%` }} />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} />
                 </div>
               </div>
             );
@@ -51,7 +49,7 @@ export default function SystemStatsPanel({ stats, error, updatedAt }: SystemStat
         </div>
       )}
       {stats && (!stats.devices || stats.devices.length === 0) && (
-        <div className="system-stats-empty">No device stats available.</div>
+        <div className="text-xs text-muted-foreground">No device stats available.</div>
       )}
     </div>
   );

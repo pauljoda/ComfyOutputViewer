@@ -98,7 +98,7 @@ Key client behaviors:
   and hide-hidden flag.
 - Hidden/favorite/tag updates are optimistic, then persisted via API.
 
-Styles: `src/client/styles.css`
+Styles: `src/client/globals.css`
 
 ## Development Notes
 
@@ -142,6 +142,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Release-readiness quality + accessibility/performance pass (v0.8.3): removed invalid nested button markup from gallery cards, added keyboard-accessible card semantics, tightened icon-button labeling and modal backdrop/dialog semantics, synced browser `color-scheme` + `theme-color` with theme mode, replaced key `transition-all` usages with targeted transitions, polished loading/status copy/ARIA live regions, cleared stale gallery ratio cache on image-window changes, stabilized related tests (including `TagsContext` async act coverage and slideshow overlay-close assertions), bumped version to 0.8.3, and refreshed `flake.nix` npmDepsHash.
 - Improved gallery first-load smoothness and performance (v0.8.2): centered empty-state orb/text reliably, introduced large-initial-batch progressive gallery rendering with off-screen IntersectionObserver prefetch buffering, added short clean card entrance animation for initial render only, and faded in loaded thumbnails to reduce visible loading flashes while scrolling.
 - Creative UI polish pass (v0.8.1): animated mesh gradient background, floating ambient orbs, animated nav border shimmer, gradient title text, card hover lift/glow/tilt, spinning conic-gradient border on selected cards, favorite heart burst animation, rating badge shimmer, staggered card cascade fade-in, tag chip pop animations, filter pill pulse, tool button scale/glow hover, dramatic modal entrance with blur clearing, status slide-in with spring overshoot, scrollbar gradient thumbs, slideshow Ken Burns zoom, gallery empty state with pulsing orb, and `prefers-reduced-motion` support.
 - Full modern UI redesign (v0.8.0): new orange/violet palette with glassmorphism, Inter font, gradient accents; edge-to-edge gallery grid with consistent gap/padding; merged StatusBar into TopBar; modernized modals/popovers with glass panels and slide-in animations; eliminated per-card backdrop-filter for scroll performance; fixed mobile double-tap via `@media (hover: hover)`; replaced `content-visibility: auto` with `contain: layout style paint` plus fade-in placeholders; fixed `useElementSize` content-box measurement consistency; shrunk mobile toolbar to prevent overflow; matched workflows sidebar to tag drawer glass style.

@@ -8,8 +8,8 @@ describe('SlideshowSettingsModal', () => {
     const onClose = vi.fn();
     render(<SlideshowSettingsModal imageCount={12} onStart={onStart} onClose={onClose} />);
 
-    fireEvent.click(screen.getByLabelText(/shuffled/i));
-    fireEvent.click(screen.getByLabelText(/range/i));
+    fireEvent.click(screen.getByText(/shuffled/i));
+    fireEvent.click(screen.getByText(/range/i));
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Min' }), { target: { value: '6' } });
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Max' }), { target: { value: '4' } });
     fireEvent.click(screen.getByRole('button', { name: /start slideshow/i }));
@@ -26,10 +26,8 @@ describe('SlideshowSettingsModal', () => {
 
   it('closes on overlay click', () => {
     const onClose = vi.fn();
-    const { container } = render(
-      <SlideshowSettingsModal imageCount={2} onStart={vi.fn()} onClose={onClose} />
-    );
-    fireEvent.click(container.querySelector('.slideshow-settings-overlay') as HTMLElement);
+    render(<SlideshowSettingsModal imageCount={2} onStart={vi.fn()} onClose={onClose} />);
+    fireEvent.click(screen.getByRole('button', { name: /close slideshow settings/i }));
     expect(onClose).toHaveBeenCalled();
   });
 });

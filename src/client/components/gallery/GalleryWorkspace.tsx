@@ -601,7 +601,7 @@ export default function GalleryWorkspace() {
 
   return (
     <div
-      className="gallery-page"
+      className="flex flex-col"
       style={{ '--top-bar-height': `${topBarHeight}px` } as React.CSSProperties}
     >
       <TopBar
@@ -655,7 +655,7 @@ export default function GalleryWorkspace() {
       />
 
       {activeTool && (
-        <div className="tool-scrim" aria-hidden="true" onClick={() => setActiveTool(null)} />
+        <div className="fixed inset-0 z-30 bg-black/20" aria-hidden="true" onClick={() => setActiveTool(null)} />
       )}
 
       <TagDrawer

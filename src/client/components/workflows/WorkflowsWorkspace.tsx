@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+  Menu,
+  Plus,
+  GripVertical,
+  ChevronRight,
+  FolderPlus,
+  Check,
+  X,
+  Pencil,
+  Folder,
+} from 'lucide-react';
+import { Button } from '../ui/button';
 import WorkflowDetail from './WorkflowDetail';
 import WorkflowEditorPanel from './WorkflowEditorPanel';
 import type { WorkflowEditorSaveResult, WorkflowPrefill } from './types';
@@ -307,59 +319,99 @@ export default function WorkflowsWorkspace() {
     return params.get('debug') === '1';
   }, [location.search]);
 
+  const renderWorkflowItem = (workflow: Workflow) => (
+    <button
+      key={workflow.id}
+      type="button"
+      className={`flex w-full items-start gap-1 rounded-lg border-none bg-transparent p-3 text-left font-[inherit] transition-colors hover:bg-accent/50 ${
+        selectedWorkflow?.id === workflow.id ? 'bg-accent' : ''
+      } ${
+        dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'bg-orange-500/10' : ''
+      } ${organizationMode ? 'flex-row items-center' : 'flex-col'}`}
+      onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
+      draggable={organizationMode}
+      onDragStart={(e) => handleDragStart(e, workflow)}
+      onDragEnd={handleDragEnd}
+      onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'workflow', id: workflow.id })}
+      onDragLeave={handleDragLeave}
+      onDrop={(e) => organizationMode && handleDrop(e, { type: 'workflow', id: workflow.id })}
+      style={organizationMode ? { cursor: 'grab' } : undefined}
+    >
+      {organizationMode && (
+        <span className="mr-1 inline-flex shrink-0 items-center justify-center text-muted-foreground" style={{ cursor: 'grab' }}>
+          <GripVertical className="size-3" />
+        </span>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-sm font-medium text-foreground">{workflow.name}</span>
+        {workflow.description && (
+          <span className="max-w-full truncate text-xs text-muted-foreground">{workflow.description}</span>
+        )}
+      </div>
+    </button>
+  );
+
   return (
-    <div className="workflows-page">
+    <div className="flex h-full flex-col">
       <div
-        className={`workflows-layout ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${
+        className={`relative flex flex-1 overflow-hidden ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${
           isMobile ? 'is-mobile' : ''
         }`}
       >
-        <aside className="workflows-sidebar">
-          <div className="workflows-sidebar-header">
-            <h2>Workflows</h2>
-            <div className="workflows-sidebar-actions">
-              <button
-                className={`ghost small ${organizationMode ? 'active' : ''}`}
+        <aside
+          className={`flex w-70 shrink-0 flex-col border-r border-border bg-background/70 backdrop-blur-[32px] backdrop-saturate-[180%] transition-[width,opacity,transform,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            !sidebarOpen && !isMobile ? 'w-0 min-w-0 overflow-hidden border-r-0 opacity-0 p-0' : ''
+          } ${isMobile ? 'absolute inset-y-0 left-0 z-20 w-[min(78vw,320px)] border-r-0 shadow-2xl' : ''} ${
+            isMobile && sidebarOpen ? 'translate-x-0' : ''
+          } ${isMobile && !sidebarOpen ? '-translate-x-full' : ''}`}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 pb-3">
+            <h2 className="m-0 text-base font-bold">Workflows</h2>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={organizationMode ? 'secondary' : 'ghost'}
+                size="icon-xs"
                 onClick={() => setOrganizationMode(!organizationMode)}
                 title="Organize workflows"
+                aria-label="Organize workflows"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M3 3h7l2 2h9v14a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1z" />
-                  <path d="M12 11v6M9 14h6" />
-                </svg>
-              </button>
-              <button
-                className="button"
+                <FolderPlus className="size-4" />
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
                 onClick={handleOpenImport}
               >
-                + Import
-              </button>
+                <Plus className="size-4" />
+                Import
+              </Button>
             </div>
           </div>
 
           {organizationMode && (
-            <div className="workflows-organize-panel">
-              <div className="folder-create-form">
+            <div className="border-b border-border bg-secondary/5 px-4 py-3">
+              <div className="mb-2 flex gap-2">
                 <input
                   type="text"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  placeholder="New folder name..."
+                  placeholder="New folder name…"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                  className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 font-[inherit] text-sm text-foreground transition-colors focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20"
                 />
-                <button className="ghost small" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
+                <Button variant="ghost" size="sm" onClick={handleCreateFolder} disabled={!newFolderName.trim()}>
                   Add
-                </button>
+                </Button>
               </div>
-              <p className="organize-hint">Drag workflows to reorder or move to folders</p>
+              <p className="m-0 text-[11px] text-muted-foreground">Drag workflows to reorder or move to folders</p>
             </div>
           )}
 
-          <div className="workflows-list">
-            {loading && <p className="workflows-loading">Loading...</p>}
-            {error && <p className="workflows-error">{error}</p>}
+          <div className="flex-1 overflow-y-auto p-3">
+            {loading && <p className="p-5 text-center text-sm text-muted-foreground">Loading…</p>}
+            {error && <p className="p-5 text-center text-sm text-destructive">{error}</p>}
             {!loading && !error && workflows.length === 0 && folders.length === 0 && (
-              <p className="workflows-empty">
+              <p className="p-5 text-center text-sm text-muted-foreground">
                 No workflows yet. Import a ComfyUI API JSON to get started.
               </p>
             )}
@@ -373,33 +425,27 @@ export default function WorkflowsWorkspace() {
               return (
                 <div
                   key={`folder-${folder.id}`}
-                  className={`workflow-folder ${isDragOver ? 'drag-over' : ''}`}
+                  className={`mb-1 rounded-lg transition-colors ${isDragOver ? 'bg-orange-500/10' : ''}`}
                   onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'folder', id: folder.id })}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => organizationMode && handleDrop(e, { type: 'folder', id: folder.id })}
                 >
-                  <div className="folder-header">
+                  <div className="flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/50">
                     <button
-                      className="folder-toggle"
+                      type="button"
+                      className="inline-flex size-5 shrink-0 cursor-pointer items-center justify-center border-none bg-transparent p-0 text-muted-foreground"
                       onClick={() => toggleFolder(folder.id)}
+                      aria-label={isExpanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
                     >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        width="14"
-                        height="14"
-                        className={isExpanded ? 'expanded' : ''}
-                      >
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
+                      <ChevronRight
+                        className={`size-3.5 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'rotate-90' : ''}`}
+                      />
                     </button>
                     {editingFolder === folder.id ? (
-                      <div className="folder-edit-row">
+                      <div className="flex min-w-0 flex-1 items-center gap-1">
                         <input
                           type="text"
-                          className="folder-name-input"
+                          className="min-w-0 flex-1 rounded-md border border-primary bg-background px-2 py-1 font-[inherit] text-sm font-semibold text-foreground"
                           value={editingFolderName}
                           onChange={(e) => setEditingFolderName(e.target.value)}
                           onKeyDown={(e) => {
@@ -408,98 +454,70 @@ export default function WorkflowsWorkspace() {
                           }}
                           autoFocus
                         />
-                        <button
-                          className="ghost small"
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => handleRenameFolder(folder.id)}
                           title="Save"
+                          aria-label={`Save ${folder.name}`}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        </button>
-                        <button
-                          className="ghost small"
+                          <Check className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => setEditingFolder(null)}
                           title="Cancel"
+                          aria-label={`Cancel renaming ${folder.name}`}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                        </button>
+                          <X className="size-3" />
+                        </Button>
                       </div>
                     ) : (
-                      <span
-                        className="folder-name"
+                      <button
+                        type="button"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 truncate border-none bg-transparent p-0 text-left text-[13px] font-semibold text-foreground"
                         onClick={() => toggleFolder(folder.id)}
+                        aria-label={`Toggle ${folder.name}`}
                       >
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-                          <path d="M3 4a1 1 0 011-1h6l2 2h8a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4z" />
-                        </svg>
+                        <Folder className="size-3.5 shrink-0 text-muted-foreground" />
                         {folder.name}
-                        <span className="folder-count">({folderWorkflows.length})</span>
-                      </span>
+                        <span className="text-[11px] font-medium text-muted-foreground">({folderWorkflows.length})</span>
+                      </button>
                     )}
                     {organizationMode && (
-                      <div className="folder-actions">
-                        <button
-                          className="ghost small"
+                      <div className="flex shrink-0 gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => {
                             setEditingFolder(folder.id);
                             setEditingFolderName(folder.name);
                           }}
                           title="Rename folder"
+                          aria-label={`Rename ${folder.name}`}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          className="ghost small danger"
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           onClick={() => handleDeleteFolder(folder.id)}
                           title="Delete folder"
+                          aria-label={`Delete ${folder.name}`}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                        </button>
+                          <X className="size-3" />
+                        </Button>
                       </div>
                     )}
                   </div>
                   {isExpanded && (
-                    <div className="folder-contents">
+                    <div className="mt-0.5 pl-7">
                       {folderWorkflows.length === 0 ? (
-                        <p className="folder-empty">No workflows</p>
+                        <p className="m-0 px-3 py-2 text-xs text-muted-foreground">No workflows</p>
                       ) : (
-                        folderWorkflows.map((workflow) => (
-                          <button
-                            key={workflow.id}
-                            className={`workflow-item ${selectedWorkflow?.id === workflow.id ? 'active' : ''} ${
-                              dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'drag-over' : ''
-                            } ${organizationMode ? 'organize-mode' : ''}`}
-                            onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
-                            draggable={organizationMode}
-                            onDragStart={(e) => handleDragStart(e, workflow)}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'workflow', id: workflow.id })}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => organizationMode && handleDrop(e, { type: 'workflow', id: workflow.id })}
-                          >
-                            {organizationMode && (
-                              <span className="drag-handle">
-                                <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
-                                  <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zm-6 5h2v2H8v-2zm6 0h2v2h-2v-2z" />
-                                </svg>
-                              </span>
-                            )}
-                            <div className="workflow-item-text">
-                              <span className="workflow-name">{workflow.name}</span>
-                              {workflow.description && (
-                                <span className="workflow-description">{workflow.description}</span>
-                              )}
-                            </div>
-                          </button>
-                        ))
+                        folderWorkflows.map((workflow) => renderWorkflowItem(workflow))
                       )}
                     </div>
                   )}
@@ -510,65 +528,34 @@ export default function WorkflowsWorkspace() {
             {/* Root level drop zone and workflows */}
             {folders.length > 0 && (
               <div
-                className={`root-workflows-section ${dragOverTarget?.type === 'root' ? 'drag-over' : ''}`}
+                className={`min-h-2 rounded-lg transition-[min-height,background-color] ${dragOverTarget?.type === 'root' ? 'min-h-10 bg-orange-500/10' : ''}`}
                 onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'root', id: null })}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => organizationMode && handleDrop(e, { type: 'root', id: null })}
               >
                 {organizationMode && rootWorkflows.length === 0 && (
-                  <div className="root-drop-hint">Drop here for no folder</div>
+                  <div className="p-3 text-center text-[11px] text-muted-foreground">Drop here for no folder</div>
                 )}
               </div>
             )}
 
             {/* Root workflows (not in any folder) */}
-            {rootWorkflows.map((workflow) => (
-              <button
-                key={workflow.id}
-                className={`workflow-item ${selectedWorkflow?.id === workflow.id ? 'active' : ''} ${
-                  dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'drag-over' : ''
-                } ${organizationMode ? 'organize-mode' : ''}`}
-                onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
-                draggable={organizationMode}
-                onDragStart={(e) => handleDragStart(e, workflow)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'workflow', id: workflow.id })}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => organizationMode && handleDrop(e, { type: 'workflow', id: workflow.id })}
-              >
-                {organizationMode && (
-                  <span className="drag-handle">
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12">
-                      <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zm-6 5h2v2H8v-2zm6 0h2v2h-2v-2z" />
-                    </svg>
-                  </span>
-                )}
-                <div className="workflow-item-text">
-                  <span className="workflow-name">{workflow.name}</span>
-                  {workflow.description && (
-                    <span className="workflow-description">{workflow.description}</span>
-                  )}
-                </div>
-              </button>
-            ))}
+            {rootWorkflows.map((workflow) => renderWorkflowItem(workflow))}
           </div>
         </aside>
 
-        <main className="workflows-main">
-          <div className="workflows-main-header">
-            <button
-              className="ghost workflows-toggle"
+        <main className="flex-1 overflow-y-auto p-6 max-[900px]:p-4">
+          <div className="mb-4 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
               type="button"
               onClick={() => setSidebarOpen((prev) => !prev)}
               aria-label={sidebarOpen ? 'Close workflow list' : 'Open workflow list'}
             >
-              <span className="hamburger" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-            </button>
-            <span className="workflows-main-title">Workflows</span>
+              <Menu className="size-4" />
+            </Button>
+            <span className="text-sm font-semibold text-muted-foreground">Workflows</span>
           </div>
           {importMode ? (
             <WorkflowEditorPanel
@@ -578,14 +565,14 @@ export default function WorkflowsWorkspace() {
               onSaved={handleEditorSaved}
             />
           ) : !selectedWorkflow ? (
-            <div className="workflows-placeholder">
-              <h3>{missingWorkflowId ? 'Workflow not found' : 'Select a workflow'}</h3>
+            <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+              <h3 className="mb-2 text-lg font-semibold text-foreground">{missingWorkflowId ? 'Workflow not found' : 'Select a workflow'}</h3>
               {missingWorkflowId ? (
-                <p className="workflows-error">
+                <p className="m-0 text-sm text-destructive">
                   Workflow #{missingWorkflowId} could not be found. It may have been deleted.
                 </p>
               ) : (
-                <p>Choose a workflow from the sidebar or import a new one to get started.</p>
+                <p className="m-0 text-sm">Choose a workflow from the sidebar or import a new one to get started.</p>
               )}
             </div>
           ) : (
@@ -604,7 +591,7 @@ export default function WorkflowsWorkspace() {
         </main>
         {isMobile && sidebarOpen && (
           <button
-            className="workflows-scrim"
+            className="absolute inset-0 z-[15] border-none bg-black/40 backdrop-blur-sm"
             type="button"
             aria-label="Close workflow list"
             onClick={() => setSidebarOpen(false)}

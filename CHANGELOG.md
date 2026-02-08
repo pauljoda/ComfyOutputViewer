@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.3] - 2026-02-08
+
+### Changed
+- Ran a release-readiness quality pass across the client UI to tighten accessibility, consistency, and interaction semantics.
+- Converted gallery cards from nested button markup to a keyboard-accessible card container with explicit button role semantics, removing invalid nested interactive HTML.
+- Added stronger icon-button accessibility coverage (`aria-label`) across modal/workflow controls and upgraded multiple modal overlays to explicit backdrop buttons with dialog metadata.
+- Improved browser theming consistency by syncing `color-scheme` and `<meta name="theme-color">` with light/dark mode changes.
+- Replaced broad `transition-all` usage in key interactive/progress components with explicit property transitions for better rendering performance.
+- Added small UX/copy consistency polish (`…` loading labels, live status regions, improved form labeling/autocomplete hints).
+- Added minor gallery memory hygiene by clearing stale ratio caches when the image window changes.
+
+### Fixed
+- Removed React test warnings caused by nested `<button>` markup in gallery image cards.
+- Eliminated `act(...)` warnings in `TagsContext` tests by waiting for initial async tag refresh before assertions.
+- Updated slideshow settings modal tests to target the new explicit backdrop close control.
+
 ## [0.8.2] - 2026-02-08
 
 ### Changed

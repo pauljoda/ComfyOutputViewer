@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { Button } from '../ui/button';
 import { api } from '../../lib/api';
 import type { Workflow, WorkflowInput } from '../../types';
 import type { WorkflowEditorMode, WorkflowEditorSaveResult } from './types';
@@ -289,87 +291,91 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
   }, [mode, nodes, selectedInputs]);
 
   return (
-    <div className="workflow-editor-panel">
-      <div className="workflow-editor-header">
+    <div className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="flex items-start justify-between">
         <div>
-          <h2>{mode === 'import' ? 'Import Workflow' : 'Edit Workflow'}</h2>
-          <p className="workflow-editor-subtitle">
+          <h2 className="text-base font-semibold">
+            {mode === 'import' ? 'Import Workflow' : 'Edit Workflow'}
+          </h2>
+          <p className="text-xs text-muted-foreground">
             {mode === 'import'
               ? 'Upload a ComfyUI API JSON file and pick which nodes should be configurable.'
               : 'Adjust the inputs and labels, then save your changes.'}
           </p>
         </div>
-        <button className="tool-button" onClick={onClose} title="Close">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} title="Close" aria-label="Close workflow editor">
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="workflow-editor-body">
-        {error && <p className="import-error">{error}</p>}
+      <div className="space-y-4">
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         {mode === 'import' && step === 'upload' && (
-          <div className="upload-section">
-            <p>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
               Upload a ComfyUI API format JSON file. You can export this from ComfyUI
               by enabling Dev mode and using "Save (API Format)".
             </p>
-            <label className="upload-zone">
-              <input type="file" accept=".json" onChange={handleFileUpload} />
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed p-8 text-center text-sm text-muted-foreground hover:border-primary/50">
+              <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
               <span>Click to select JSON file or drag and drop</span>
             </label>
           </div>
         )}
 
         {step === 'configure' && (
-          <div className="configure-section">
-            <div className="workflow-meta">
-              <div className="control">
-                <label>Workflow Name</label>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="workflow-name">Workflow Name</label>
                 <input
+                  id="workflow-name"
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="My Workflow"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
-              <div className="control">
-                <label>Description (optional)</label>
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="workflow-description">Description (optional)</label>
                 <input
+                  id="workflow-description"
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="What does this workflow do?"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                 />
               </div>
             </div>
 
-            <div className="nodes-section">
-              <div className="nodes-header">
-                <h3>Select Inputs</h3>
-                {loading && <span className="nodes-loading">Refreshing...</span>}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold">Select Inputs</h3>
+                {loading && <span className="text-xs text-muted-foreground">Refreshing…</span>}
               </div>
-              <p className="hint">
+              <p className="text-xs text-muted-foreground">
                 Click on inputs you want to configure when running the workflow.
                 Text nodes are highlighted - select which type each one is.
               </p>
-              <div className="nodes-legend">
-                <span className="legend-item">
-                  <span className="legend-chip legend-text" />
+              <div className="flex gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
                   Text input detected
                 </span>
-                <span className="legend-item">
-                  <span className="legend-chip legend-selected" />
+                <span className="flex items-center gap-1">
+                  <span className="h-2.5 w-2.5 rounded-full bg-primary" />
                   Selected input
                 </span>
               </div>
 
               {!apiJson && (
-                <p className="nodes-empty">No workflow JSON loaded yet.</p>
+                <p className="text-sm text-muted-foreground">No workflow JSON loaded yet.</p>
               )}
 
-              <div className="nodes-list">
+              <div className="space-y-3">
                 {sortedNodes.map((node) => {
                   const selectedSet = new Set(
                     selectedInputs.map((input) => `${input.nodeId}:${input.inputKey}`)
@@ -377,25 +383,21 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
                   const textInputs = Object.entries(node.inputs)
                     .filter(([, value]) => inferInputType(value) !== 'connection')
                     .sort(([keyA], [keyB]) => {
-                      if (mode !== 'edit') {
-                        return 0;
-                      }
+                      if (mode !== 'edit') return 0;
                       const selectedA = selectedSet.has(`${node.id}:${keyA}`);
                       const selectedB = selectedSet.has(`${node.id}:${keyB}`);
-                      if (selectedA === selectedB) {
-                        return 0;
-                      }
+                      if (selectedA === selectedB) return 0;
                       return selectedA ? -1 : 1;
                     });
                   if (textInputs.length === 0) return null;
 
                   return (
-                    <div key={node.id} className="node-card">
-                      <div className="node-header">
-                        <span className="node-id">Node {node.id}</span>
-                        <span className="node-type">{node.classType}</span>
+                    <div key={node.id} className="rounded-md border p-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-muted-foreground">Node {node.id}</span>
+                        <span className="font-medium">{node.classType}</span>
                       </div>
-                      <div className="node-inputs">
+                      <div className="space-y-1">
                         {textInputs.map(([key, value]) => {
                           const inferred = inferInputType(value);
                           const isSelected = selectedInputs.some(
@@ -409,27 +411,27 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
                           return (
                             <div
                               key={key}
-                              className={`node-input ${isSelected ? 'selected' : ''} ${inferred === 'text' ? 'text-input' : ''}`}
+                              className={`rounded-md border p-2 ${isSelected ? 'border-primary bg-primary/5' : inferred === 'text' ? 'border-blue-400/30 bg-blue-400/5' : ''}`}
                             >
                               <button
                                 type="button"
-                                className="node-input-toggle"
+                                className="flex w-full items-center justify-between text-left text-xs"
                                 onClick={() =>
                                   handleToggleInput(node.id, key, inferred, defaultValue)
                                 }
                               >
-                                <span className="input-key">{key}</span>
-                                <span className="input-value">
+                                <span className="font-medium">{key}</span>
+                                <span className="max-w-[200px] truncate text-muted-foreground">
                                   {typeof value === 'string'
                                     ? value.length > 50
-                                      ? value.slice(0, 50) + '...'
+                                      ? `${value.slice(0, 50)}…`
                                       : value
                                     : JSON.stringify(value)}
                                 </span>
                               </button>
 
                               {isSelected && (
-                                <div className="input-config">
+                                <div className="mt-2 space-y-1.5 border-t pt-2">
                                   <input
                                     type="text"
                                     value={selected?.label || ''}
@@ -437,6 +439,7 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
                                       handleUpdateInputLabel(node.id, key, e.target.value)
                                     }
                                     placeholder="Custom label (optional)"
+                                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                                   />
                                   <input
                                     type={
@@ -450,13 +453,15 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
                                     }
                                     placeholder="Default value"
                                     aria-label="Default value"
+                                    className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
                                   />
-                                  <span className="input-system-label">System label: {key}</span>
+                                  <div className="text-[10px] text-muted-foreground">System label: {key}</div>
                                   <select
                                     value={selected?.inputType || inferred}
                                     onChange={(e) =>
                                       handleUpdateInputType(node.id, key, e.target.value)
                                     }
+                                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
                                   >
                                     <option value="text">Text (Prompt)</option>
                                     <option value="negative">Text (Negative)</option>
@@ -479,18 +484,12 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
         )}
       </div>
 
-      <div className="workflow-editor-footer">
-        <button className="ghost" onClick={onClose}>
-          Close
-        </button>
+      <div className="flex justify-end gap-2 border-t pt-4">
+        <Button variant="ghost" onClick={onClose}>Close</Button>
         {step === 'configure' && (
-          <button
-            className="button"
-            onClick={handleSave}
-            disabled={saving || (mode === 'edit' && !workflow)}
-          >
-            {saving ? 'Saving...' : mode === 'import' ? 'Save Workflow' : 'Update Workflow'}
-          </button>
+          <Button onClick={handleSave} disabled={saving || (mode === 'edit' && !workflow)}>
+            {saving ? 'Saving…' : mode === 'import' ? 'Save Workflow' : 'Update Workflow'}
+          </Button>
         )}
       </div>
     </div>

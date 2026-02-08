@@ -5,7 +5,7 @@ import App from './App';
 import GalleryPage from './pages/GalleryPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 import { TagsProvider } from './contexts/TagsContext';
-import './styles.css';
+import './globals.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

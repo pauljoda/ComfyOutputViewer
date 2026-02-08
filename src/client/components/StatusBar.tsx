@@ -7,11 +7,11 @@ type StatusBarProps = {
 
 export default function StatusBar({ loading, imageCount, status, error }: StatusBarProps) {
   return (
-    <div className="status-bar">
+    <div className="flex items-center justify-between border-t px-3 py-1.5 text-xs text-muted-foreground" aria-live="polite">
       <div>{loading ? 'Loading images…' : `${imageCount} images`}</div>
-      <div className="status">
+      <div className="flex items-center gap-2">
         {status}
-        {error && <span className="error">{error}</span>}
+        {error && <span className="text-destructive">{error}</span>}
       </div>
     </div>
   );

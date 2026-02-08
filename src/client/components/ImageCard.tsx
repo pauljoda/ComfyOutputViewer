@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo } from 'react';
-import type { CSSProperties, MouseEvent, SyntheticEvent } from 'react';
+import { Heart, EyeOff, Eye, Star, Check } from 'lucide-react';
+import type { CSSProperties, KeyboardEvent, MouseEvent, SyntheticEvent } from 'react';
 import type { ImageItem, TileFit } from '../types';
 
 type ImageCardProps = {
@@ -32,32 +33,34 @@ function ImageCard({
   onImageLoad
 }: ImageCardProps) {
   const style = useMemo(() => {
-    const animationDelay = `${Math.min(renderIndex, 18) * 12}ms`;
-    if (tileFit !== 'contain') return undefined;
+    const delay = `${Math.min(renderIndex, 18) * 12}ms`;
+    if (tileFit !== 'contain') {
+      return { animationDelay: delay } as CSSProperties;
+    }
     if (!ratio) {
-      return {
-        '--card-enter-delay': animationDelay,
-        width: tileSize,
-        height: tileSize
-      } as CSSProperties;
+      return { animationDelay: delay, width: tileSize, height: tileSize } as CSSProperties;
     }
     const width = ratio >= 1 ? tileSize * ratio : tileSize;
     const height = ratio >= 1 ? tileSize : tileSize / ratio;
     return {
-      '--card-enter-delay': animationDelay,
+      animationDelay: delay,
       width: Math.round(width),
       height: Math.round(height)
     } as CSSProperties;
   }, [ratio, renderIndex, tileFit, tileSize]);
 
-  const cardStyle = useMemo(() => {
-    if (style) return style;
-    return { '--card-enter-delay': `${Math.min(renderIndex, 18) * 12}ms` } as CSSProperties;
-  }, [renderIndex, style]);
-
   const handleSelect = useCallback(() => {
     onSelectImage(image.id);
   }, [image.id, onSelectImage]);
+
+  const handleCardKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      handleSelect();
+    },
+    [handleSelect]
+  );
 
   const handleToggleHidden = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -83,13 +86,17 @@ function ImageCard({
   );
 
   return (
-    <button
-      className={`card ${tileFit} ${image.hidden ? 'hidden' : ''} ${
-        selected ? 'selected' : ''
-      } ${multiSelect ? 'multi-select' : ''} ${animateIn ? '' : 'no-enter'}`}
-      type="button"
+    <article
+      className={`group relative overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring ${
+        selected ? 'ring-2 ring-primary' : ''
+      } ${image.hidden ? 'opacity-60' : ''} ${animateIn ? 'animate-card-enter' : ''}`}
+      data-image-card="true"
+      role="button"
+      tabIndex={0}
+      aria-label={image.name}
       onClick={handleSelect}
-      style={cardStyle}
+      onKeyDown={handleCardKeyDown}
+      style={style}
     >
       <img
         src={image.thumbUrl || image.url}
@@ -97,6 +104,7 @@ function ImageCard({
         data-loaded="false"
         loading="lazy"
         decoding="async"
+        className={`h-full w-full ${tileFit === 'contain' ? 'object-contain' : 'object-cover'}`}
         onLoad={(event) => {
           event.currentTarget.dataset.loaded = 'true';
           handleImageLoad(event);
@@ -109,80 +117,65 @@ function ImageCard({
           target.src = image.url;
         }}
       />
-      <div className="card-overlay">
-        {multiSelect && (
-          <div className={selected ? 'card-select active' : 'card-select'} aria-hidden="true">
-            {selected && (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M6 12.5l3.2 3.2 8.2-8.4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
+
+      {/* Overlay - appears on hover */}
+      <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="flex justify-between p-1.5">
+          {multiSelect && (
+            <div
+              className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors ${
+                selected
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-white/70 bg-black/30'
+              }`}
+              aria-hidden="true"
+            >
+              {selected && <Check className="h-3 w-3" />}
+            </div>
+          )}
+          <div className="ml-auto flex gap-1">
+            <button
+              className={`rounded-full p-1 transition-colors ${
+                image.hidden
+                  ? 'bg-destructive/80 text-white'
+                  : 'bg-black/30 text-white/80 hover:bg-black/50'
+              }`}
+              type="button"
+              onClick={handleToggleHidden}
+              aria-label={image.hidden ? 'Unhide' : 'Hide'}
+              title={image.hidden ? 'Hidden' : 'Hide'}
+            >
+              {image.hidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              className={`rounded-full p-1 transition-colors ${
+                image.favorite
+                  ? 'bg-favorite/80 text-white'
+                  : 'bg-black/30 text-white/80 hover:bg-black/50'
+              }`}
+              type="button"
+              onClick={handleToggleFavorite}
+              aria-label={image.favorite ? 'Unfavorite' : 'Favorite'}
+            >
+              <Heart className={`h-3.5 w-3.5 ${image.favorite ? 'fill-current' : ''}`} />
+            </button>
           </div>
-        )}
-        <div className="card-actions-top">
-          <button
-            className={image.hidden ? 'card-action hide active' : 'card-action hide'}
-            type="button"
-            onClick={handleToggleHidden}
-            aria-label={image.hidden ? 'Unhide' : 'Hide'}
-            title={image.hidden ? 'Hidden' : 'Hide'}
-          >
-            {image.hidden ? (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <path
-                  d="M4 4l16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                />
-                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-            )}
-          </button>
-          <button
-            className={image.favorite ? 'card-action fav active' : 'card-action fav'}
-            type="button"
-            onClick={handleToggleFavorite}
-            aria-label={image.favorite ? 'Unfavorite' : 'Favorite'}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 20.5l-1.1-1C6 15 3 12.2 3 8.7 3 6 5 4 7.6 4c1.6 0 3.1.8 4 2.1C12.5 4.8 14 4 15.6 4 18.2 4 20 6 20 8.7c0 3.5-3 6.3-7.9 10.8L12 20.5z" />
-            </svg>
-          </button>
         </div>
         {image.rating > 0 && (
-          <div className="card-rating" aria-label={`Rated ${image.rating} out of 5`}>
+          <div className="flex items-center gap-0.5 p-1.5 text-xs text-white" aria-label={`Rated ${image.rating} out of 5`}>
             <span>{image.rating}</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 3.8l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z" />
-            </svg>
+            <Star className="h-3 w-3 fill-rating text-rating" />
           </div>
         )}
       </div>
-    </button>
+
+      {/* Always-visible selected indicator when not hovered */}
+      {selected && !multiSelect && (
+        <div className="absolute right-1.5 top-1.5 rounded-full bg-primary p-0.5 text-primary-foreground group-hover:hidden">
+          <Check className="h-3 w-3" />
+        </div>
+      )}
+    </article>
   );
 }
 

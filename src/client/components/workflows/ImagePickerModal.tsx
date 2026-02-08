@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { Button } from '../ui/button';
 import { useElementSize } from '../../hooks/useElementSize';
 import { api } from '../../lib/api';
 
@@ -40,19 +42,13 @@ export default function ImagePickerModal({ onSelect, onClose }: ImagePickerModal
           console.error('Failed to load images:', err);
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    setScrollTop(0);
-  }, [images.length]);
+  useEffect(() => { setScrollTop(0); }, [images.length]);
 
   const minTileSize = 100;
   const tileGap = 8;
@@ -85,25 +81,33 @@ export default function ImagePickerModal({ onSelect, onClose }: ImagePickerModal
     totalRows > 0 ? gridPaddingY * 2 + totalRows * rowHeight + (totalRows - 1) * tileGap : 0;
 
   return (
-    <div className="modal image-picker-modal">
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-dialog picker-dialog">
-        <div className="modal-header">
-          <h2>Select Image</h2>
-          <button className="tool-button" onClick={onClose}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <button
+        type="button"
+        className="fixed inset-0 bg-black/60"
+        aria-label="Close image picker"
+        onClick={onClose}
+      />
+      <div
+        className="relative z-10 mx-4 flex h-[80vh] w-full max-w-[640px] flex-col rounded-lg border bg-background shadow-lg"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="image-picker-title"
+      >
+        <div className="flex items-center justify-between border-b p-4">
+          <h2 id="image-picker-title" className="text-base font-semibold">Select Image</h2>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label="Close image picker">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
         <div
           className="picker-grid"
           ref={gridRef}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         >
-          {loading && <p className="picker-loading">Loading images...</p>}
+          {loading && <p className="p-4 text-sm text-muted-foreground">Loading images…</p>}
           {!loading && images.length === 0 && (
-            <p className="picker-empty">No images found</p>
+            <p className="p-4 text-sm text-muted-foreground">No images found</p>
           )}
           {visibleImages.map((img, index) => {
             const imageIndex = startIndex + index;
@@ -114,8 +118,10 @@ export default function ImagePickerModal({ onSelect, onClose }: ImagePickerModal
             return (
               <button
                 key={img.id}
-                className="picker-item"
+                type="button"
+                className="picker-item hover:ring-2 hover:ring-primary"
                 onClick={() => onSelect(img.id)}
+                aria-label={`Select ${img.name}`}
                 style={{
                   position: 'absolute',
                   top: `${top}px`,
@@ -124,7 +130,13 @@ export default function ImagePickerModal({ onSelect, onClose }: ImagePickerModal
                   height: `${rowHeight}px`
                 }}
               >
-                <img src={img.thumbUrl || img.url} alt={img.id} />
+                <img
+                  src={img.thumbUrl || img.url}
+                  alt={img.name}
+                  loading="lazy"
+                  width={columnWidth}
+                  height={rowHeight}
+                />
               </button>
             );
           })}

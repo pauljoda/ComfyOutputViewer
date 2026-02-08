@@ -60,13 +60,17 @@ describe('TagsContext', () => {
     apiMock.mockReset();
   });
 
-  it('builds tag counts from images supplied by updateFromImages', () => {
+  it('builds tag counts from images supplied by updateFromImages', async () => {
     apiMock.mockResolvedValueOnce({ images: [], sourceDir: '', dataDir: '' });
     render(
       <TagsProvider>
         <Consumer />
       </TagsProvider>
     );
+
+    await waitFor(() => {
+      expect(apiMock).toHaveBeenCalledTimes(1);
+    });
 
     act(() => {
       screen.getByRole('button', { name: 'update' }).click();
