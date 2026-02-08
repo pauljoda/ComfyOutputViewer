@@ -28,7 +28,7 @@
               in
               !(base == "node_modules" || base == "dist" || base == ".cache" || base == ".git");
           };
-          npmDepsHash = "sha256-890iVIqBiWuOz+68uAq5x3JNPstsmluQLk/kxXqFDEE=";
+          npmDepsHash = "sha256-ptGfWysxsnFtY/Gi2HgsUygxADD7B3fkzTE5woUXxjw=";
           npmBuildScript = "build";
           # Required for building sharp from source
           nativeBuildInputs = with pkgs; [ makeWrapper pkg-config python3 ];
@@ -44,9 +44,9 @@
             runHook preInstall
             appDir=$out/lib/comfy-output-viewer
             mkdir -p "$appDir"
-            cp -r dist server package.json node_modules "$appDir/"
+            cp -r dist src package.json node_modules "$appDir/"
             makeWrapper ${nodejs}/bin/node $out/bin/comfy-output-viewer \
-              --add-flags "$appDir/server/index.js" \
+              --add-flags "$appDir/src/server/index.js" \
               --set NODE_PATH "$appDir/node_modules" \
               --chdir "$appDir"
             runHook postInstall

@@ -2,6 +2,61 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.4] - 2026-02-08
+
+### Fixed
+- Restored cross-module workflow live-update wiring by registering a shared `broadcastJobUpdate` callback between `src/server/index.js` and `src/server/routes/registerWorkflowRoutes.js`, preventing runtime `ReferenceError` failures during queue/status refreshes.
+- Fixed workflow folder reordering to update only `sort_order` instead of writing `name = NULL`, resolving SQLite `NOT NULL` constraint errors introduced during route modularization.
+- Hardened SQLite bootstrap compatibility by only running job-output dedupe when the unique index does not already exist, and made workflow ordering SQL portable across SQLite builds.
+
+## [0.7.3] - 2026-02-08
+
+### Fixed
+- Restored missing workflow route runtime dependencies after server modularization by passing `isGeneratingStatus`, `pollJobCompletion`, websocket clients, and filesystem checks into `registerWorkflowRoutes`.
+- Fixed workflow run/job payload paths that could throw `ReferenceError: isGeneratingStatus is not defined` during live job updates.
+
+## [0.7.2] - 2026-02-08
+
+### Fixed
+- Fixed workflow image-input picker sizing so the selectable image grid can use multiple columns instead of collapsing to a single column when initial element measurements are zero.
+- Updated image picker modal layout to let the grid fill available dialog height more reliably.
+- Improved `useElementSize` to capture immediate post-mount dimensions (plus a next-frame remeasure) for more stable initial layout calculations.
+
+## [0.7.1] - 2026-02-08
+
+### Changed
+- Extracted server SQLite bootstrap/schema/statement wiring into `src/server/db/createDatabase.js`.
+- Extracted metadata/tag/rating/blacklist operations and legacy JSON migration into `src/server/db/createMetadataRepository.js`.
+- Slimmed `src/server/index.js` by composing DB modules instead of inlining DB concerns.
+
+## [0.7.0] - 2026-02-08
+
+### Changed
+- Reorganized the repository to a unified `src/client` and `src/server` layout, updating build/runtime entry points and references.
+- Split server API registration into task-focused route modules (`registerImageRoutes`, `registerWorkflowRoutes`, `registerComfyRoutes`) under `src/server/routes/`.
+- Extracted Comfy SDK websocket adapter into `src/server/sdk/ComfyWebSocketAdapter.js` and centralized mutable runtime state in `src/server/lib/ComfyRuntimeState.js`.
+- Reduced page-level complexity by moving gallery/workflow page orchestration into workspace components and extracting workflow detail into `src/client/components/workflows/WorkflowDetail.tsx`.
+- Added focused workflow component modules and shared workflow helper/type modules for cleaner boundaries.
+
+## [0.6.7] - 2026-02-08
+
+### Changed
+- Split workflow UI internals into isolated modules under `src/components/workflows/` (`WorkflowEditorPanel`, `ImageInputField`, `ImagePickerModal`, `JobCard`, `SystemStatsPanel`, shared formatters/types).
+- Introduced a dedicated backend runtime state class (`server/lib/ComfyRuntimeState.js`) and moved in-memory queue/progress/live-event state ownership into that module.
+- Simplified `WorkflowsPage` orchestration by consuming modular workflow components and shared editor/system types.
+
+## [0.6.6] - 2026-02-08
+
+### Changed
+- Hardened API client response parsing to safely handle empty and non-JSON success responses.
+- Improved the shared element-size hook to reliably re-observe remounted DOM nodes.
+
+### Fixed
+- Resolved strict TypeScript errors and tightened workflow progress percent normalization.
+- Prevented stale workflow job refetch timers and async editor/image-picker loads from mutating newer workflow state.
+- Added server-side guards for workflow numeric input coercion, prompt-to-job cache validation, queue override staleness, and large input upload limits.
+- Unified polling/event job finalization behavior and made job output insertion idempotent with a unique job/image index.
+
 ## [0.6.4] - 2026-02-08
 
 ### Changed

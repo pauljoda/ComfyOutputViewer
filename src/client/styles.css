@@ -2598,11 +2598,13 @@ body.slideshow-open {
   width: 90vw;
   max-width: 900px;
   max-height: 85vh;
+  height: min(85vh, 920px);
 }
 
 .picker-grid {
   position: relative;
-  height: 60vh;
+  flex: 1;
+  min-height: 320px;
   overflow-y: auto;
 }
 

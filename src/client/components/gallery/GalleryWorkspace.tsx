@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import TagDrawer from '../components/TagDrawer';
-import Gallery from '../components/Gallery';
-import ImageModal from '../components/ImageModal';
-import StatusBar from '../components/StatusBar';
-import TopBar from '../components/TopBar';
-import SlideshowSettingsModal from '../components/SlideshowSettingsModal';
-import SlideshowView from '../components/SlideshowView';
+import TagDrawer from '../TagDrawer';
+import Gallery from '../Gallery';
+import ImageModal from '../ImageModal';
+import StatusBar from '../StatusBar';
+import TopBar from '../TopBar';
+import SlideshowSettingsModal from '../SlideshowSettingsModal';
+import SlideshowView from '../SlideshowView';
 import {
   COLUMN_MAX,
   COLUMN_MIN,
@@ -14,11 +14,11 @@ import {
   STORAGE_KEYS,
   TARGET_TILE_SIZE,
   TILE_GAP
-} from '../constants';
-import { useTags } from '../contexts/TagsContext';
-import { useElementSize } from '../hooks/useElementSize';
-import { useLocalStorageState } from '../hooks/useLocalStorageState';
-import { api } from '../lib/api';
+} from '../../constants';
+import { useTags } from '../../contexts/TagsContext';
+import { useElementSize } from '../../hooks/useElementSize';
+import { useLocalStorageState } from '../../hooks/useLocalStorageState';
+import { api } from '../../lib/api';
 import {
   bulkDelete,
   bulkFavorite,
@@ -30,15 +30,15 @@ import {
   setHidden,
   setRating,
   setTags
-} from '../lib/imagesApi';
-import { clamp, filterImages, sortImages } from '../utils/images';
-import { normalizeTagInput, normalizeTags } from '../utils/tags';
+} from '../../lib/imagesApi';
+import { clamp, filterImages, sortImages } from '../../utils/images';
+import { normalizeTagInput, normalizeTags } from '../../utils/tags';
 import {
   booleanSerializer,
   enumSerializer,
   numberSerializer,
   type StorageSerializer
-} from '../utils/storage';
+} from '../../utils/storage';
 import {
   DEFAULT_SORT,
   SORT_MODES,
@@ -52,7 +52,7 @@ import {
   type ThemeMode,
   type TileFit,
   type ToolPanel
-} from '../types';
+} from '../../types';
 
 const emptyData: ApiResponse = {
   images: [],
@@ -81,7 +81,7 @@ const tileFitSerializer: StorageSerializer<TileFit> = {
 
 const sortSerializer = enumSerializer<SortMode>(DEFAULT_SORT, SORT_MODES);
 
-export default function GalleryPage() {
+export default function GalleryWorkspace() {
   const { themeMode, setThemeMode, goHomeSignal } = useOutletContext<{
     themeMode: ThemeMode;
     setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>;

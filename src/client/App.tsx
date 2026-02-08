@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import packageJson from '../package.json';
+import packageJson from '../../package.json';
 import { STORAGE_KEYS } from './constants';
 import type { ThemeMode } from './types';
 import { useElementSize } from './hooks/useElementSize';

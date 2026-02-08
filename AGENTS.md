@@ -25,14 +25,16 @@ and managing images.
 ## Architecture
 
 ### Server (Node/Express)
-Entry: `server/index.js`
+Entry: `src/server/index.js`
 
 Responsibilities:
 - Serve the SPA in production.
 - Serve image files from the data directory at `/images`.
 - Provide API endpoints for listing images, syncing, favorites, hidden state,
   and per-image tags.
-- Maintain a SQLite DB for metadata (favorites/hidden/tags) and hash blacklisting.
+- Maintain a SQLite DB for metadata (favorites/hidden/tags) and hash blacklisting,
+  with DB bootstrap/statements in `src/server/db/createDatabase.js` and metadata
+  operations in `src/server/db/createMetadataRepository.js`.
 - Uses Node's built-in `node:sqlite` module (experimental) for storage.
 - Generate thumbnails (if `sharp` is available).
 
@@ -62,9 +64,9 @@ API endpoints:
 - `GET /api/images/:path/prompt` -> get prompt metadata for an image
 
 ### Client (Vite + React)
-Entry: `src/main.tsx` (React Router setup), `src/App.tsx` (layout shell)
-Pages: `src/pages/GalleryPage.tsx`, `src/pages/WorkflowsPage.tsx`
-Component modules live in `src/components`, with shared hooks/utilities in `src/hooks`, `src/utils`, and `src/lib`.
+Entry: `src/client/main.tsx` (React Router setup), `src/client/App.tsx` (layout shell)
+Pages: `src/client/pages/GalleryPage.tsx`, `src/client/pages/WorkflowsPage.tsx`
+Component modules live in `src/client/components`, with shared hooks/utilities in `src/client/hooks`, `src/client/utils`, and `src/client/lib`.
 
 Key UI features:
 - App navigation with Gallery and Workflows tabs.
@@ -90,7 +92,7 @@ Key client behaviors:
   and hide-hidden flag.
 - Hidden/favorite/tag updates are optimistic, then persisted via API.
 
-Styles: `src/styles.css`
+Styles: `src/client/styles.css`
 
 ## Development Notes
 
@@ -126,8 +128,19 @@ If a request is purely informational and makes no changes, do not commit.
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
+- Continue backend modularization by extracting remaining `src/server/index.js` runtime/file-sync concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Fixed DB/runtime regressions from workflow route modularization by wiring shared job-update broadcasting back into `src/server/index.js`, fixing folder reorder updates to avoid nulling folder names, tightening SQLite job-output index migration writes, and bumped version to 0.7.4.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
+- Fixed missing workflow route helper wiring after modularization (`isGeneratingStatus`, polling, websocket client set, and file existence checks), resolved `isGeneratingStatus is not defined` during workflow runs, and bumped version to 0.7.3.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
+- Fixed the workflow image input picker modal sizing so the selectable grid no longer collapses to a single column, improved initial element-size measurements in `useElementSize`, and bumped version to 0.7.2.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
+- Extracted server DB schema/statement setup and metadata repository operations into `src/server/db` modules, reduced `src/server/index.js` responsibilities, and bumped version to 0.7.1.
+- Reorganized the repo into `src/client` + `src/server`, extracted server API routes and Comfy SDK/state modules, split workflow detail/workspace UI plus gallery/workflow page wrappers, and bumped version to 0.7.0.
+- Modularized workflows UI into isolated component modules, extracted shared workflow formatting/types helpers, introduced a backend `ComfyRuntimeState` class, and bumped version to 0.6.7.
+- Hardened workflow/frontend state safety (stale async guards, resilient hooks/api parsing), fixed strict TS workflow typing issues, improved server job/output idempotency and upload limits, and bumped version to 0.6.6.
 - Refresh image metadata on failed optimistic updates, optimize gallery rendering for large libraries, and bump version to 0.6.5.
 - Consolidated image metadata API calls into a shared client helper, centralized localStorage/media query handling via new hooks, and bumped version to 0.6.4.
 - Resumed in-flight workflow job tracking after server restarts and bumped the app version to 0.6.3.
