@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.5] - 2026-02-08
+
+### Changed
+- Performed a deeper detail-view performance pass focused on mobile lag and swipe fluidity.
+- Added modal progressive image loading (`thumbUrl` first, full image promoted after decode) to improve perceived open time and image-to-image responsiveness.
+- Simplified modal image transitions by removing extra swipe fade state and opacity transition churn between images.
+- Reworked modal fit-scale calculations to use natural image dimensions instead of transformed layout reads for lighter per-image setup.
+- Tightened mobile gesture behavior by reducing swipe thresholds, applying earlier transform reset via layout effect, and reducing mobile GPU blur work on modal bars.
+- Added `touch-action` handling on the modal stage to reduce gesture interference and improve swipe consistency.
+- Kept adjacent-image preloading and prompt-metadata caching/deferred loading from v0.8.4 to preserve smooth navigation on large libraries.
+- Bumped version to 0.8.5 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.8.4] - 2026-02-08
 
 ### Changed
