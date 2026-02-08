@@ -57,6 +57,7 @@ describe('WorkflowsWorkspace', () => {
     await waitFor(() => {
       expect(screen.getByText('Portrait')).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByRole('button', { name: /portrait/i }));
     expect(screen.getByTestId('workflow-detail')).toHaveTextContent('Detail: Portrait');
   });
 
