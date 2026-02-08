@@ -87,6 +87,7 @@ export default function App() {
           </button>
         </div>
       </nav>
+      <div className="ambient-orbs" aria-hidden="true" />
       <div className="app-content">
         <Outlet context={{ themeMode, setThemeMode, goHomeSignal }} />
       </div>

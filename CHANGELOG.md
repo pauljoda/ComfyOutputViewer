@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] - 2026-02-08
+
+### Added
+- Added animated mesh gradient background with slow-drifting aurora of accent/secondary colors behind the app shell.
+- Added floating ambient orbs — two large blurred decorative circles that drift subtly in the background for depth.
+- Added animated shimmer sweep on the navigation bottom border.
+- Added gradient text fill on the app title (accent to secondary).
+- Added card hover lift, glow, and subtle tilt rotation with smooth spring-like transition.
+- Added spinning conic-gradient border on selected cards using CSS `@property` for a dynamic "border beam" effect.
+- Added heart burst animation on favorite toggle — scale bounce with glow pulse.
+- Added rating badge metallic shimmer sweep animation.
+- Added staggered card fade-in with cascading 30ms delays and slide-up effect for the first 20 cards.
+- Added tag chip pop-in animation with staggered bounce entrance.
+- Added filter pill ambient pulse glow.
+- Added tool button scale-up and glow on hover.
+- Added dramatic modal entrance with scale-from-0.92 and blur-clearing effect.
+- Added status message slide-in from right with spring overshoot and gradient accent border.
+- Added accent-to-secondary gradient on custom scrollbar thumbs.
+- Added Ken Burns slow-zoom effect on slideshow images.
+- Added gallery empty state with pulsing orb and expanding ring animation.
+- Added `prefers-reduced-motion` media query that disables all animations and transitions globally.
+
 ## [0.8.0] - 2026-02-08
 
 ### Changed
