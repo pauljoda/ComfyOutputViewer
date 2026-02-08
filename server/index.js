@@ -815,6 +815,55 @@ app.get('/api/jobs/:id', async (req, res) => {
   }
 });
 
+app.post('/api/jobs/:id/recheck', async (req, res) => {
+  try {
+    const jobId = Number(req.params.id);
+    const jobRow = statements.selectJobById.get(jobId);
+    if (!jobRow) {
+      return res.status(404).send('Job not found');
+    }
+    if (!jobRow.prompt_id) {
+      return res.status(400).send('Job has no prompt ID');
+    }
+
+    const workflowInputs = [];
+    for (const row of statements.selectWorkflowInputs.iterate(jobRow.workflow_id)) {
+      workflowInputs.push(row);
+    }
+    const inputValuesMap = new Map();
+    for (const inputRow of statements.selectJobInputs.iterate(jobId)) {
+      inputValuesMap.set(inputRow.input_id, inputRow.value);
+    }
+
+    let imageOutputs = await fetchImageOutputsWithRetry(jobRow.prompt_id, 3, 1000);
+    if (imageOutputs.length === 0) {
+      const historyResponse = await fetch(`${COMFY_API_URL}/history/${jobRow.prompt_id}`);
+      if (historyResponse.ok) {
+        const history = await historyResponse.json();
+        const promptHistory = history[jobRow.prompt_id];
+        imageOutputs = collectImageOutputs(promptHistory?.outputs || {});
+      }
+    }
+
+    if (imageOutputs.length === 0) {
+      return res.json({ ok: false, recorded: 0, outputs: 0 });
+    }
+
+    const recorded = await downloadAndRecordOutputs(
+      jobId,
+      imageOutputs,
+      workflowInputs,
+      inputValuesMap,
+      jobRow.workflow_id,
+      Date.now()
+    );
+    broadcastJobUpdate(jobId);
+    res.json({ ok: true, recorded, outputs: imageOutputs.length });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to recheck job outputs');
+  }
+});
+
 app.post('/api/jobs/:id/cancel', async (req, res) => {
   try {
     const jobId = Number(req.params.id);
@@ -1036,6 +1085,7 @@ async function downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inp
     existingOutputs.add(outputRow.image_path);
   }
   let recorded = 0;
+  const thumbnailResult = { scanned: 0, copied: 0, thumbnails: 0 };
 
   for (const imgInfo of imageOutputs) {
     if (!imgInfo || !imgInfo.filename) continue;
@@ -1043,54 +1093,65 @@ async function downloadAndRecordOutputs(jobId, imageOutputs, workflowInputs, inp
       ? path.join(imgInfo.subfolder, imgInfo.filename)
       : imgInfo.filename;
     if (!imagePath || existingOutputs.has(imagePath)) continue;
+    const sourcePath = path.join(SOURCE_DIR, imagePath);
+    const dataPath = path.join(DATA_DIR, imagePath);
+    const existingPath = existsSync(dataPath) ? dataPath : existsSync(sourcePath) ? sourcePath : null;
 
     try {
-      const params = new URLSearchParams({
-        filename: imgInfo.filename,
-        subfolder: imgInfo.subfolder,
-        type: imgInfo.type
-      });
-      const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
-      if (!imageResponse.ok) continue;
+      if (existingPath) {
+        let outputHash = null;
+        try {
+          outputHash = await hashFile(existingPath);
+        } catch (hashErr) {
+          console.warn('Failed to hash existing output:', hashErr);
+        }
+        if (outputHash && isHashBlacklisted(outputHash)) {
+          continue;
+        }
+        try {
+          const stats = await fs.stat(existingPath);
+          await ensureThumbnail(existingPath, imagePath, stats, thumbnailResult);
+        } catch (thumbErr) {
+          console.warn('Failed to ensure thumbnail for existing output:', thumbErr);
+        }
+        statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
+      } else {
+        const params = new URLSearchParams({
+          filename: imgInfo.filename,
+          subfolder: imgInfo.subfolder,
+          type: imgInfo.type
+        });
+        const imageResponse = await fetch(`${COMFY_API_URL}/view?${params}`);
+        if (!imageResponse.ok) continue;
 
-      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-      const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
-      const sourcePath = path.join(SOURCE_DIR, imagePath);
-      const dataPath = path.join(DATA_DIR, imagePath);
-      let wroteToSource = false;
-      let wroteToData = false;
+        const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+        const outputHash = createHash('sha256').update(imageBuffer).digest('hex');
+        let wroteToSource = false;
+        let wroteToData = false;
 
-      try {
-        await ensureDir(path.dirname(sourcePath));
-        await fs.writeFile(sourcePath, imageBuffer);
-        wroteToSource = true;
-      } catch (err) {
-        if (err && (err.code === 'EACCES' || err.code === 'EPERM')) {
+        try {
+          await ensureDir(path.dirname(sourcePath));
+          await fs.writeFile(sourcePath, imageBuffer);
+          wroteToSource = true;
+        } catch (err) {
           try {
             await ensureDir(path.dirname(dataPath));
             await fs.writeFile(dataPath, imageBuffer);
             wroteToData = true;
             const stats = await fs.stat(dataPath);
-            await ensureThumbnail(dataPath, imagePath, stats, {
-              scanned: 0,
-              copied: 0,
-              thumbnails: 0
-            });
+            await ensureThumbnail(dataPath, imagePath, stats, thumbnailResult);
           } catch (innerErr) {
             console.error('Failed to save output image to data dir:', innerErr);
           }
-        } else {
-          throw err;
         }
-      }
 
-      const outputExists = wroteToSource || wroteToData || existsSync(sourcePath) || existsSync(dataPath);
-      if (!outputExists) {
-        continue;
-      }
+        const outputExists = wroteToSource || wroteToData || existsSync(sourcePath) || existsSync(dataPath);
+        if (!outputExists) {
+          continue;
+        }
 
-      // Record the output
-      statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
+        statements.insertJobOutput.run(jobId, imagePath, imgInfo.filename, now, outputHash);
+      }
 
       // Save prompt data for this image
       const inputs = workflowInputs

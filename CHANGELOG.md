@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.11] - 2026-02-08
+
+### Added
+- Added job output recheck support for completed workflows, including auto retries and a manual recheck action.
+
+### Fixed
+- Recorded workflow outputs and prompt metadata even when outputs already exist or source writes fail.
+
 ## [0.5.10] - 2026-02-07
 
 ### Added

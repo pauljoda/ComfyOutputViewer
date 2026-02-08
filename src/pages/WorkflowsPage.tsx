@@ -683,6 +683,7 @@ function WorkflowDetail({
   const [inputTool, setInputTool] = useState<ModalTool>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
+  const recheckAttemptsRef = useRef<Set<number>>(new Set());
 
   const mergeJobUpdate = useCallback((job: Job) => {
     setJobs((prev) => {
@@ -999,6 +1000,35 @@ function WorkflowDetail({
       await loadJobs();
     }
   };
+
+  const handleRecheckJobOutputs = useCallback(
+    async (jobId: number) => {
+      try {
+        await api(`/api/jobs/${jobId}/recheck`, { method: 'POST' });
+        const response = await api<{ job: Job }>(`/api/jobs/${jobId}`);
+        if (response?.job) {
+          mergeJobUpdate(response.job);
+        } else {
+          await loadJobs();
+        }
+      } catch (err) {
+        console.warn('Failed to recheck job outputs:', err);
+      }
+    },
+    [loadJobs, mergeJobUpdate]
+  );
+
+  useEffect(() => {
+    if (jobs.length === 0) return;
+    jobs.forEach((job) => {
+      if (job.status !== 'completed') return;
+      if (job.outputs && job.outputs.length > 0) return;
+      if (!job.promptId) return;
+      if (recheckAttemptsRef.current.has(job.id)) return;
+      recheckAttemptsRef.current.add(job.id);
+      handleRecheckJobOutputs(job.id);
+    });
+  }, [jobs, handleRecheckJobOutputs]);
 
   const handleOpenOutput = async (job: Job, output: JobOutput) => {
     const visibleOutputs = job.outputs?.filter((item) => item.exists !== false) ?? [];
@@ -1372,6 +1402,7 @@ function WorkflowDetail({
                 now={jobClock}
                 onOpenOutput={handleOpenOutput}
                 onCancel={handleCancelJob}
+                onRecheck={handleRecheckJobOutputs}
               />
             ))}
           </div>
@@ -1700,9 +1731,10 @@ type JobCardProps = {
   now: number;
   onOpenOutput: (job: Job, output: JobOutput) => void;
   onCancel: (jobId: number) => void;
+  onRecheck: (jobId: number) => void;
 };
 
-function JobCard({ job, now, onOpenOutput, onCancel }: JobCardProps) {
+function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) {
   const isGenerating = job.status === 'pending' || job.status === 'queued' || job.status === 'running';
   const statusClass =
     job.status === 'completed'
@@ -1721,6 +1753,7 @@ function JobCard({ job, now, onOpenOutput, onCancel }: JobCardProps) {
   const startedAt = job.startedAt ?? job.createdAt;
   const endedAt = job.completedAt ?? now;
   const durationMs = Math.max(0, endedAt - startedAt);
+  const hasOutputs = Boolean(job.outputs && job.outputs.length > 0);
 
   return (
     <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
@@ -1741,6 +1774,15 @@ function JobCard({ job, now, onOpenOutput, onCancel }: JobCardProps) {
               onClick={() => onCancel(job.id)}
             >
               Cancel
+            </button>
+          )}
+          {!isGenerating && job.status === 'completed' && !hasOutputs && (
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => onRecheck(job.id)}
+            >
+              Recheck outputs
             </button>
           )}
         </span>
