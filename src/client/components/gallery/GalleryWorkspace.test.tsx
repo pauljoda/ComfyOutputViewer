@@ -1,3 +1,4 @@
+import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,7 +16,7 @@ vi.mock('../../contexts/TagsContext', () => ({
 }));
 
 vi.mock('../../lib/api', () => ({
-  api: (...args) => apiMock(...args)
+  api: (...args: unknown[]) => apiMock(...args)
 }));
 
 vi.mock('../../lib/imagesApi', () => ({
@@ -32,15 +33,15 @@ vi.mock('../../lib/imagesApi', () => ({
 }));
 
 vi.mock('../TopBar', () => ({
-  default: ({ onOpenDrawer }) => (
+  default: React.forwardRef(({ onOpenDrawer }: any, _ref: any) => (
     <button type="button" onClick={onOpenDrawer}>
       open-drawer
     </button>
-  )
+  ))
 }));
 
 vi.mock('../TagDrawer', () => ({
-  default: ({ open, onSync }) =>
+  default: ({ open, onSync }: any) =>
     open ? (
       <button type="button" onClick={onSync}>
         sync-now
@@ -48,15 +49,15 @@ vi.mock('../TagDrawer', () => ({
     ) : null
 }));
 
-vi.mock('../StatusBar', () => ({
-  default: ({ imageCount }) => <div data-testid="status">count:{imageCount}</div>
-}));
-
 vi.mock('../Gallery', () => ({
-  default: ({ images, onSelectImage }) => (
-    <button type="button" onClick={() => onSelectImage(images[0].id)}>
-      open-image
-    </button>
+  default: React.memo(
+    React.forwardRef(({ images, onSelectImage }: any, _ref: any) =>
+      images.length > 0 ? (
+        <button type="button" onClick={() => onSelectImage(images[0].id)}>
+          open-image
+        </button>
+      ) : null
+    )
   )
 }));
 
@@ -137,8 +138,9 @@ describe('GalleryWorkspace', () => {
       </MemoryRouter>
     );
 
+    // Wait for images to load — Gallery mock renders the open-image button only when images exist
     await waitFor(() => {
-      expect(screen.getByTestId('status')).toHaveTextContent('count:1');
+      expect(screen.getByRole('button', { name: 'open-image' })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'open-drawer' }));

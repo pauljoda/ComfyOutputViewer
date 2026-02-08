@@ -78,7 +78,7 @@ describe('WorkflowsWorkspace', () => {
       expect(screen.getByText(/no workflows yet/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /\+ import/i }));
+    fireEvent.click(screen.getByRole('button', { name: /import/i }));
     expect(screen.getByTestId('workflow-editor')).toBeInTheDocument();
   });
 });

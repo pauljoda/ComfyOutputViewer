@@ -1,4 +1,19 @@
 import React, { useRef } from 'react';
+import {
+  Menu,
+  Play,
+  Grid3X3,
+  SlidersHorizontal,
+  Filter,
+  Search,
+  Heart,
+  EyeOff,
+  Star,
+  Trash2,
+  Tag
+} from 'lucide-react';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { COLUMN_MIN } from '../constants';
 import type {
   ActiveTool,
@@ -143,254 +158,187 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     };
 
     return (
-      <header className="top-bar" ref={ref} onPointerDown={handlePointerDown}>
-        <div className="toolbar-row">
-          <div className="toolbar">
-            <button
-              className="tool-button"
-              type="button"
-              onClick={onOpenDrawer}
-              aria-label="Open tags"
-              title="Tags"
+      <header
+        ref={ref}
+        className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur-sm"
+        onPointerDown={handlePointerDown}
+      >
+        {/* Toolbar row */}
+        <div className="flex items-center gap-2 px-3 py-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={onOpenDrawer}
+            aria-label="Open tags"
+            title="Tags"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+
+          <Badge variant="default" className="max-w-[200px] truncate" title={currentFilterLabel}>
+            <span className="truncate">{currentFilterLabel}</span>
+            <span className="ml-1 font-mono text-xs">
+              {loading ? '…' : imageCount}
+            </span>
+          </Badge>
+
+          <div className="ml-auto flex items-center gap-1" ref={toolButtonsRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={onOpenSlideshow}
+              aria-label="Slideshow"
+              title="Slideshow"
+              disabled={imageCount === 0}
             >
-              <span className="hamburger" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </span>
-            </button>
-
-            <div className="filter-pill" title={currentFilterLabel}>
-              <span className="filter-pill-label">{currentFilterLabel}</span>
-              <span className="filter-pill-count">
-                {loading ? '…' : imageCount}
-              </span>
-            </div>
-
-            <div className="toolbar-actions" ref={toolButtonsRef}>
-              <button
-                className="tool-button"
-                type="button"
-                onClick={onOpenSlideshow}
-                aria-label="Slideshow"
-                title="Slideshow"
-                disabled={imageCount === 0}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M8 5v14l11-7z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                className={multiSelect ? 'tool-button active' : 'tool-button'}
-                type="button"
-                onClick={onToggleMultiSelect}
-                aria-label="Multi-select"
-                title="Multi-select"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect
-                    x="4"
-                    y="4"
-                    width="7"
-                    height="7"
-                    rx="1.4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                  <rect
-                    x="13"
-                    y="4"
-                    width="7"
-                    height="7"
-                    rx="1.4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                  <rect
-                    x="4"
-                    y="13"
-                    width="7"
-                    height="7"
-                    rx="1.4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                </svg>
-              </button>
-              <button
-                className={activeTool === 'view' ? 'tool-button active' : 'tool-button'}
-                type="button"
-                onClick={() => onToggleTool('view')}
-                aria-label="View options"
-                title="View"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M4 6h10m2 0h4M4 12h4m2 0h10M4 18h8m2 0h6"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                  <circle cx="14" cy="6" r="2" fill="currentColor" />
-                  <circle cx="8" cy="12" r="2" fill="currentColor" />
-                  <circle cx="12" cy="18" r="2" fill="currentColor" />
-                </svg>
-              </button>
-
-              <button
-                className={activeTool === 'filters' ? 'tool-button active' : 'tool-button'}
-                type="button"
-                onClick={() => onToggleTool('filters')}
-                aria-label="Filters"
-                title="Filters"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path
-                    d="M4 5h16l-6.2 7.1v5.3l-3.6 1.6v-6.9z"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-
-              <button
-                className={activeTool === 'search' ? 'tool-button active' : 'tool-button'}
-                type="button"
-                onClick={() => onToggleTool('search')}
-                aria-label="Search"
-                title="Search"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <circle
-                    cx="10"
-                    cy="10"
-                    r="5.5"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                  />
-                  <path
-                    d="M14.5 14.5L20 20"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </button>
-            </div>
+              <Play className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${multiSelect ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={onToggleMultiSelect}
+              aria-label="Multi-select"
+              title="Multi-select"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${activeTool === 'view' ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={() => onToggleTool('view')}
+              aria-label="View options"
+              title="View"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${activeTool === 'filters' ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={() => onToggleTool('filters')}
+              aria-label="Filters"
+              title="Filters"
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${activeTool === 'search' ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={() => onToggleTool('search')}
+              aria-label="Search"
+              title="Search"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
+        {/* Multi-select bulk actions */}
         {multiSelect && (
-          <div className="bulk-row">
-            <div className="bulk-summary">
-              <span className="bulk-label">Multi-select</span>
-              <span className="bulk-count">{selectedCount} selected</span>
-              <button
-                className="ghost"
-                type="button"
+          <div className="border-t bg-muted/50 px-3 py-2 space-y-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium">Multi-select</span>
+              <Badge variant="outline">{selectedCount} selected</Badge>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={onClearSelection}
                 disabled={selectedCount === 0}
               >
                 Clear
-              </button>
+              </Button>
             </div>
-            <div className="bulk-actions">
-              <div className="bulk-actions-row">
-                <button
-                  className="button"
-                  type="button"
-                  onClick={onBulkFavorite}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBulkFavorite}
+                disabled={selectedCount === 0}
+              >
+                <Heart className="mr-1 h-3.5 w-3.5" />
+                Favorite
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onBulkHidden}
+                disabled={selectedCount === 0}
+              >
+                <EyeOff className="mr-1 h-3.5 w-3.5" />
+                Hide
+              </Button>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Rate</span>
+                <RatingStars
+                  value={bulkRatingValue}
+                  onChange={handleBulkRating}
+                  size="sm"
                   disabled={selectedCount === 0}
-                >
-                  Favorite
-                </button>
-                <button
-                  className="button"
-                  type="button"
-                  onClick={onBulkHidden}
-                  disabled={selectedCount === 0}
-                >
-                  Hide
-                </button>
-                <div className="bulk-rating">
-                  <span className="bulk-action-label">Rate</span>
-                  <RatingStars
-                    value={bulkRatingValue}
-                    onChange={handleBulkRating}
-                    size="sm"
-                    disabled={selectedCount === 0}
-                    allowClear
-                    label="Rate selected images"
-                  />
-                </div>
-                <button
-                  className="button danger"
-                  type="button"
-                  onClick={onBulkDelete}
-                  disabled={selectedCount === 0}
-                >
-                  Remove
-                </button>
+                  allowClear
+                  label="Rate selected images"
+                />
               </div>
-              <div className="bulk-actions-row">
-                <div className="tag-input-row bulk-tag-input">
-                  <input
-                    list="bulk-tag-suggestions"
-                    value={bulkTagInput}
-                    onChange={(event) => setBulkTagInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        if (bulkTagInput.trim() && selectedCount > 0) {
-                          onBulkTag(bulkTagInput);
-                          setBulkTagInput('');
-                        }
-                      }
-                    }}
-                    placeholder="Tag selected…"
-                    aria-label="Tag selected"
-                    disabled={selectedCount === 0}
-                  />
-                  <button
-                    className="button"
-                    type="button"
-                    onClick={() => {
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={onBulkDelete}
+                disabled={selectedCount === 0}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                Remove
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                list="bulk-tag-suggestions"
+                name="bulkTag"
+                autoComplete="off"
+                value={bulkTagInput}
+                onChange={(event) => setBulkTagInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    if (bulkTagInput.trim() && selectedCount > 0) {
                       onBulkTag(bulkTagInput);
                       setBulkTagInput('');
-                    }}
-                    disabled={!bulkTagInput.trim() || selectedCount === 0}
-                  >
-                    Tag all
-                  </button>
-                </div>
-              </div>
+                    }
+                  }
+                }}
+                placeholder="Tag selected…"
+                aria-label="Tag selected"
+                disabled={selectedCount === 0}
+                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onBulkTag(bulkTagInput);
+                  setBulkTagInput('');
+                }}
+                disabled={!bulkTagInput.trim() || selectedCount === 0}
+              >
+                <Tag className="mr-1 h-3.5 w-3.5" />
+                Tag all
+              </Button>
             </div>
             {bulkTagSuggestions.length > 0 && selectedCount > 0 && (
-              <div className="tag-chip-list tag-suggestions">
+              <div className="flex flex-wrap gap-1">
                 {bulkTagSuggestions.map((tag) => (
                   <button
                     key={tag}
-                    className="tag-chip"
                     type="button"
                     onClick={() => {
                       onBulkTag(tag);
                       setBulkTagInput('');
                     }}
                     title="Tag selected"
+                    className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
                   >
                     {tag}
                   </button>
@@ -405,16 +353,17 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
           </div>
         )}
 
+        {/* Tool popovers */}
         {activeTool && (
           <div
-            className="tool-popover"
+            ref={toolPopoverRef}
             role="dialog"
             aria-label="Tool options"
-            ref={toolPopoverRef}
+            className="border-t bg-background p-3 space-y-3"
           >
             {activeTool === 'view' && (
-              <div className="tool-panel">
-                <label className="control">
+              <div className="space-y-3">
+                <label className="flex items-center justify-between text-sm">
                   <span>Columns ({effectiveColumns})</span>
                   <input
                     type="range"
@@ -422,25 +371,26 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     max={maxColumns}
                     value={effectiveColumns}
                     onChange={(event) => onColumnsChange(Number(event.target.value))}
+                    className="w-32 accent-primary"
                   />
                 </label>
-
-                <label className="control">
+                <label className="flex items-center justify-between text-sm">
                   <span>Display</span>
                   <select
                     value={tileFit}
                     onChange={(event) => onTileFitChange(event.target.value as TileFit)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
                     <option value="cover">Cover</option>
                     <option value="contain">Content</option>
                   </select>
                 </label>
-
-                <label className="control">
+                <label className="flex items-center justify-between text-sm">
                   <span>Sort</span>
                   <select
                     value={sortMode}
                     onChange={(event) => onSortModeChange(event.target.value as SortMode)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
                     <option value="created-desc">Created (newest)</option>
                     <option value="created-asc">Created (oldest)</option>
@@ -454,35 +404,37 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     <option value="rating-asc">Rating (low to high)</option>
                   </select>
                 </label>
-
               </div>
             )}
 
             {activeTool === 'filters' && (
-              <div className="tool-panel">
-                <label className="toggle">
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={favoritesOnly}
                     onChange={(event) => onFavoritesOnlyChange(event.target.checked)}
+                    className="accent-primary"
                   />
-                  <span>Favorites only</span>
+                  <Heart className="h-3.5 w-3.5" />
+                  Favorites only
                 </label>
-
-                <label className="toggle">
+                <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={hideHidden}
                     onChange={(event) => onHideHiddenChange(event.target.checked)}
+                    className="accent-primary"
                   />
-                  <span>Hide hidden</span>
+                  <EyeOff className="h-3.5 w-3.5" />
+                  Hide hidden
                 </label>
-
-                <label className="control">
+                <label className="flex items-center justify-between text-sm">
                   <span>Min rating</span>
                   <select
                     value={minRating}
                     onChange={(event) => onMinRatingChange(Number(event.target.value))}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
                     {ratingOptions.map((value) => (
                       <option key={value} value={value}>
@@ -491,12 +443,12 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     ))}
                   </select>
                 </label>
-
-                <label className="control">
+                <label className="flex items-center justify-between text-sm">
                   <span>Max rating</span>
                   <select
                     value={maxRating}
                     onChange={(event) => onMaxRatingChange(Number(event.target.value))}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
                     {maxRatingOptions.map((value) => (
                       <option key={value} value={value}>
@@ -505,94 +457,64 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     ))}
                   </select>
                 </label>
-
-                <label className="control">
+                <label className="flex items-center justify-between text-sm">
                   <span>Theme</span>
                   <select
                     value={themeMode}
                     onChange={(event) => onThemeModeChange(event.target.value as ThemeMode)}
+                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                   >
                     <option value="system">System</option>
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                   </select>
                 </label>
-
-                <div className="tag-filter">
-                  <div className="tag-filter-header">
-                    <span>Tags (match all)</span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Tags (match all)</span>
                     {selectedTags.length > 0 && (
-                      <button className="ghost" type="button" onClick={onClearFilterTags}>
+                      <Button variant="ghost" size="sm" onClick={onClearFilterTags}>
                         Clear
-                      </button>
+                      </Button>
                     )}
                   </div>
                   {showUntagged && (
-                    <div className="tag-filter-note">
+                    <div className="rounded-md bg-muted p-2 text-xs">
                       Viewing untagged images.
-                      <button className="ghost" type="button" onClick={onExitUntagged}>
+                      <Button variant="ghost" size="sm" className="ml-1" onClick={onExitUntagged}>
                         Back to all
-                      </button>
+                      </Button>
                     </div>
                   )}
-                  <div className="tag-chip-list">
+                  <div className="flex flex-wrap gap-1">
                     {selectedTags.length === 0 && (
-                      <span className="tag-empty">No tags selected.</span>
+                      <span className="text-xs text-muted-foreground">No tags selected.</span>
                     )}
                     {selectedTags.map((tag) => (
                       <button
                         key={tag}
-                        className="tag-chip"
                         type="button"
                         onClick={() => onRemoveFilterTag(tag)}
                         title="Remove tag"
+                        className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
                       >
                         {tag}
-                        <span aria-hidden="true">×</span>
+                        <span aria-hidden="true">x</span>
                       </button>
                     ))}
                   </div>
-                  {/* <div className="tag-input-row">
-                    <input
-                      list="tag-filter-suggestions"
-                      value={tagInput}
-                      onChange={(event) => setTagInput(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          if (tagInput.trim()) {
-                            onAddFilterTag(tagInput);
-                            setTagInput('');
-                          }
-                        }
-                      }}
-                      placeholder="Add tag…"
-                      aria-label="Add tag filter"
-                    />
-                    <button
-                      className="button"
-                      type="button"
-                      onClick={() => {
-                        onAddFilterTag(tagInput);
-                        setTagInput('');
-                      }}
-                      disabled={!tagInput.trim()}
-                    >
-                      Add
-                    </button>
-                  </div> */}
                   {filterSuggestions.length > 0 && (
-                    <div className="tag-chip-list tag-suggestions">
+                    <div className="flex flex-wrap gap-1">
                       {filterSuggestions.map((tag) => (
                         <button
                           key={tag}
-                          className="tag-chip"
                           type="button"
                           onClick={() => {
                             onAddFilterTag(tag);
                             setTagInput('');
                           }}
                           title="Add tag"
+                          className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
                         >
                           {tag}
                         </button>
@@ -609,24 +531,23 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             )}
 
             {activeTool === 'search' && (
-              <div className="tool-panel">
-                <div className="tool-hint">Search tools coming soon.</div>
+              <div className="text-sm text-muted-foreground">
+                Search tools coming soon.
               </div>
             )}
           </div>
         )}
 
+        {/* Status row */}
         {(error || status) && (
-          <div className="topbar-status-row">
+          <div className="border-t px-3 py-1.5 text-xs" aria-live="polite">
             {error && (
-              <div className="topbar-error" role="alert">
+              <div className="text-destructive" role="alert">
                 {error}
               </div>
             )}
             {status && !error && (
-              <div className="topbar-status">
-                {status}
-              </div>
+              <div className="text-muted-foreground">{status}</div>
             )}
           </div>
         )}

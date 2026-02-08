@@ -1,3 +1,4 @@
+import { Button } from '../ui/button';
 import type { Job, JobOutput } from '../../types';
 import { formatDuration } from './formatters';
 
@@ -11,20 +12,24 @@ type JobCardProps = {
 
 export default function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) {
   const isGenerating = job.status === 'pending' || job.status === 'queued' || job.status === 'running';
-  const statusClass =
+  const statusColor =
     job.status === 'completed'
-      ? 'success'
+      ? 'text-green-500'
       : job.status === 'error'
-        ? 'error'
+        ? 'text-destructive'
         : job.status === 'cancelled'
-          ? 'cancelled'
-          : job.status === 'queued'
-            ? 'queued'
-            : job.status === 'running'
-              ? 'running'
-              : 'pending';
+          ? 'text-muted-foreground'
+          : 'text-primary';
+  const borderColor =
+    job.status === 'completed'
+      ? 'border-green-500/40'
+      : job.status === 'error'
+        ? 'border-destructive/40'
+        : job.status === 'cancelled'
+          ? ''
+          : 'border-primary/30';
   const statusLabel =
-    isGenerating ? 'Generating Image...' : job.status === 'cancelled' ? 'Cancelled' : job.status;
+    isGenerating ? 'Generating Image…' : job.status === 'cancelled' ? 'Cancelled' : job.status;
   const startedAt = job.startedAt ?? job.createdAt;
   const endedAt = job.completedAt ?? now;
   const durationMs = Math.max(0, endedAt - startedAt);
@@ -93,84 +98,76 @@ export default function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }:
     !previewUrl;
 
   return (
-    <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
-      <div className="job-header">
-        <div className="job-title">
-          <span className="job-status">
+    <div className={`rounded-lg border bg-card p-3 space-y-2 ${borderColor}`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm font-medium capitalize ${statusColor}`}>
             {statusLabel}
-            {isGenerating && <span className="job-spinner" aria-hidden="true" />}
+            {isGenerating && <span className="ml-1 inline-block h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />}
           </span>
           {isGenerating && (overallPercent !== null || progressPercent !== null) && (
-            <span className="job-progress-pill">{pillPercentValue}%</span>
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">{pillPercentValue}%</span>
           )}
         </div>
-        <div className="job-actions">
+        <div className="flex items-center gap-1">
           {isGenerating && (
-            <button
-              type="button"
-              className="ghost small danger"
-              onClick={() => onCancel(job.id)}
-            >
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => onCancel(job.id)}>
               Cancel
-            </button>
+            </Button>
           )}
           {!isGenerating && job.status === 'completed' && !hasOutputs && (
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => onRecheck(job.id)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => onRecheck(job.id)}>
               Recheck outputs
-            </button>
+            </Button>
           )}
         </div>
       </div>
-      <div className="job-body">
+      <div className="flex gap-3">
         {isGenerating && previewUrl && (
-          <div className="job-preview">
-            <img src={previewUrl} alt="Live preview" loading="lazy" />
-            <span className="job-preview-badge">Live</span>
+          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md border">
+            <img src={previewUrl} alt="Live preview" loading="lazy" className="h-full w-full object-cover" width={96} height={96} />
+            <span className="absolute bottom-1 left-1 rounded bg-primary px-1 py-0.5 text-[10px] font-medium text-primary-foreground">Live</span>
           </div>
         )}
-        <div className="job-detail">
-          <div className="job-meta">
-            <span className="job-time">{new Date(job.createdAt).toLocaleString()}</span>
-            <span className="job-duration">{formatDuration(durationMs)}</span>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>{new Date(job.createdAt).toLocaleString()}</span>
+            <span>{formatDuration(durationMs)}</span>
             {showQueueMeta && (
-              <span className="job-queue">
-                <span className="job-queue-label">{queueStateLabel}</span>
-                {queuePositionLabel && <span className="job-queue-value">{queuePositionLabel}</span>}
+              <span className="flex items-center gap-1">
+                <span className="font-medium">{queueStateLabel}</span>
+                {queuePositionLabel && <span>{queuePositionLabel}</span>}
                 {queueAheadLabel && queueInfo?.state === 'queued' && (
-                  <span className="job-queue-sub">{queueAheadLabel}</span>
+                  <span className="opacity-70">{queueAheadLabel}</span>
                 )}
                 {!queueAheadLabel && queueRemainingLabel && (
-                  <span className="job-queue-sub">{queueRemainingLabel}</span>
+                  <span className="opacity-70">{queueRemainingLabel}</span>
                 )}
               </span>
             )}
           </div>
           {isGenerating && (
-            <div className="job-progress">
+            <div className="space-y-1">
               {overall && overall.total > 0 && (
-                <div className="job-progress-overall">
-                  <div className="job-progress-bar overall">
-                    <span style={{ width: `${overallPercentValue}%` }} />
+                <div className="space-y-0.5">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary/60 transition-[width]" style={{ width: `${overallPercentValue}%` }} />
                   </div>
-                  <div className="job-progress-info">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
                     <span>{overallLabel ? `Overall ${overallLabel}` : 'Overall progress'}</span>
-                    <span className="job-progress-node">{overallPercentValue}%</span>
+                    <span>{overallPercentValue}%</span>
                   </div>
                 </div>
               )}
-              <div className={`job-progress-bar ${hasProgress ? '' : 'indeterminate'}`}>
-                <span style={{ width: `${progressPercentValue}%` }} />
+              <div className={`h-1.5 w-full overflow-hidden rounded-full bg-muted ${!hasProgress ? 'animate-pulse' : ''}`}>
+                <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progressPercentValue}%` }} />
               </div>
-              <div className="job-progress-info">
-                <span>{progressLabel ? `Step ${progressLabel}` : 'Working...'}</span>
-                {nodeLabel && <span className="job-progress-node">{nodeLabel}</span>}
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>{progressLabel ? `Step ${progressLabel}` : 'Working…'}</span>
+                {nodeLabel && <span>{nodeLabel}</span>}
               </div>
               {showLiveWarning && (
-                <div className="job-live-warning">
+                <div className="text-[10px] text-destructive">
                   Live updates unavailable (ComfyUI websocket not connected).
                 </div>
               )}
@@ -178,22 +175,27 @@ export default function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }:
           )}
         </div>
       </div>
-      {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}
+      {job.errorMessage && <p className="text-xs text-destructive">{job.errorMessage}</p>}
       {job.outputs && job.outputs.filter((output) => output.exists !== false).length > 0 && (
-        <div className="job-outputs">
+        <div className="flex flex-wrap gap-2">
           {job.outputs
             .filter((output) => output.exists !== false)
             .map((output, index) => (
             <button
               key={index}
               type="button"
-              className="job-output-thumb"
+              className="h-16 w-16 overflow-hidden rounded-md border hover:ring-2 hover:ring-primary"
               onClick={() => onOpenOutput(job, output)}
               title="Open in viewer"
+              aria-label={`Open output ${index + 1}`}
             >
               <img
                 src={output.thumbUrl || `/images/${encodeURI(output.imagePath)}`}
                 alt={`Output ${index + 1}`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                width={64}
+                height={64}
               />
             </button>
           ))}

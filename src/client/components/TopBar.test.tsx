@@ -90,7 +90,7 @@ describe('TopBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'portrait' }));
     expect(props.onAddFilterTag).toHaveBeenCalledWith('portrait');
 
-    fireEvent.pointerDown(container.querySelector('.filter-pill') as HTMLElement);
+    fireEvent.pointerDown(container.querySelector('header') as HTMLElement);
     expect(props.onDismissTool).toHaveBeenCalled();
   });
 });

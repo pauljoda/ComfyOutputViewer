@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ImageItem, SlideshowSettings } from '../types';
 
 type SlideshowViewProps = {
@@ -26,10 +27,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const durationRef = useRef<number>(0);
 
   const orderedImages = useMemo(() => {
-    if (settings.order !== 'shuffle') {
-      return images;
-    }
-
+    if (settings.order !== 'shuffle') return images;
     const shuffled = [...images];
     for (let i = shuffled.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -48,12 +46,8 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [settings.minInterval, settings.maxInterval]);
 
   const getDuration = useCallback(() => {
-    if (settings.mode === 'fixed') {
-      return settings.fixedInterval * 1000;
-    }
-    if (settings.mode === 'random') {
-      return getRandomDuration();
-    }
+    if (settings.mode === 'fixed') return settings.fixedInterval * 1000;
+    if (settings.mode === 'random') return getRandomDuration();
     return 0;
   }, [settings.mode, settings.fixedInterval, getRandomDuration]);
 
@@ -106,28 +100,21 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   const scheduleAutoAdvance = useCallback((resume = false) => {
     if (settings.mode === 'manual' || isPaused) return;
     if (orderedImages.length === 0) return;
-
     clearTimers();
-
     const duration = getDuration();
     durationRef.current = duration;
     const elapsed = resume ? elapsedRef.current : 0;
     const remaining = Math.max(0, duration - elapsed);
-    if (!resume) {
-      elapsedRef.current = 0;
-    }
+    if (!resume) elapsedRef.current = 0;
     startTimeRef.current = Date.now() - elapsed;
-
     setProgressDuration(0);
     setProgress(duration > 0 ? (elapsed / duration) * 100 : 0);
-
     if (settings.showProgress && remaining > 0) {
       progressKickRef.current = window.requestAnimationFrame(() => {
         setProgressDuration(remaining);
         setProgress(100);
       });
     }
-
     if (orderedImages.length > 1) {
       const fadeDelay = Math.max(0, remaining - FADE_DURATION_MS);
       fadeTimeoutRef.current = window.setTimeout(() => {
@@ -154,9 +141,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   }, [settings.order]);
 
   useEffect(() => {
-    if (currentIndex >= orderedImages.length) {
-      setCurrentIndex(0);
-    }
+    if (currentIndex >= orderedImages.length) setCurrentIndex(0);
   }, [currentIndex, orderedImages.length]);
 
   useEffect(() => {
@@ -167,25 +152,18 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
   useEffect(() => {
     if (pendingIndex === null || fadePhase !== 'idle') return;
     const target = orderedImages[pendingIndex];
-    if (target && loadedIds.has(target.id)) {
-      setFadePhase('out');
-    }
+    if (target && loadedIds.has(target.id)) setFadePhase('out');
   }, [pendingIndex, fadePhase, orderedImages, loadedIds]);
 
   useEffect(() => {
     document.body.classList.add('slideshow-open');
-    return () => {
-      document.body.classList.remove('slideshow-open');
-    };
+    return () => document.body.classList.remove('slideshow-open');
   }, []);
 
   const handleFadeTransitionEnd = useCallback((event: React.TransitionEvent<HTMLDivElement>) => {
     if (event.propertyName !== 'opacity') return;
     if (fadePhase === 'out') {
-      if (pendingIndex === null) {
-        setFadePhase('idle');
-        return;
-      }
+      if (pendingIndex === null) { setFadePhase('idle'); return; }
       setCurrentIndex(pendingIndex);
       setFadePhase('in');
       return;
@@ -198,11 +176,8 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
 
   const togglePause = useCallback(() => {
     if (settings.mode === 'manual') return;
-
     setIsPaused((prev) => {
-      if (prev) {
-        return false;
-      }
+      if (prev) return false;
       clearTimers();
       if (durationRef.current > 0) {
         elapsedRef.current = Math.min(Date.now() - startTimeRef.current, durationRef.current);
@@ -219,8 +194,7 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     setProgress(0);
     setProgressDuration(0);
     elapsedRef.current = 0;
-    const targetIndex = (currentIndex - 1 + orderedImages.length) % orderedImages.length;
-    beginTransition(targetIndex);
+    beginTransition((currentIndex - 1 + orderedImages.length) % orderedImages.length);
   }, [orderedImages.length, clearTimers, currentIndex, beginTransition]);
 
   const handleNext = useCallback(() => {
@@ -229,75 +203,55 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
     setProgress(0);
     setProgressDuration(0);
     elapsedRef.current = 0;
-    const targetIndex = (currentIndex + 1) % orderedImages.length;
-    beginTransition(targetIndex);
+    beginTransition((currentIndex + 1) % orderedImages.length);
   }, [orderedImages.length, clearTimers, currentIndex, beginTransition]);
 
   const handleImageClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.slideshow-control') || target.closest('.slideshow-close')) return;
+    if (target.closest('[data-slideshow-control]')) return;
     togglePause();
   }, [togglePause]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'ArrowLeft':
-          handlePrev();
-          break;
-        case 'ArrowRight':
-          handleNext();
-          break;
-        case 'Escape':
-          onClose();
-          break;
-        case ' ':
-          e.preventDefault();
-          togglePause();
-          break;
+        case 'ArrowLeft': handlePrev(); break;
+        case 'ArrowRight': handleNext(); break;
+        case 'Escape': onClose(); break;
+        case ' ': e.preventDefault(); togglePause(); break;
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrev, handleNext, onClose, togglePause]);
 
-  useEffect(() => {
-    return clearTimers;
-  }, [clearTimers]);
+  useEffect(() => clearTimers, [clearTimers]);
 
   const showProgressBar = settings.mode !== 'manual' && settings.showProgress;
-  const frameClass = fadePhase === 'out' ? 'slideshow-image-out' : 'slideshow-image-in';
-  const frameStateClass = currentLoaded ? frameClass : 'slideshow-image-hidden';
+  const fadeClass = fadePhase === 'out' ? 'slideshow-fade-out' : 'slideshow-fade-in';
+  const frameClass = currentLoaded ? fadeClass : 'slideshow-fade-hidden';
 
   return (
-    <div className="slideshow-view" onClick={handleImageClick}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black" onClick={handleImageClick}>
       <button
-        className="slideshow-close"
+        data-slideshow-control
+        className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/80 hover:bg-black/60 hover:text-white"
         type="button"
         onClick={onClose}
         aria-label="Exit slideshow"
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6l-12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
+        <X className="h-5 w-5" />
       </button>
 
-      <div className="slideshow-image-container">
+      <div className="flex flex-1 items-center justify-center overflow-hidden">
         {currentImage && (
           <div
-            className={`slideshow-image-frame ${frameStateClass}`}
+            className={`flex h-full w-full items-center justify-center ${frameClass}`}
             onTransitionEnd={handleFadeTransitionEnd}
           >
             <img
               key={currentImage.id}
-              className="slideshow-image"
+              className="max-h-full max-w-full object-contain"
               src={currentImage.url}
               alt={currentImage.name}
               onLoad={() => handleImageLoad(currentImage.id)}
@@ -307,14 +261,14 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
       </div>
 
       <div
-        className="slideshow-bottom-bar"
+        className="relative bg-black/60"
         onClick={(e) => e.stopPropagation()}
         role="presentation"
       >
         {showProgressBar && (
-          <div className="slideshow-progress-container">
+          <div className="h-0.5 w-full bg-white/20">
             <div
-              className="slideshow-progress-bar"
+              className="slideshow-progress-bar-fill h-full bg-primary"
               style={{
                 transform: `scaleX(${progress / 100})`,
                 transitionDuration: `${progressDuration}ms`
@@ -322,49 +276,27 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
             />
           </div>
         )}
-        <div className="slideshow-bottom-row">
+        <div className="flex items-center justify-center gap-4 py-2">
           <button
-            className="slideshow-control slideshow-nav-button"
+            data-slideshow-control
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-white/80 hover:text-white"
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePrev();
-            }}
+            onClick={(e) => { e.stopPropagation(); handlePrev(); }}
             aria-label="Previous image"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M15 6l-6 6 6 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <ChevronLeft className="h-5 w-5" />
           </button>
-          <div className="slideshow-counter">
+          <div className="text-sm text-white/70">
             {currentIndex + 1} / {orderedImages.length}
           </div>
           <button
-            className="slideshow-control slideshow-nav-button"
+            data-slideshow-control
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-white/80 hover:text-white"
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNext();
-            }}
+            onClick={(e) => { e.stopPropagation(); handleNext(); }}
             aria-label="Next image"
           >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M9 6l6 6-6 6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
       </div>

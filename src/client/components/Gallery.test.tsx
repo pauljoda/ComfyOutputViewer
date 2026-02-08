@@ -37,7 +37,7 @@ describe('Gallery', () => {
     const onSelectImage = vi.fn();
     const onToggleFavorite = vi.fn();
     const onToggleHidden = vi.fn();
-    const { container } = render(
+    render(
       <Gallery
         images={images}
         tileFit="contain"
@@ -51,8 +51,9 @@ describe('Gallery', () => {
       />
     );
 
-    expect(container.querySelectorAll('.card')).toHaveLength(2);
-    fireEvent.click(container.querySelector('.card') as HTMLElement);
+    const cards = screen.getAllByRole('img');
+    expect(cards).toHaveLength(2);
+    fireEvent.click(cards[0].closest('[data-image-card="true"]')!);
     expect(onSelectImage).toHaveBeenCalledWith('a');
   });
 
@@ -101,20 +102,21 @@ describe('Gallery', () => {
         />
       );
 
-      expect(container.querySelectorAll('.card')).toHaveLength(360);
+      const gridCards = container.querySelectorAll('.gallery-grid > [data-image-card="true"]');
+      expect(gridCards).toHaveLength(360);
 
       act(() => {
         intersectionCallback?.([{ isIntersecting: true }]);
       });
 
-      expect(container.querySelectorAll('.card')).toHaveLength(500);
+      expect(container.querySelectorAll('.gallery-grid > [data-image-card="true"]')).toHaveLength(500);
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
   it('uses the empty gallery state when no images are available', () => {
-    const { container } = render(
+    render(
       <Gallery
         images={[]}
         tileFit="cover"
@@ -128,7 +130,6 @@ describe('Gallery', () => {
       />
     );
 
-    expect(container.querySelector('.gallery.empty')).not.toBeNull();
     expect(screen.getByLabelText('No images to display')).toBeInTheDocument();
   });
 });

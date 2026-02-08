@@ -2,10 +2,10 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useElementSize } from './useElementSize';
 
-let resizeCallback = null;
+let resizeCallback: ((entries: any[]) => void) | null = null;
 
 class TestResizeObserver {
-  constructor(callback) {
+  constructor(callback: (entries: any[]) => void) {
     resizeCallback = callback;
   }
 
@@ -23,17 +23,14 @@ function ElementSizeComponent() {
       <div
         ref={(node) => {
           if (node) {
-            vi.spyOn(node, 'getBoundingClientRect').mockReturnValue({
-              width: 320,
-              height: 180,
-              top: 0,
-              left: 0,
-              right: 320,
-              bottom: 180,
-              x: 0,
-              y: 0,
-              toJSON: () => ({})
-            });
+            Object.defineProperty(node, 'clientWidth', { value: 320, configurable: true });
+            Object.defineProperty(node, 'clientHeight', { value: 180, configurable: true });
+            vi.spyOn(window, 'getComputedStyle').mockReturnValue({
+              paddingLeft: '0',
+              paddingRight: '0',
+              paddingTop: '0',
+              paddingBottom: '0'
+            } as unknown as CSSStyleDeclaration);
           }
           ref(node);
         }}
@@ -46,7 +43,15 @@ function ElementSizeComponent() {
 describe('useElementSize', () => {
   it('measures element size on mount', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
-    render(<ElementSizeComponent />);
-    expect(screen.getByTestId('size')).toHaveTextContent('320x180');
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => {
+      cb();
+      return 0;
+    });
+    try {
+      render(<ElementSizeComponent />);
+      expect(screen.getByTestId('size')).toHaveTextContent('320x180');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

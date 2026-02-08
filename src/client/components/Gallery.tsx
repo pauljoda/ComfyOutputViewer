@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ImageOff } from 'lucide-react';
 import ImageCard from './ImageCard';
 import type { ImageItem, TileFit } from '../types';
 
@@ -48,6 +49,7 @@ const Gallery = React.memo(
 
     useEffect(() => {
       setVisibleCount(Math.min(images.length, INITIAL_RENDER_BATCH));
+      setRatios({});
     }, [imageWindowKey, images.length]);
 
     useEffect(() => {
@@ -109,9 +111,7 @@ const Gallery = React.memo(
     return (
       <main
         ref={setMainRef}
-        className={`gallery ${tileFit === 'contain' ? 'content-fit' : ''} ${
-          images.length === 0 ? 'empty' : ''
-        }`}
+        className="flex-1 px-3"
         style={
           {
             '--tile-size': `${tileSize}px`,
@@ -120,30 +120,34 @@ const Gallery = React.memo(
         }
       >
         {images.length === 0 && (
-          <div className="gallery-empty-state" aria-label="No images to display">
-            <div className="gallery-empty-orb" />
-            <p className="gallery-empty-text">No images to show</p>
+          <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground" aria-label="No images to display">
+            <ImageOff className="h-12 w-12 opacity-40" />
+            <p className="text-sm">No images to show</p>
           </div>
         )}
-        {visibleImages.map((image, index) => (
-          <ImageCard
-            key={image.id}
-            image={image}
-            renderIndex={index}
-            animateIn={animateCards}
-            ratio={ratios[image.id]}
-            tileSize={tileSize}
-            tileFit={tileFit}
-            selected={selectedIds.has(image.id)}
-            multiSelect={multiSelect}
-            onSelectImage={onSelectImage}
-            onToggleFavorite={onToggleFavorite}
-            onToggleHidden={onToggleHidden}
-            onImageLoad={handleImageLoad}
-          />
-        ))}
-        {visibleCount < images.length && (
-          <div className="gallery-batch-sentinel" ref={sentinelRef} aria-hidden="true" />
+        {images.length > 0 && (
+          <div className={tileFit === 'contain' ? 'gallery-grid content-fit' : 'gallery-grid'}>
+            {visibleImages.map((image, index) => (
+              <ImageCard
+                key={image.id}
+                image={image}
+                renderIndex={index}
+                animateIn={animateCards}
+                ratio={ratios[image.id]}
+                tileSize={tileSize}
+                tileFit={tileFit}
+                selected={selectedIds.has(image.id)}
+                multiSelect={multiSelect}
+                onSelectImage={onSelectImage}
+                onToggleFavorite={onToggleFavorite}
+                onToggleHidden={onToggleHidden}
+                onImageLoad={handleImageLoad}
+              />
+            ))}
+            {visibleCount < images.length && (
+              <div ref={sentinelRef} aria-hidden="true" />
+            )}
+          </div>
         )}
       </main>
     );
