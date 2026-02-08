@@ -138,10 +138,12 @@ If a request is purely informational and makes no changes, do not commit.
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
+- Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added mock sandbox dev mode on top of the modern UI branch (v0.8.9): added `scripts/seed-mock-dev-data.mjs` to seed `.mock-dev/source` and `.mock-dev/data` with sample images + metadata + starter workflows, added `npm run mock:seed` and `npm run dev:mock`, documented `MOCK_DEV_ROOT` and sandbox usage in README/.env example, restored swipe-based image navigation in the detail modal (removing left/right half-screen tap-next/tap-prev), and refreshed `flake.nix` npmDepsHash after the package-lock/version update.
 - Modal navigation simplification + mobile lag fix (v0.8.8): removed swipe/gesture navigation handlers from `ImageModal`, switched to left/right half click/tap navigation using the same prev/next path as toolbar buttons, preserved zoom/pan support with pan/pinch cooldown guards to prevent accidental taps after gestures, removed swipe-entry opacity transition state, and refreshed `flake.nix` npmDepsHash after bumping to 0.8.8.
 - WebKit modal lag fix follow-up (v0.8.7): removed transform/compositor hint overrides (`will-change`, `translateZ`, forced modal touch-action) that caused severe iOS detail-view movement delay, retained Safari-specific modal chrome blur fallback, restricted modal debug overlay enablement to explicit `?debug=1`, and refreshed `flake.nix` npmDepsHash after bumping to 0.8.7.
 - Modal interaction regression rollback (v0.8.6): restored the image detail interaction model from the pre-regression implementation (before recent modal perf experiments) while keeping the redesigned toolbar visuals, reverted progressive image source promotion and adjacent preload wiring, restored prior swipe thresholds/timing and transform lifecycle behavior (`TransformWrapper` remount/reset/fit flow), and refreshed `flake.nix` npmDepsHash after the version bump to 0.8.6.

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.9] - 2026-02-08
+
+### Added
+- Added a dedicated mock sandbox seeding script at `scripts/seed-mock-dev-data.mjs` that downloads sample images into `.mock-dev/source`, mirrors them into `.mock-dev/data`, and seeds example gallery metadata (favorites, hidden, ratings, tags, and prompt summaries).
+- Added seeded starter workflows under a `Mock Examples` folder so workflow UI states and run forms are available immediately in sandbox mode.
+
+### Changed
+- Added `npm run mock:seed` to refresh sandbox dataset content.
+- Added `npm run dev:mock` to seed and run development against dummy source/data directories while keeping `COMFY_API_URL` unchanged for real ComfyUI API calls.
+- Documented mock sandbox mode and `MOCK_DEV_ROOT` in `README.md` and `.env.example`.
+- Restored swipe-based image navigation in the detail modal and removed left/right half-screen tap navigation.
+- Bumped version to 0.8.9 and refreshed `flake.nix` npmDepsHash after the package-lock update.
+
 ## [0.8.8] - 2026-02-08
 
 ### Fixed

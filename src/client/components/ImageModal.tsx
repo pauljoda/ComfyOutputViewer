@@ -1,4 +1,4 @@
-import type { MouseEvent, SyntheticEvent } from 'react';
+import type { SyntheticEvent, TouchEvent } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
@@ -133,12 +133,17 @@ export default function ImageModal({
     }
   }, [modalTool, promptAvailable, promptData, promptLoading]);
 
-  const scaleRef = useRef(1);
-  const fitScaleRef = useRef(1);
+  const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+  const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
+  const lastSwipeAtRef = useRef(0);
   const isPanningRef = useRef(false);
   const isPinchingRef = useRef(false);
-  const lastPanOrPinchAtRef = useRef(0);
+  const scaleRef = useRef(1);
+  const fitScaleRef = useRef(1);
   const transformRef = useRef<ReactZoomPanPinchRef | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragMovedRef = useRef(false);
+  const [swipeIncoming, setSwipeIncoming] = useState(false);
   const [minScale, setMinScale] = useState(DEFAULT_MIN_SCALE);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const debugRafRef = useRef(0);
@@ -400,29 +405,66 @@ export default function ImageModal({
   };
 
   const suggestionId = 'tag-suggestions-modal';
+  const swipeEnabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+  }, []);
 
-  const handleBodyClick = (event: MouseEvent<HTMLDivElement>) => {
-    if (modalTool === 'prompt') return;
-    if (isPanningRef.current || isPinchingRef.current) return;
-    if (Date.now() - lastPanOrPinchAtRef.current < 200) return;
-    const target = event.target as HTMLElement;
-    if (target.closest('[data-modal-nav-ignore="true"]')) return;
+  const handleSwipeStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    swipeLastRef.current = { x: touch.clientX, y: touch.clientY };
+  };
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    if (!bounds.width) return;
-    const x = event.clientX - bounds.left;
-    if (x < bounds.width / 2) {
-      handlePrev();
+  const handleSwipeMove = (event: TouchEvent<HTMLDivElement>) => {
+    if (!swipeStartRef.current || event.touches.length !== 1) return;
+    const touch = event.touches[0];
+    swipeLastRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleSwipeEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+    if (isPanningRef.current || isPinchingRef.current || scaleRef.current > 1.02) {
+      swipeLastRef.current = null;
       return;
     }
-    handleNext();
+    const touch = event.changedTouches[0];
+    const endX = touch?.clientX ?? swipeLastRef.current?.x ?? start.x;
+    const endY = touch?.clientY ?? swipeLastRef.current?.y ?? start.y;
+    swipeLastRef.current = null;
+    const dx = endX - start.x;
+    const dy = endY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    const elapsed = Date.now() - start.time;
+    const minDistance = 84;
+    const axisRatio = 1.4;
+    if (elapsed > 800 || Math.max(absX, absY) < minDistance) return;
+    if (absX > absY * axisRatio) {
+      lastSwipeAtRef.current = Date.now();
+      if (dx < 0) handleNext();
+      else handlePrev();
+      return;
+    }
+    if (absY > absX * axisRatio) {
+      lastSwipeAtRef.current = Date.now();
+      handleClose();
+    }
   };
 
   useEffect(() => {
     scaleRef.current = 1;
     fitScaleRef.current = 1;
+    isPanningRef.current = false;
+    isPinchingRef.current = false;
     setMinScale(DEFAULT_MIN_SCALE);
     transformRef.current?.resetTransform(0);
+    setSwipeIncoming(true);
+    const timer = window.setTimeout(() => setSwipeIncoming(false), 200);
+    return () => window.clearTimeout(timer);
   }, [image.id]);
 
   useEffect(() => {
@@ -458,6 +500,39 @@ export default function ImageModal({
     };
   }, [image.id, transformReady]);
 
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    dragStartRef.current = { x: event.clientX, y: event.clientY };
+    dragMovedRef.current = false;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = dragStartRef.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.hypot(dx, dy) > 6) dragMovedRef.current = true;
+  };
+
+  const handlePointerEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (Date.now() - lastSwipeAtRef.current < 350) {
+      dragStartRef.current = null;
+      dragMovedRef.current = false;
+      return;
+    }
+    if (modalTool === 'prompt') {
+      dragStartRef.current = null;
+      dragMovedRef.current = false;
+      return;
+    }
+    const moved = dragMovedRef.current;
+    dragStartRef.current = null;
+    dragMovedRef.current = false;
+    if (moved) return;
+    const target = event.target as HTMLElement;
+    if (target.closest('.zoom-wrapper')) return;
+    handleClose();
+  };
+
   const toolBtnClass = (active: boolean) =>
     `inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
       active ? 'bg-white/20 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'
@@ -483,20 +558,10 @@ export default function ImageModal({
         wheel={{ step: 0.2 }}
         pinch={{ step: 8 }}
         doubleClick={{ mode: 'zoomIn', step: 1 }}
-        onPanningStart={() => {
-          isPanningRef.current = true;
-        }}
-        onPanningStop={() => {
-          isPanningRef.current = false;
-          lastPanOrPinchAtRef.current = Date.now();
-        }}
-        onPinchingStart={() => {
-          isPinchingRef.current = true;
-        }}
-        onPinchingStop={() => {
-          isPinchingRef.current = false;
-          lastPanOrPinchAtRef.current = Date.now();
-        }}
+        onPanningStart={() => { isPanningRef.current = true; }}
+        onPanningStop={() => { isPanningRef.current = false; }}
+        onPinchingStart={() => { isPinchingRef.current = true; }}
+        onPinchingStop={() => { isPinchingRef.current = false; }}
         onTransformed={(_, state) => {
           scaleRef.current = state.scale;
           lastStateRef.current = state;
@@ -588,7 +653,7 @@ export default function ImageModal({
 
             {/* Tool panels (tags, rating) */}
             {modalTool && modalTool !== 'prompt' && (
-              <div className="border-t border-white/10 bg-background/90 p-3" data-modal-nav-ignore="true">
+              <div className="border-t border-white/10 bg-background/90 p-3">
                 {modalTool === 'tags' && (
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1">
@@ -671,7 +736,7 @@ export default function ImageModal({
 
           {/* Prompt overlay */}
           {modalTool === 'prompt' && promptAvailable && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4" onClick={handlePromptOverlayClick} data-modal-nav-ignore="true">
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4" onClick={handlePromptOverlayClick}>
               <div
                 className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border bg-background text-foreground"
                 role="dialog"
@@ -725,7 +790,13 @@ export default function ImageModal({
           <div
             data-modal-body
             className="image-modal-body relative flex-1 overflow-hidden px-3"
-            onClick={handleBodyClick}
+            onTouchStart={swipeEnabled ? handleSwipeStart : undefined}
+            onTouchMove={swipeEnabled ? handleSwipeMove : undefined}
+            onTouchEnd={swipeEnabled ? handleSwipeEnd : undefined}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
           >
             <div data-modal-stage className="flex h-full w-full items-center justify-center">
               <TransformComponent
@@ -735,7 +806,7 @@ export default function ImageModal({
                 contentStyle={{ width: '100%', height: '100%' }}
               >
                 <img
-                  className="image-modal-image max-h-full max-w-full"
+                  className={`image-modal-image max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
                   src={image.url}
                   alt={image.name}
                   style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
@@ -745,7 +816,7 @@ export default function ImageModal({
               </TransformComponent>
             </div>
             {debugEnabled && debugInfo && (
-              <div className="absolute bottom-0 left-0 z-30 max-w-xs bg-black/80 p-2 text-[10px] text-white/80" data-modal-nav-ignore="true">
+              <div className="absolute bottom-0 left-0 z-30 max-w-xs bg-black/80 p-2 text-[10px] text-white/80">
                 <div>Zoom debug</div>
                 {Object.entries(debugInfo).map(([key, val]) => (
                   <div key={key}>{key}: {val}</div>
