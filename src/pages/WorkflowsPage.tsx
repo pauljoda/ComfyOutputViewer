@@ -1071,7 +1071,14 @@ function WorkflowDetail({
 
   const handleOpenOutput = async (job: Job, output: JobOutput) => {
     const visibleOutputs = job.outputs?.filter((item) => item.exists !== false) ?? [];
-    const paths = visibleOutputs.map((item) => item.imagePath);
+    const paths = [];
+    const seen = new Set<string>();
+    visibleOutputs.forEach((item) => {
+      if (!seen.has(item.imagePath)) {
+        seen.add(item.imagePath);
+        paths.push(item.imagePath);
+      }
+    });
     if (paths.length === 0) {
       return;
     }
@@ -1801,6 +1808,7 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
   const durationMs = Math.max(0, endedAt - startedAt);
   const hasOutputs = Boolean(job.outputs && job.outputs.length > 0);
   const progress = isGenerating ? job.progress : null;
+  const overall = isGenerating ? job.overall : null;
   const progressValue = progress && Number.isFinite(progress.value) ? progress.value : 0;
   const progressMax = progress && Number.isFinite(progress.max) ? progress.max : 0;
   const progressPercent =
@@ -1813,6 +1821,16 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
     progressPercent === null ? 0 : Math.max(0, Math.min(100, Math.round(progressPercent)));
   const progressLabel = progress && progressMax > 0 ? `${Math.min(progressValue, progressMax)} / ${progressMax}` : null;
   const nodeLabel = progress?.node ? `Node ${progress.node}` : null;
+  const overallPercent =
+    overall && Number.isFinite(overall.percent)
+      ? overall.percent
+      : overall && overall.total > 0
+        ? (overall.current / overall.total) * 100
+        : null;
+  const overallPercentValue =
+    overallPercent === null ? 0 : Math.max(0, Math.min(100, Math.round(overallPercent)));
+  const overallLabel =
+    overall && overall.total > 0 ? `${Math.min(overall.current, overall.total)} / ${overall.total}` : null;
   const previewUrl = isGenerating ? job.preview?.url : null;
   const queueInfo = job.queue;
   const liveStatus = job.live;
@@ -1910,6 +1928,17 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
           </div>
           {isGenerating && (
             <div className="job-progress">
+              {overall && overall.total > 0 && (
+                <div className="job-progress-overall">
+                  <div className="job-progress-bar overall">
+                    <span style={{ width: `${overallPercentValue}%` }} />
+                  </div>
+                  <div className="job-progress-info">
+                    <span>{overallLabel ? `Overall ${overallLabel}` : 'Overall progress'}</span>
+                    <span className="job-progress-node">{overallPercentValue}%</span>
+                  </div>
+                </div>
+              )}
               <div className={`job-progress-bar ${hasProgress ? '' : 'indeterminate'}`}>
                 <span style={{ width: `${progressPercentValue}%` }} />
               </div>

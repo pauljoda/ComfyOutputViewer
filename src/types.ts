@@ -110,6 +110,13 @@ export type JobProgress = {
   updatedAt?: number;
 };
 
+export type JobOverallProgress = {
+  current: number;
+  total: number;
+  percent?: number | null;
+  updatedAt?: number;
+};
+
 export type JobPreview = {
   url: string;
   updatedAt: number;
@@ -142,6 +149,7 @@ export type Job = {
   outputs?: JobOutput[];
   inputs?: JobInputValue[];
   progress?: JobProgress | null;
+  overall?: JobOverallProgress | null;
   preview?: JobPreview | null;
   queue?: JobQueueInfo | null;
   live?: JobLiveStatus | null;

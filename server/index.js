@@ -59,6 +59,7 @@ let comfyApiInit;
 let comfyApiListenersBound = false;
 const jobProgressById = new Map();
 const jobPreviewById = new Map();
+const jobOverallById = new Map();
 const promptJobIdByPromptId = new Map();
 const queueState = {
   running: [],
@@ -189,6 +190,27 @@ async function getComfyApiReady() {
   return api;
 }
 
+function ensureOverallEntry(jobId, workflowId) {
+  if (!jobId || !workflowId) return null;
+  if (jobOverallById.has(jobId)) return jobOverallById.get(jobId);
+  const workflowRow = statements.selectWorkflowById.get(workflowId);
+  if (!workflowRow) return null;
+  try {
+    const promptJson = JSON.parse(workflowRow.api_json);
+    const totalNodes = promptJson && typeof promptJson === 'object' ? Object.keys(promptJson).length : 0;
+    const entry = {
+      totalNodes,
+      executedNodes: new Set(),
+      updatedAt: Date.now()
+    };
+    jobOverallById.set(jobId, entry);
+    return entry;
+  } catch (err) {
+    console.warn('Failed to parse workflow JSON for overall progress:', err);
+    return null;
+  }
+}
+
 function bindComfyApiListeners(api) {
   if (comfyApiListenersBound) return;
   comfyApiListenersBound = true;
@@ -225,6 +247,10 @@ function bindComfyApiListeners(api) {
           node: event.detail.node ?? existing?.node ?? null,
           updatedAt: now
         });
+        const overall = jobOverallById.get(jobId);
+        if (overall) {
+          overall.updatedAt = now;
+        }
         const jobRow = statements.selectJobById.get(jobId);
         if (jobRow && (jobRow.status === 'pending' || jobRow.status === 'queued')) {
           const startedAt = jobRow.started_at ?? now;
@@ -233,6 +259,30 @@ function bindComfyApiListeners(api) {
         broadcastJobUpdate(jobId);
       }
     }
+  });
+  api.on('executed', (event) => {
+    if (!event?.detail?.prompt_id || !event?.detail?.node) return;
+    const jobId = getJobIdForPrompt(event.detail.prompt_id);
+    if (!jobId) return;
+    const overall = jobOverallById.get(jobId);
+    if (!overall) return;
+    overall.executedNodes.add(String(event.detail.node));
+    overall.updatedAt = Date.now();
+    broadcastJobUpdate(jobId);
+  });
+  api.on('execution_cached', (event) => {
+    if (!event?.detail?.prompt_id || !Array.isArray(event?.detail?.nodes)) return;
+    const jobId = getJobIdForPrompt(event.detail.prompt_id);
+    if (!jobId) return;
+    const overall = jobOverallById.get(jobId);
+    if (!overall) return;
+    event.detail.nodes.forEach((node) => {
+      if (node !== undefined && node !== null) {
+        overall.executedNodes.add(String(node));
+      }
+    });
+    overall.updatedAt = Date.now();
+    broadcastJobUpdate(jobId);
   });
   api.on('execution_success', (event) => {
     if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
@@ -412,6 +462,7 @@ function clearJobTransient(jobId) {
   if (!jobId) return;
   jobProgressById.delete(jobId);
   jobPreviewById.delete(jobId);
+  jobOverallById.delete(jobId);
 }
 
 async function handleComfyPreview(blob) {
@@ -1248,6 +1299,13 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     const now = Date.now();
     const jobResult = statements.insertJob.run(workflowId, null, 'pending', now);
     const jobId = Number(jobResult.lastInsertRowid);
+    const totalNodes =
+      promptJson && typeof promptJson === 'object' ? Object.keys(promptJson).length : 0;
+    jobOverallById.set(jobId, {
+      totalNodes,
+      executedNodes: new Set(),
+      updatedAt: now
+    });
 
     // Save job inputs
     runTransaction(() => {
@@ -1305,6 +1363,7 @@ function buildJobPayload(jobId) {
   const generating = isGeneratingStatus(row.status);
   const progress = generating ? jobProgressById.get(jobId) : null;
   const preview = generating ? jobPreviewById.get(jobId) : null;
+  const overall = generating ? ensureOverallEntry(jobId, row.workflow_id) : null;
   const queueInfo =
     generating && row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
   const fallbackQueue =
@@ -1323,9 +1382,26 @@ function buildJobPayload(jobId) {
     progress && Number.isFinite(progress.max) && progress.max > 0
       ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))
       : null;
+  const executedCount = overall ? overall.executedNodes.size : 0;
+  const overallPercent =
+    overall && overall.totalNodes > 0
+      ? Math.max(
+          0,
+          Math.min(
+            100,
+            ((executedCount +
+              (progress && progress.max > 0 ? progress.value / progress.max : 0)) /
+              overall.totalNodes) *
+              100
+          )
+        )
+      : null;
 
   const outputs = [];
+  const outputPaths = new Set();
   for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
+    if (outputPaths.has(outputRow.image_path)) continue;
+    outputPaths.add(outputRow.image_path);
     const outputHash = outputRow.output_hash;
     outputs.push({
       id: outputRow.id,
@@ -1369,6 +1445,14 @@ function buildJobPayload(jobId) {
           max: progress.max,
           node: progress.node ?? null,
           percent: progressPercent
+        }
+      : null,
+    overall: overall
+      ? {
+          current: executedCount,
+          total: overall.totalNodes,
+          percent: overallPercent,
+          updatedAt: overall.updatedAt
         }
       : null,
     preview: preview

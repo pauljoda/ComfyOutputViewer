@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.21] - 2026-02-08
+
+### Added
+- Added overall job progress tracking using executed node counts and exposed it in workflow job cards.
+
+### Fixed
+- De-duplicated workflow job outputs to prevent repeated thumbnails and broken navigation.
+
 ## [0.5.20] - 2026-02-08
 
 ### Fixed
