@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] - 2026-02-08
+
+### Changed
+- Improved gallery first-load performance for large libraries with progressive rendering that starts with a larger initial batch and prefetches additional batches before they enter the viewport.
+- Updated progressive gallery loading to use an off-screen intersection sentinel with generous root margin buffering so users do not see new batches pop in while scrolling.
+- Added a short, clean card entrance animation for initial gallery appearance and disabled that entry animation for later progressive batches to keep scrolling smooth.
+- Smoothed image reveal behavior by fading in loaded thumbnails to reduce visible loading flashes on incoming cards.
+
 ## [0.8.1] - 2026-02-08
 
 ### Added

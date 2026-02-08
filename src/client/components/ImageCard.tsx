@@ -1,9 +1,11 @@
 import { memo, useCallback, useMemo } from 'react';
-import type { MouseEvent, SyntheticEvent } from 'react';
+import type { CSSProperties, MouseEvent, SyntheticEvent } from 'react';
 import type { ImageItem, TileFit } from '../types';
 
 type ImageCardProps = {
   image: ImageItem;
+  renderIndex?: number;
+  animateIn?: boolean;
   ratio?: number;
   tileSize: number;
   tileFit: TileFit;
@@ -17,6 +19,8 @@ type ImageCardProps = {
 
 function ImageCard({
   image,
+  renderIndex = 0,
+  animateIn = true,
   ratio,
   tileSize,
   tileFit,
@@ -28,14 +32,28 @@ function ImageCard({
   onImageLoad
 }: ImageCardProps) {
   const style = useMemo(() => {
+    const animationDelay = `${Math.min(renderIndex, 18) * 12}ms`;
     if (tileFit !== 'contain') return undefined;
     if (!ratio) {
-      return { width: tileSize, height: tileSize };
+      return {
+        '--card-enter-delay': animationDelay,
+        width: tileSize,
+        height: tileSize
+      } as CSSProperties;
     }
     const width = ratio >= 1 ? tileSize * ratio : tileSize;
     const height = ratio >= 1 ? tileSize : tileSize / ratio;
-    return { width: Math.round(width), height: Math.round(height) };
-  }, [ratio, tileFit, tileSize]);
+    return {
+      '--card-enter-delay': animationDelay,
+      width: Math.round(width),
+      height: Math.round(height)
+    } as CSSProperties;
+  }, [ratio, renderIndex, tileFit, tileSize]);
+
+  const cardStyle = useMemo(() => {
+    if (style) return style;
+    return { '--card-enter-delay': `${Math.min(renderIndex, 18) * 12}ms` } as CSSProperties;
+  }, [renderIndex, style]);
 
   const handleSelect = useCallback(() => {
     onSelectImage(image.id);
@@ -68,20 +86,25 @@ function ImageCard({
     <button
       className={`card ${tileFit} ${image.hidden ? 'hidden' : ''} ${
         selected ? 'selected' : ''
-      } ${multiSelect ? 'multi-select' : ''}`}
+      } ${multiSelect ? 'multi-select' : ''} ${animateIn ? '' : 'no-enter'}`}
       type="button"
       onClick={handleSelect}
-      style={style}
+      style={cardStyle}
     >
       <img
         src={image.thumbUrl || image.url}
         alt={image.name}
+        data-loaded="false"
         loading="lazy"
         decoding="async"
-        onLoad={handleImageLoad}
+        onLoad={(event) => {
+          event.currentTarget.dataset.loaded = 'true';
+          handleImageLoad(event);
+        }}
         onError={(event) => {
           if (!image.thumbUrl) return;
           const target = event.currentTarget;
+          target.dataset.loaded = 'true';
           target.onerror = null;
           target.src = image.url;
         }}
