@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.6] - 2026-02-08
+
+### Changed
+- Extracted Comfy runtime orchestration from `src/server/index.js` into `src/server/services/createComfyRuntimeService.js`, including API lifecycle/init, websocket readiness, event binding, prompt-to-job mapping, and live progress/preview state updates.
+- Extracted queue tracking/recovery orchestration into `src/server/services/createQueueService.js`, including queue metadata parsing, polling loop, queue-state caching, and in-flight job resumption after restart.
+- Preserved existing route/runtime function contracts by injecting callbacks/getters (`broadcastJobUpdate`, `finalizeJobFromPrompt`, `startQueuePolling`, `pollJobCompletion`) instead of changing endpoint behavior.
+
+## [0.7.5] - 2026-02-08
+
+### Changed
+- Extracted image/file responsibilities from `src/server/index.js` into `src/server/services/createImageService.js`, including path-safe resolution, image listing, thumbnail management, source-to-data sync, and delete/blacklist flows.
+- Extracted workflow execution output responsibilities into `src/server/services/createWorkflowExecutionService.js`, including Comfy history lookup, output collection/retry, output download/persistence, completion polling, and prompt finalization.
+- Kept existing route/runtime integration contracts intact by wiring refactored services through dependency injection and preserving existing function signatures consumed by `registerImageRoutes` and `registerWorkflowRoutes`.
+
 ## [0.7.4] - 2026-02-08
 
 ### Fixed

@@ -35,6 +35,12 @@ Responsibilities:
 - Maintain a SQLite DB for metadata (favorites/hidden/tags) and hash blacklisting,
   with DB bootstrap/statements in `src/server/db/createDatabase.js` and metadata
   operations in `src/server/db/createMetadataRepository.js`.
+- Keep image/filesystem sync concerns in `src/server/services/createImageService.js`
+  and workflow execution/output concerns in
+  `src/server/services/createWorkflowExecutionService.js`.
+- Keep Comfy runtime lifecycle/event handling in
+  `src/server/services/createComfyRuntimeService.js` and queue/resume orchestration
+  in `src/server/services/createQueueService.js`.
 - Uses Node's built-in `node:sqlite` module (experimental) for storage.
 - Generate thumbnails (if `sharp` is available).
 
@@ -128,9 +134,11 @@ If a request is purely informational and makes no changes, do not commit.
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
-- Continue backend modularization by extracting remaining `src/server/index.js` runtime/file-sync concerns into dedicated modules (in progress).
+- Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Extracted Comfy runtime/event handling into `src/server/services/createComfyRuntimeService.js`, extracted queue/resume orchestration into `src/server/services/createQueueService.js`, preserved callback-based route/runtime contracts, and bumped version to 0.7.6.
+- Extracted image/file sync/delete/thumbnail responsibilities into `src/server/services/createImageService.js`, extracted workflow output/finalization/polling responsibilities into `src/server/services/createWorkflowExecutionService.js`, preserved route/runtime contracts via dependency injection, and bumped version to 0.7.5.
 - Fixed DB/runtime regressions from workflow route modularization by wiring shared job-update broadcasting back into `src/server/index.js`, fixing folder reorder updates to avoid nulling folder names, tightening SQLite job-output index migration writes, and bumped version to 0.7.4.
 - Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Fixed missing workflow route helper wiring after modularization (`isGeneratingStatus`, polling, websocket client set, and file existence checks), resolved `isGeneratingStatus is not defined` during workflow runs, and bumped version to 0.7.3.
