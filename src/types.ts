@@ -102,6 +102,14 @@ export type WorkflowInput = {
 
 export type JobStatus = 'pending' | 'queued' | 'running' | 'completed' | 'error' | 'cancelled';
 
+export type JobProgress = {
+  value: number;
+  max: number;
+  node?: string | null;
+  percent?: number | null;
+  updatedAt?: number;
+};
+
 export type Job = {
   id: number;
   workflowId: number;
@@ -113,6 +121,7 @@ export type Job = {
   completedAt?: number;
   outputs?: JobOutput[];
   inputs?: JobInputValue[];
+  progress?: JobProgress | null;
 };
 
 export type JobOutput = {

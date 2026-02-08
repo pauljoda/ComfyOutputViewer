@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.13] - 2026-02-08
+
+### Added
+- Added ComfyUI websocket progress updates to workflow job cards with a step readout and progress bar.
+
+### Changed
+- Refined workflow job card layout to reduce clutter on mobile and highlight status, timing, and progress.
+
 ## [0.5.12] - 2026-02-08
 
 ### Changed

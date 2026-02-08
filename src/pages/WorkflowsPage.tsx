@@ -1754,19 +1754,33 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
   const endedAt = job.completedAt ?? now;
   const durationMs = Math.max(0, endedAt - startedAt);
   const hasOutputs = Boolean(job.outputs && job.outputs.length > 0);
+  const progress = isGenerating ? job.progress : null;
+  const progressValue = progress && Number.isFinite(progress.value) ? progress.value : 0;
+  const progressMax = progress && Number.isFinite(progress.max) ? progress.max : 0;
+  const progressPercent =
+    progress && Number.isFinite(progress.percent)
+      ? progress.percent
+      : progressMax > 0
+        ? (progressValue / progressMax) * 100
+        : null;
+  const progressPercentValue =
+    progressPercent === null ? 0 : Math.max(0, Math.min(100, Math.round(progressPercent)));
+  const progressLabel = progress && progressMax > 0 ? `${Math.min(progressValue, progressMax)} / ${progressMax}` : null;
+  const nodeLabel = progress?.node ? `Node ${progress.node}` : null;
 
   return (
     <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
       <div className="job-header">
-        <span className="job-status">
-          {statusLabel}
-          {isGenerating && <span className="job-spinner" aria-hidden="true" />}
-        </span>
-        <span className="job-meta">
-          <span className="job-time">
-            {new Date(job.createdAt).toLocaleString()}
+        <div className="job-title">
+          <span className="job-status">
+            {statusLabel}
+            {isGenerating && <span className="job-spinner" aria-hidden="true" />}
           </span>
-          <span className="job-duration">{formatDuration(durationMs)}</span>
+          {isGenerating && progressPercent !== null && (
+            <span className="job-progress-pill">{progressPercentValue}%</span>
+          )}
+        </div>
+        <div className="job-actions">
           {isGenerating && (
             <button
               type="button"
@@ -1785,8 +1799,23 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
               Recheck outputs
             </button>
           )}
-        </span>
+        </div>
       </div>
+      <div className="job-meta">
+        <span className="job-time">{new Date(job.createdAt).toLocaleString()}</span>
+        <span className="job-duration">{formatDuration(durationMs)}</span>
+      </div>
+      {isGenerating && progress && (
+        <div className="job-progress">
+          <div className="job-progress-bar">
+            <span style={{ width: `${progressPercentValue}%` }} />
+          </div>
+          <div className="job-progress-info">
+            <span>{progressLabel ? `Step ${progressLabel}` : 'Working...'}</span>
+            {nodeLabel && <span className="job-progress-node">{nodeLabel}</span>}
+          </div>
+        </div>
+      )}
       {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}
       {job.outputs && job.outputs.filter((output) => output.exists !== false).length > 0 && (
         <div className="job-outputs">

@@ -56,6 +56,9 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 const wsClients = new Set();
 let comfyApi;
 let comfyApiInit;
+let comfyApiListenersBound = false;
+const jobProgressById = new Map();
+const promptJobIdByPromptId = new Map();
 
 wss.on('connection', (socket) => {
   wsClients.add(socket);
@@ -75,6 +78,7 @@ await migrateLegacyDb();
 function getComfyApi() {
   if (!comfyApi) {
     comfyApi = new ComfyApi(COMFY_API_URL, COMFY_CLIENT_ID, { forceWs: false });
+    bindComfyApiListeners(comfyApi);
     comfyApiInit = Promise.resolve(comfyApi.init?.() ?? comfyApi).catch((err) => {
       comfyApiInit = null;
       throw err;
@@ -89,6 +93,65 @@ async function getComfyApiReady() {
     await comfyApiInit;
   }
   return api;
+}
+
+function bindComfyApiListeners(api) {
+  if (comfyApiListenersBound) return;
+  comfyApiListenersBound = true;
+  api.on('progress', (event) => {
+    handleComfyProgress(event.detail);
+  });
+}
+
+function isGeneratingStatus(status) {
+  return status === 'pending' || status === 'queued' || status === 'running';
+}
+
+function getJobIdForPrompt(promptId) {
+  if (!promptId) return null;
+  if (promptJobIdByPromptId.has(promptId)) {
+    return promptJobIdByPromptId.get(promptId);
+  }
+  const row = statements.selectJobByPromptId.get(promptId);
+  if (row) {
+    promptJobIdByPromptId.set(promptId, row.id);
+    return row.id;
+  }
+  return null;
+}
+
+function clearJobProgress(jobId) {
+  if (jobId) {
+    jobProgressById.delete(jobId);
+  }
+}
+
+function handleComfyProgress(progress) {
+  if (!progress || !progress.prompt_id) return;
+  const jobId = getJobIdForPrompt(progress.prompt_id);
+  if (!jobId) return;
+  const now = Date.now();
+  const value = Number.isFinite(progress.value) ? progress.value : 0;
+  const max = Number.isFinite(progress.max) ? progress.max : 0;
+  const node = progress.node ?? null;
+  const existing = jobProgressById.get(jobId);
+  if (
+    existing &&
+    existing.value === value &&
+    existing.max === max &&
+    existing.node === node &&
+    now - existing.updatedAt < 400
+  ) {
+    return;
+  }
+  jobProgressById.set(jobId, { value, max, node, updatedAt: now });
+
+  const jobRow = statements.selectJobById.get(jobId);
+  if (jobRow && (jobRow.status === 'pending' || jobRow.status === 'queued')) {
+    const startedAt = jobRow.started_at ?? now;
+    statements.updateJobStatus.run('running', null, startedAt, jobRow.completed_at ?? null, jobId);
+  }
+  broadcastJobUpdate(jobId);
 }
 
 async function fetchPromptHistory(promptId, { allowFallback = false } = {}) {
@@ -749,6 +812,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       if (!result || !result.prompt_id) {
         const errorText = 'Failed to queue prompt in ComfyUI';
         statements.updateJobStatus.run('error', errorText, now, now, jobId);
+        clearJobProgress(jobId);
         broadcastJobUpdate(jobId);
         return res.status(500).json({ ok: false, error: errorText, jobId });
       }
@@ -757,6 +821,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
 
       // Update job with prompt ID
       statements.updateJobPromptId.run(promptId, jobId);
+      promptJobIdByPromptId.set(promptId, jobId);
       statements.updateJobStatus.run('queued', null, now, null, jobId);
       broadcastJobUpdate(jobId);
 
@@ -767,6 +832,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     } catch (fetchErr) {
       const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
       statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
+      clearJobProgress(jobId);
       broadcastJobUpdate(jobId);
       res.status(500).json({ ok: false, error: errorMessage, jobId });
     }
@@ -778,6 +844,13 @@ app.post('/api/workflows/:id/run', async (req, res) => {
 function buildJobPayload(jobId) {
   const row = statements.selectJobById.get(jobId);
   if (!row) return null;
+
+  const generating = isGeneratingStatus(row.status);
+  const progress = generating ? jobProgressById.get(jobId) : null;
+  const progressPercent =
+    progress && Number.isFinite(progress.max) && progress.max > 0
+      ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))
+      : null;
 
   const outputs = [];
   for (const outputRow of statements.selectJobOutputs.iterate(jobId)) {
@@ -817,7 +890,15 @@ function buildJobPayload(jobId) {
     startedAt: row.started_at,
     completedAt: row.completed_at,
     outputs,
-    inputs
+    inputs,
+    progress: progress
+      ? {
+          value: progress.value,
+          max: progress.max,
+          node: progress.node ?? null,
+          percent: progressPercent
+        }
+      : null
   };
 }
 
@@ -912,6 +993,7 @@ app.post('/api/jobs/:id/cancel', async (req, res) => {
     const now = Date.now();
     const startedAt = job.started_at ?? null;
     statements.updateJobStatus.run('cancelled', 'Cancelled', startedAt, now, jobId);
+    clearJobProgress(jobId);
     broadcastJobUpdate(jobId);
     res.json({ ok: true });
   } catch (err) {
@@ -1292,6 +1374,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
         if (promptHistory.status.status_str === 'error') {
           const errorMsg = promptHistory.status.messages?.[0]?.[1] || 'Unknown error';
           statements.updateJobStatus.run('error', errorMsg, null, now, jobId);
+          clearJobProgress(jobId);
           broadcastJobUpdate(jobId);
           return;
         }
@@ -1315,6 +1398,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
         // Mark job as complete
         statements.updateJobStatus.run('completed', null, null, now, jobId);
+        clearJobProgress(jobId);
         broadcastJobUpdate(jobId);
 
         // Schedule a follow-up broadcast after a short delay to catch any sync timing issues
@@ -1341,6 +1425,7 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
   // Timeout
   statements.updateJobStatus.run('error', 'Job timed out', null, Date.now(), jobId);
+  clearJobProgress(jobId);
   broadcastJobUpdate(jobId);
 }
 
