@@ -26,6 +26,25 @@ type ImageUploadValue = {
   type?: string;
 };
 
+type SystemStatsDevice = {
+  name: string;
+  type: string;
+  index: number;
+  vram_total: number;
+  vram_free: number;
+  torch_vram_total: number;
+  torch_vram_free: number;
+};
+
+type SystemStatsResponse = {
+  system: {
+    os: string;
+    python_version: string;
+    embedded_python: boolean;
+  };
+  devices: SystemStatsDevice[];
+};
+
 export default function WorkflowsPage() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
@@ -681,6 +700,9 @@ function WorkflowDetail({
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
   const [selectedInputPath, setSelectedInputPath] = useState<string | null>(null);
   const [inputTool, setInputTool] = useState<ModalTool>(null);
+  const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
+  const [systemStatsError, setSystemStatsError] = useState<string | null>(null);
+  const [systemStatsUpdatedAt, setSystemStatsUpdatedAt] = useState<number | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
   const recheckAttemptsRef = useRef<Set<number>>(new Set());
@@ -712,10 +734,27 @@ function WorkflowDetail({
     }
   }, []);
 
+  const loadSystemStats = useCallback(async () => {
+    try {
+      const response = await api<SystemStatsResponse>('/api/comfy/stats');
+      setSystemStats(response);
+      setSystemStatsUpdatedAt(Date.now());
+      setSystemStatsError(null);
+    } catch (err) {
+      setSystemStatsError(err instanceof Error ? err.message : 'Failed to load system stats');
+    }
+  }, []);
+
   useEffect(() => {
     loadWorkflowDetails();
     loadJobs();
   }, [workflow.id, workflow.updatedAt]);
+
+  useEffect(() => {
+    loadSystemStats();
+    const interval = window.setInterval(loadSystemStats, 8000);
+    return () => window.clearInterval(interval);
+  }, [loadSystemStats]);
 
   useEffect(() => {
     if (!prefill || prefill.workflowId !== workflow.id) {
@@ -1391,6 +1430,13 @@ function WorkflowDetail({
 
       <section className="workflow-jobs-section">
         <h3>Recent Jobs</h3>
+        <div className="workflow-status-grid">
+          <SystemStatsPanel
+            stats={systemStats}
+            error={systemStatsError}
+            updatedAt={systemStatsUpdatedAt}
+          />
+        </div>
         {jobs.length === 0 ? (
           <p className="jobs-empty">No jobs yet. Run the workflow to generate images.</p>
         ) : (
@@ -1767,6 +1813,28 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
     progressPercent === null ? 0 : Math.max(0, Math.min(100, Math.round(progressPercent)));
   const progressLabel = progress && progressMax > 0 ? `${Math.min(progressValue, progressMax)} / ${progressMax}` : null;
   const nodeLabel = progress?.node ? `Node ${progress.node}` : null;
+  const previewUrl = isGenerating ? job.preview?.url : null;
+  const queueInfo = job.queue;
+  const queueStateLabel =
+    queueInfo?.state === 'running'
+      ? 'Running'
+      : queueInfo?.state === 'queued'
+        ? 'Queued'
+        : 'Queue';
+  const queuePositionLabel =
+    queueInfo && queueInfo.position && queueInfo.total
+      ? `${queueInfo.position}/${queueInfo.total}`
+      : null;
+  const queueAheadLabel =
+    queueInfo && typeof queueInfo.ahead === 'number'
+      ? `${queueInfo.ahead} ahead`
+      : null;
+  const queueRemainingLabel =
+    queueInfo && typeof queueInfo.remaining === 'number'
+      ? `${queueInfo.remaining} remaining`
+      : null;
+  const showQueueMeta = Boolean(queueInfo && (queuePositionLabel || queueRemainingLabel));
+  const hasProgress = Boolean(progress && progressMax > 0);
 
   return (
     <div className={`job-card ${statusClass} ${isGenerating ? 'generating' : ''}`}>
@@ -1801,21 +1869,49 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
           )}
         </div>
       </div>
-      <div className="job-meta">
-        <span className="job-time">{new Date(job.createdAt).toLocaleString()}</span>
-        <span className="job-duration">{formatDuration(durationMs)}</span>
-      </div>
-      {isGenerating && progress && (
-        <div className="job-progress">
-          <div className="job-progress-bar">
-            <span style={{ width: `${progressPercentValue}%` }} />
+      <div className="job-body">
+        {isGenerating && (
+          <div className="job-preview">
+            {previewUrl ? (
+              <img src={previewUrl} alt="Live preview" loading="lazy" />
+            ) : (
+              <div className="job-preview-placeholder">
+                <span>Live preview</span>
+              </div>
+            )}
+            <span className="job-preview-badge">Live</span>
           </div>
-          <div className="job-progress-info">
-            <span>{progressLabel ? `Step ${progressLabel}` : 'Working...'}</span>
-            {nodeLabel && <span className="job-progress-node">{nodeLabel}</span>}
+        )}
+        <div className="job-detail">
+          <div className="job-meta">
+            <span className="job-time">{new Date(job.createdAt).toLocaleString()}</span>
+            <span className="job-duration">{formatDuration(durationMs)}</span>
+            {showQueueMeta && (
+              <span className="job-queue">
+                <span className="job-queue-label">{queueStateLabel}</span>
+                {queuePositionLabel && <span className="job-queue-value">{queuePositionLabel}</span>}
+                {queueAheadLabel && queueInfo?.state === 'queued' && (
+                  <span className="job-queue-sub">{queueAheadLabel}</span>
+                )}
+                {!queueAheadLabel && queueRemainingLabel && (
+                  <span className="job-queue-sub">{queueRemainingLabel}</span>
+                )}
+              </span>
+            )}
           </div>
+          {isGenerating && (
+            <div className="job-progress">
+              <div className={`job-progress-bar ${hasProgress ? '' : 'indeterminate'}`}>
+                <span style={{ width: `${progressPercentValue}%` }} />
+              </div>
+              <div className="job-progress-info">
+                <span>{progressLabel ? `Step ${progressLabel}` : 'Working...'}</span>
+                {nodeLabel && <span className="job-progress-node">{nodeLabel}</span>}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
       {job.errorMessage && <p className="job-error">{job.errorMessage}</p>}
       {job.outputs && job.outputs.filter((output) => output.exists !== false).length > 0 && (
         <div className="job-outputs">
@@ -1846,6 +1942,75 @@ function formatDuration(durationMs: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const precision = value >= 100 || unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+  return `${value.toFixed(precision)} ${units[unitIndex]}`;
+}
+
+type SystemStatsPanelProps = {
+  stats: SystemStatsResponse | null;
+  error: string | null;
+  updatedAt: number | null;
+};
+
+function SystemStatsPanel({ stats, error, updatedAt }: SystemStatsPanelProps) {
+  const updatedLabel = updatedAt ? new Date(updatedAt).toLocaleTimeString() : null;
+  return (
+    <div className="system-stats-card">
+      <div className="system-stats-header">
+        <div className="system-stats-title">
+          <span>System Stats</span>
+          {stats?.system && (
+            <span className="system-stats-sub">
+              Python {stats.system.python_version} · {stats.system.os}
+            </span>
+          )}
+        </div>
+        {updatedLabel && <span className="system-stats-time">{updatedLabel}</span>}
+      </div>
+      {error && <div className="system-stats-error">{error}</div>}
+      {!error && !stats && <div className="system-stats-loading">Loading...</div>}
+      {stats && stats.devices?.length > 0 && (
+        <div className="system-stats-grid">
+          {stats.devices.map((device) => {
+            const total = device.torch_vram_total ?? device.vram_total;
+            const free = device.torch_vram_free ?? device.vram_free;
+            const used = Math.max(0, total - free);
+            const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+            return (
+              <div key={`${device.name}-${device.index}`} className="system-device-card">
+                <div className="system-device-header">
+                  <span className="system-device-name">
+                    {device.name || `Device ${device.index}`}
+                  </span>
+                  <span className="system-device-type">{device.type}</span>
+                </div>
+                <div className="system-device-meta">
+                  {formatBytes(used)} / {formatBytes(total)} VRAM
+                </div>
+                <div className="system-device-bar">
+                  <span style={{ width: `${percent}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {stats && (!stats.devices || stats.devices.length === 0) && (
+        <div className="system-stats-empty">No device stats available.</div>
+      )}
+    </div>
+  );
 }
 
 type WorkflowEditorPanelProps = {

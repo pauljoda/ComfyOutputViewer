@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.14] - 2026-02-08
+
+### Added
+- Added ComfyUI websocket preview frames, queue position metadata, and system stats to the workflow jobs view.
+- Added real ComfyUI interrupt calls when cancelling running workflow jobs.
+
+### Changed
+- Refined workflow job cards with live preview tiles, queue badges, and progress bars optimized for mobile.
+
 ## [0.5.13] - 2026-02-08
 
 ### Added

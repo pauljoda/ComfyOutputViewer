@@ -110,6 +110,20 @@ export type JobProgress = {
   updatedAt?: number;
 };
 
+export type JobPreview = {
+  url: string;
+  updatedAt: number;
+};
+
+export type JobQueueInfo = {
+  state: 'running' | 'queued' | 'unknown';
+  position: number | null;
+  total: number;
+  ahead: number | null;
+  remaining: number | null;
+  updatedAt?: number;
+};
+
 export type Job = {
   id: number;
   workflowId: number;
@@ -122,6 +136,8 @@ export type Job = {
   outputs?: JobOutput[];
   inputs?: JobInputValue[];
   progress?: JobProgress | null;
+  preview?: JobPreview | null;
+  queue?: JobQueueInfo | null;
 };
 
 export type JobOutput = {

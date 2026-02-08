@@ -128,6 +128,10 @@ If a request is purely informational and makes no changes, do not commit.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 
 ## Recent Changes
+- Added ComfyUI websocket preview frames, queue position tracking, system stats, and real interrupt cancels for workflow jobs.
+- Refined workflow job cards with live previews, queue badges, and mobile-first progress layouts.
+- Bumped the app version to 0.5.14 after adding job progress/preview enhancements.
+- Refreshed the Nix npm dependency hash after the package-lock version bump.
 - Added ComfyUI websocket progress updates to workflow job cards with a cleaner, mobile-friendly layout.
 - Bumped the app version to 0.5.13 after the job progress UI update.
 - Refreshed the Nix npm dependency hash after the package-lock version bump.

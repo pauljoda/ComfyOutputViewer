@@ -58,7 +58,19 @@ let comfyApi;
 let comfyApiInit;
 let comfyApiListenersBound = false;
 const jobProgressById = new Map();
+const jobPreviewById = new Map();
 const promptJobIdByPromptId = new Map();
+const queueState = {
+  running: [],
+  pending: [],
+  remaining: null,
+  updatedAt: 0,
+  signature: ''
+};
+let queuePollTimer;
+let queueRemainingOverride = null;
+let lastActivePromptId = null;
+let currentExecutingPromptId = null;
 
 wss.on('connection', (socket) => {
   wsClients.add(socket);
@@ -77,12 +89,17 @@ await migrateLegacyDb();
 
 function getComfyApi() {
   if (!comfyApi) {
-    comfyApi = new ComfyApi(COMFY_API_URL, COMFY_CLIENT_ID, { forceWs: false });
-    bindComfyApiListeners(comfyApi);
-    comfyApiInit = Promise.resolve(comfyApi.init?.() ?? comfyApi).catch((err) => {
-      comfyApiInit = null;
-      throw err;
+    comfyApi = new ComfyApi(COMFY_API_URL, COMFY_CLIENT_ID, {
+      forceWs: false,
+      customWebSocketImpl: WebSocket
     });
+    bindComfyApiListeners(comfyApi);
+    comfyApiInit = Promise.resolve(comfyApi.init?.() ?? comfyApi)
+      .then((api) => (api.waitForReady ? api.waitForReady() : api))
+      .catch((err) => {
+        comfyApiInit = null;
+        throw err;
+      });
   }
   return comfyApi;
 }
@@ -99,8 +116,55 @@ function bindComfyApiListeners(api) {
   if (comfyApiListenersBound) return;
   comfyApiListenersBound = true;
   api.on('progress', (event) => {
+    if (event?.detail?.prompt_id) {
+      lastActivePromptId = event.detail.prompt_id;
+    }
     handleComfyProgress(event.detail);
   });
+  api.on('executing', (event) => {
+    if (event?.detail?.prompt_id) {
+      lastActivePromptId = event.detail.prompt_id;
+      currentExecutingPromptId = event.detail.prompt_id;
+      const jobId = getJobIdForPrompt(event.detail.prompt_id);
+      if (jobId) {
+        const jobRow = statements.selectJobById.get(jobId);
+        if (jobRow && (jobRow.status === 'pending' || jobRow.status === 'queued')) {
+          const now = Date.now();
+          const startedAt = jobRow.started_at ?? now;
+          statements.updateJobStatus.run('running', null, startedAt, jobRow.completed_at ?? null, jobId);
+        }
+        broadcastJobUpdate(jobId);
+      }
+    }
+  });
+  api.on('execution_success', (event) => {
+    if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
+      currentExecutingPromptId = null;
+    }
+  });
+  api.on('execution_error', (event) => {
+    if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
+      currentExecutingPromptId = null;
+    }
+  });
+  api.on('execution_interrupted', (event) => {
+    if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
+      currentExecutingPromptId = null;
+    }
+  });
+  api.on('status', (event) => {
+    const remaining = event?.detail?.status?.exec_info?.queue_remaining;
+    if (Number.isFinite(remaining)) {
+      queueRemainingOverride = remaining;
+      queueState.remaining = remaining;
+    }
+  });
+  api.on('b_preview', (event) => {
+    handleComfyPreview(event.detail).catch((err) => {
+      console.warn('Failed to handle ComfyUI preview frame:', err);
+    });
+  });
+  startQueuePolling();
 }
 
 function isGeneratingStatus(status) {
@@ -118,12 +182,6 @@ function getJobIdForPrompt(promptId) {
     return row.id;
   }
   return null;
-}
-
-function clearJobProgress(jobId) {
-  if (jobId) {
-    jobProgressById.delete(jobId);
-  }
 }
 
 function handleComfyProgress(progress) {
@@ -152,6 +210,144 @@ function handleComfyProgress(progress) {
     statements.updateJobStatus.run('running', null, startedAt, jobRow.completed_at ?? null, jobId);
   }
   broadcastJobUpdate(jobId);
+}
+
+function clearJobTransient(jobId) {
+  if (!jobId) return;
+  jobProgressById.delete(jobId);
+  jobPreviewById.delete(jobId);
+}
+
+async function handleComfyPreview(blob) {
+  if (!blob || typeof blob.arrayBuffer !== 'function') return;
+  const promptId = lastActivePromptId;
+  if (!promptId) return;
+  const jobId = getJobIdForPrompt(promptId);
+  if (!jobId) return;
+  const now = Date.now();
+  const existing = jobPreviewById.get(jobId);
+  if (existing && now - existing.updatedAt < 500) {
+    return;
+  }
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  const type = blob.type || 'image/jpeg';
+  const dataUrl = `data:${type};base64,${buffer.toString('base64')}`;
+  jobPreviewById.set(jobId, { url: dataUrl, updatedAt: now });
+  broadcastJobUpdate(jobId);
+}
+
+function getPromptIdFromQueueItem(item) {
+  if (!Array.isArray(item)) return null;
+  const candidate = item[1];
+  if (typeof candidate === 'string') return candidate;
+  const direct = item.find?.((value) => typeof value === 'string');
+  return typeof direct === 'string' ? direct : null;
+}
+
+function getQueueInfoForPrompt(promptId) {
+  if (!promptId) return null;
+  const runningIndex = queueState.running.findIndex(
+    (item) => getPromptIdFromQueueItem(item) === promptId
+  );
+  const pendingIndex = queueState.pending.findIndex(
+    (item) => getPromptIdFromQueueItem(item) === promptId
+  );
+  const runningCount = queueState.running.length;
+  const pendingCount = queueState.pending.length;
+  const total = runningCount + pendingCount;
+  const remaining =
+    Number.isFinite(queueState.remaining) && queueState.remaining !== null
+      ? queueState.remaining
+      : pendingCount;
+
+  if (runningIndex >= 0) {
+    return {
+      state: 'running',
+      position: runningIndex + 1,
+      total,
+      ahead: runningIndex,
+      remaining,
+      updatedAt: queueState.updatedAt
+    };
+  }
+
+  if (pendingIndex >= 0) {
+    const position = runningCount + pendingIndex + 1;
+    return {
+      state: 'queued',
+      position,
+      total,
+      ahead: position - 1,
+      remaining,
+      updatedAt: queueState.updatedAt
+    };
+  }
+
+  if (total > 0) {
+    return {
+      state: 'unknown',
+      position: null,
+      total,
+      ahead: null,
+      remaining,
+      updatedAt: queueState.updatedAt
+    };
+  }
+
+  return null;
+}
+
+async function refreshQueueState() {
+  const api = await getComfyApiReady();
+  const queue = await api.getQueue();
+  const running = Array.isArray(queue?.queue_running) ? queue.queue_running : [];
+  const pending = Array.isArray(queue?.queue_pending) ? queue.queue_pending : [];
+  const signature = JSON.stringify({
+    running: running.map(getPromptIdFromQueueItem),
+    pending: pending.map(getPromptIdFromQueueItem),
+    remaining: queueRemainingOverride
+  });
+  const changed = signature !== queueState.signature;
+  queueState.running = running;
+  queueState.pending = pending;
+  queueState.updatedAt = Date.now();
+  queueState.signature = signature;
+  if (Number.isFinite(queueRemainingOverride)) {
+    queueState.remaining = queueRemainingOverride;
+  } else {
+    queueState.remaining = pending.length;
+  }
+  return changed;
+}
+
+function broadcastGeneratingJobs() {
+  for (const row of statements.selectGeneratingJobs.iterate()) {
+    broadcastJobUpdate(row.id);
+  }
+}
+
+function startQueuePolling() {
+  if (queuePollTimer) return;
+  refreshQueueState()
+    .then((changed) => {
+      if (changed) {
+        broadcastGeneratingJobs();
+      }
+    })
+    .catch((err) => {
+      console.warn('Failed to refresh ComfyUI queue:', err);
+    });
+  queuePollTimer = setInterval(() => {
+    refreshQueueState()
+      .then((changed) => {
+        if (changed) {
+          broadcastGeneratingJobs();
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to refresh ComfyUI queue:', err);
+      });
+  }, 2000);
 }
 
 async function fetchPromptHistory(promptId, { allowFallback = false } = {}) {
@@ -812,7 +1008,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       if (!result || !result.prompt_id) {
         const errorText = 'Failed to queue prompt in ComfyUI';
         statements.updateJobStatus.run('error', errorText, now, now, jobId);
-        clearJobProgress(jobId);
+        clearJobTransient(jobId);
         broadcastJobUpdate(jobId);
         return res.status(500).json({ ok: false, error: errorText, jobId });
       }
@@ -832,7 +1028,7 @@ app.post('/api/workflows/:id/run', async (req, res) => {
     } catch (fetchErr) {
       const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
       statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
-      clearJobProgress(jobId);
+      clearJobTransient(jobId);
       broadcastJobUpdate(jobId);
       res.status(500).json({ ok: false, error: errorMessage, jobId });
     }
@@ -847,6 +1043,8 @@ function buildJobPayload(jobId) {
 
   const generating = isGeneratingStatus(row.status);
   const progress = generating ? jobProgressById.get(jobId) : null;
+  const preview = generating ? jobPreviewById.get(jobId) : null;
+  const queue = row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
   const progressPercent =
     progress && Number.isFinite(progress.max) && progress.max > 0
       ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))
@@ -898,7 +1096,14 @@ function buildJobPayload(jobId) {
           node: progress.node ?? null,
           percent: progressPercent
         }
-      : null
+      : null,
+    preview: preview
+      ? {
+          url: preview.url,
+          updatedAt: preview.updatedAt
+        }
+      : null,
+    queue
   };
 }
 
@@ -992,10 +1197,37 @@ app.post('/api/jobs/:id/cancel', async (req, res) => {
     }
     const now = Date.now();
     const startedAt = job.started_at ?? null;
-    statements.updateJobStatus.run('cancelled', 'Cancelled', startedAt, now, jobId);
-    clearJobProgress(jobId);
+    let interrupted = false;
+    if (job.prompt_id) {
+      try {
+        const isRunningPrompt =
+          currentExecutingPromptId === job.prompt_id ||
+          queueState.running.some(
+            (item) => getPromptIdFromQueueItem(item) === job.prompt_id
+          );
+        if (isRunningPrompt) {
+          const api = await getComfyApiReady();
+          await api.interrupt();
+          interrupted = true;
+        }
+      } catch (err) {
+        console.warn('Failed to interrupt ComfyUI job:', err);
+      }
+    }
+
+    statements.updateJobStatus.run(
+      'cancelled',
+      interrupted ? 'Cancelled' : 'Cancelled',
+      startedAt,
+      now,
+      jobId
+    );
+    clearJobTransient(jobId);
+    if (job.prompt_id && currentExecutingPromptId === job.prompt_id) {
+      currentExecutingPromptId = null;
+    }
     broadcastJobUpdate(jobId);
-    res.json({ ok: true });
+    res.json({ ok: true, interrupted });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to cancel job');
   }
@@ -1137,6 +1369,16 @@ app.post('/api/inputs/upload', async (req, res) => {
 });
 
 // ComfyUI proxy endpoints
+app.get('/api/comfy/stats', async (_req, res) => {
+  try {
+    const api = await getComfyApiReady();
+    const stats = await api.getSystemStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to load ComfyUI system stats');
+  }
+});
+
 app.post('/api/comfy/upload', async (req, res) => {
   try {
     const request = new Request('http://localhost', {
@@ -1374,7 +1616,10 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
         if (promptHistory.status.status_str === 'error') {
           const errorMsg = promptHistory.status.messages?.[0]?.[1] || 'Unknown error';
           statements.updateJobStatus.run('error', errorMsg, null, now, jobId);
-          clearJobProgress(jobId);
+          clearJobTransient(jobId);
+          if (currentExecutingPromptId === promptId) {
+            currentExecutingPromptId = null;
+          }
           broadcastJobUpdate(jobId);
           return;
         }
@@ -1398,7 +1643,10 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
         // Mark job as complete
         statements.updateJobStatus.run('completed', null, null, now, jobId);
-        clearJobProgress(jobId);
+        clearJobTransient(jobId);
+        if (currentExecutingPromptId === promptId) {
+          currentExecutingPromptId = null;
+        }
         broadcastJobUpdate(jobId);
 
         // Schedule a follow-up broadcast after a short delay to catch any sync timing issues
@@ -1425,7 +1673,10 @@ async function pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap
 
   // Timeout
   statements.updateJobStatus.run('error', 'Job timed out', null, Date.now(), jobId);
-  clearJobProgress(jobId);
+  clearJobTransient(jobId);
+  if (currentExecutingPromptId === promptId) {
+    currentExecutingPromptId = null;
+  }
   broadcastJobUpdate(jobId);
 }
 
@@ -1667,6 +1918,7 @@ function prepareStatements(database) {
     selectJobsByWorkflow: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE workflow_id = ? ORDER BY created_at DESC LIMIT 50'),
     selectJobById: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE id = ?'),
     selectJobByPromptId: database.prepare('SELECT id, workflow_id, prompt_id, status, error_message, created_at, started_at, completed_at FROM jobs WHERE prompt_id = ?'),
+    selectGeneratingJobs: database.prepare("SELECT id FROM jobs WHERE status IN ('pending', 'queued', 'running')"),
     insertJob: database.prepare('INSERT INTO jobs (workflow_id, prompt_id, status, created_at) VALUES (?, ?, ?, ?)'),
     updateJobStatus: database.prepare('UPDATE jobs SET status = ?, error_message = ?, started_at = ?, completed_at = ? WHERE id = ?'),
     updateJobPromptId: database.prepare('UPDATE jobs SET prompt_id = ? WHERE id = ?'),
