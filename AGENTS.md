@@ -138,10 +138,12 @@ If a request is purely informational and makes no changes, do not commit.
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
+- Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
 - Workflows feature: Add WebSocket relay for real-time job status updates (pending).
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added a dedicated mock sandbox workflow: `npm run mock:seed` seeds `.mock-dev/source` + `.mock-dev/data` with example downloaded images and metadata, `npm run dev:mock` starts the app against those dummy directories while keeping real ComfyUI API calls, seeded starter workflows under a `Mock Examples` folder, documented `MOCK_DEV_ROOT`, and bumped version to 0.7.10.
 - Backported modern-ui gallery fixes by making `useElementSize` measure content-box dimensions consistently (client width/height minus padding) to correct column calculations, applied scroll/render tuning in gallery cards (`contain: layout style paint`, image placeholder/fade-in, removed `fetchPriority="low"`), updated `useElementSize` tests for padding-aware sizing, and bumped version to 0.7.9.
 - Added Vite host allowlist configuration for `localhost`, `127.0.0.1`, `.local`, and `comfy-viewer.pauljoda.com` across both `server` and `preview` while keeping LAN bind on `0.0.0.0`, bumped version to 0.7.8, and refreshed `flake.nix` npmDepsHash.
 - Added a full Vitest testing system with server/client configs, test setup, and npm scripts (`test`, `test:all`, targeted watch/coverage commands), plus broad coverage for core routes/services/state and major client utilities/hooks/components/workspaces; stabilized workflow workspace test routing assertions, ignored generated `coverage/` artifacts in `.gitignore`, and bumped version to 0.7.7.

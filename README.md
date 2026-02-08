@@ -74,6 +74,23 @@ Built with React + TypeScript frontend and Node.js/Express backend with SQLite s
 
 4. Click **Sync** to import images from your ComfyUI output folder.
 
+### Mock Sandbox Development Mode
+
+Use this mode when you want a reproducible local dataset for demos, screenshots, and UI testing while still talking to your real ComfyUI API endpoint.
+
+```bash
+npm run dev:mock
+```
+
+What it does:
+- Seeds `.mock-dev/source` and `.mock-dev/data` with example images from Picsum.
+- Seeds example metadata (tags, favorites, hidden flags, ratings, prompt summaries).
+- Seeds example workflows in a `Mock Examples` folder.
+- Starts the app with:
+  - `COMFY_OUTPUT_DIR=.mock-dev/source`
+  - `DATA_DIR=.mock-dev/data`
+  - `COMFY_API_URL` unchanged (still uses your normal real ComfyUI endpoint).
+
 ---
 
 ## Configuration
@@ -89,6 +106,7 @@ Configure via environment variables or a `.env` file:
 | `SYNC_INTERVAL_MS` | `0` (disabled) | Auto-sync interval in milliseconds |
 | `THUMB_MAX` | `512` | Maximum thumbnail dimension in pixels |
 | `THUMB_QUALITY` | `72` | JPEG quality for thumbnails (0-100) |
+| `MOCK_DEV_ROOT` | `.mock-dev` | Root directory used by `npm run mock:seed` for seeded source/data sandbox content |
 
 ---
 
@@ -184,6 +202,8 @@ Example `configuration.nix` using the overlay and module:
 
 ```bash
 npm run dev      # Start dev servers (Vite + Express)
+npm run dev:mock # Seed mock sandbox data and start dev servers in sandbox mode
+npm run mock:seed # Seed/refresh mock sandbox data only
 npm run build    # Build production bundle
 npm run preview  # Preview production build
 npm run start    # Run production server
