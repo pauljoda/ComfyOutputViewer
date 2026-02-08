@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.20] - 2026-02-08
+
+### Fixed
+- Marked jobs completed via ComfyUI execution events so finished jobs stop showing as generating.
+- Limited queue badges to active jobs and tightened queue metadata attachment.
+
 ## [0.5.19] - 2026-02-08
 
 ### Fixed

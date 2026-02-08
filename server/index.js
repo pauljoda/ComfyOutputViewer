@@ -74,6 +74,7 @@ let currentExecutingPromptId = null;
 let comfyWsConnected = false;
 let comfyWsConnectedId = null;
 let comfyWsReconnectPending = false;
+const promptFinalizeInFlight = new Set();
 const comfyEventStats = {
   lastEventAt: null,
   lastEventType: null,
@@ -237,15 +238,28 @@ function bindComfyApiListeners(api) {
     if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
       currentExecutingPromptId = null;
     }
+    if (event?.detail?.prompt_id) {
+      finalizeJobFromPrompt(event.detail.prompt_id);
+    }
   });
   api.on('execution_error', (event) => {
     if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
       currentExecutingPromptId = null;
     }
+    if (event?.detail?.prompt_id) {
+      const errorMessage =
+        event?.detail?.exception_message ||
+        event?.detail?.exception_type ||
+        'Execution failed';
+      finalizeJobFromPrompt(event.detail.prompt_id, { errorMessage });
+    }
   });
   api.on('execution_interrupted', (event) => {
     if (event?.detail?.prompt_id && currentExecutingPromptId === event.detail.prompt_id) {
       currentExecutingPromptId = null;
+    }
+    if (event?.detail?.prompt_id) {
+      finalizeJobFromPrompt(event.detail.prompt_id, { errorMessage: 'Execution interrupted' });
     }
   });
   api.on('status', (event) => {
@@ -417,6 +431,73 @@ async function handleComfyPreview(blob) {
   jobPreviewById.set(jobId, { url: dataUrl, updatedAt: now });
   comfyEventStats.lastPreviewAt = now;
   broadcastJobUpdate(jobId);
+}
+
+async function finalizeJobFromPrompt(promptId, options = {}) {
+  if (!promptId) return;
+  if (promptFinalizeInFlight.has(promptId)) return;
+  promptFinalizeInFlight.add(promptId);
+  try {
+    const jobRow = statements.selectJobByPromptId.get(promptId);
+    if (!jobRow) return;
+    if (jobRow.status === 'completed' || jobRow.status === 'error' || jobRow.status === 'cancelled') {
+      return;
+    }
+
+    const jobId = jobRow.id;
+    const now = Date.now();
+    const workflowInputs = [];
+    for (const row of statements.selectWorkflowInputs.iterate(jobRow.workflow_id)) {
+      workflowInputs.push(row);
+    }
+    const inputValuesMap = new Map();
+    for (const inputRow of statements.selectJobInputs.iterate(jobId)) {
+      inputValuesMap.set(inputRow.input_id, inputRow.value);
+    }
+
+    if (options.errorMessage) {
+      statements.updateJobStatus.run('error', options.errorMessage, null, now, jobId);
+      clearJobTransient(jobId);
+      broadcastJobUpdate(jobId);
+      return;
+    }
+
+    const promptHistory = await fetchPromptHistory(promptId, { allowFallback: true });
+    const statusStr = promptHistory?.status?.status_str;
+    if (statusStr === 'error') {
+      const errorMsg = promptHistory?.status?.messages?.[0]?.[1] || 'Unknown error';
+      statements.updateJobStatus.run('error', errorMsg, null, now, jobId);
+      clearJobTransient(jobId);
+      broadcastJobUpdate(jobId);
+      return;
+    }
+
+    let imageOutputs = collectImageOutputs(promptHistory?.outputs || {});
+    if (imageOutputs.length === 0) {
+      imageOutputs = await fetchImageOutputsWithRetry(promptId, 3, 1000);
+    }
+
+    if (imageOutputs.length === 0) {
+      scheduleOutputRecovery(jobId, promptId, workflowInputs, inputValuesMap, jobRow.workflow_id);
+    } else {
+      await downloadAndRecordOutputs(
+        jobId,
+        imageOutputs,
+        workflowInputs,
+        inputValuesMap,
+        jobRow.workflow_id,
+        now
+      );
+    }
+
+    statements.updateJobStatus.run('completed', null, null, now, jobId);
+    clearJobTransient(jobId);
+    broadcastJobUpdate(jobId);
+  } catch (err) {
+    console.warn('Failed to finalize job from ComfyUI event:', err);
+  } finally {
+    promptFinalizeInFlight.delete(promptId);
+  }
 }
 
 function getPromptIdFromQueueItem(item) {
@@ -1224,7 +1305,8 @@ function buildJobPayload(jobId) {
   const generating = isGeneratingStatus(row.status);
   const progress = generating ? jobProgressById.get(jobId) : null;
   const preview = generating ? jobPreviewById.get(jobId) : null;
-  const queueInfo = row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
+  const queueInfo =
+    generating && row.prompt_id ? getQueueInfoForPrompt(row.prompt_id) : null;
   const fallbackQueue =
     generating && queueState.updatedAt
       ? {
@@ -1236,7 +1318,7 @@ function buildJobPayload(jobId) {
           updatedAt: queueState.updatedAt
         }
       : null;
-  const queue = queueInfo ?? fallbackQueue;
+  const queue = generating ? queueInfo ?? fallbackQueue : null;
   const progressPercent =
     progress && Number.isFinite(progress.max) && progress.max > 0
       ? Math.max(0, Math.min(100, (progress.value / progress.max) * 100))

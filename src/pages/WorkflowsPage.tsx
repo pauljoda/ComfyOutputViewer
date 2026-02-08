@@ -1834,7 +1834,9 @@ function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }: JobCardProps) 
     queueInfo && typeof queueInfo.remaining === 'number'
       ? `${queueInfo.remaining} remaining`
       : null;
-  const showQueueMeta = Boolean(queueInfo && (queuePositionLabel || queueRemainingLabel));
+  const showQueueMeta = Boolean(
+    isGenerating && queueInfo && (queuePositionLabel || queueRemainingLabel)
+  );
   const hasProgress = Boolean(progress && progressMax > 0);
   const showLiveWarning =
     isGenerating &&
