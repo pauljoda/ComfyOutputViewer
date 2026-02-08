@@ -78,7 +78,6 @@ function ImageCard({
         alt={image.name}
         loading="lazy"
         decoding="async"
-        fetchPriority="low"
         onLoad={handleImageLoad}
         onError={(event) => {
           if (!image.thumbUrl) return;

@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.0] - 2026-02-08
+
+### Changed
+- Redesigned the full UI with a modern aesthetic: new orange/violet color palette, glassmorphism toolbar and panels, Inter font stack, and gradient accents throughout.
+- Overhauled the gallery grid to fill the full viewport width with consistent 12px tile gap and 16px horizontal padding, replacing the previous narrower centered layout.
+- Merged the StatusBar into the TopBar component, showing loading state, status messages, and error alerts inline with an image count badge on the filter pill.
+- Modernized all modals and tool popovers with floating glass panels, slide-in animations, increased backdrop blur, and full-viewport scrims.
+- Redesigned card overlays with solid dark backgrounds instead of per-element backdrop-filter blur, eliminating GPU-intensive compositing on large galleries.
+- Wrapped all `:hover` card effects in `@media (hover: hover)` to fix the mobile double-tap issue where the first tap triggered hover state instead of selection.
+- Replaced `content-visibility: auto` with `contain: layout style paint` on gallery cards and added placeholder backgrounds with fade-in animations to reduce image loading flash during scroll.
+- Fixed `useElementSize` hook to use consistent content-box measurements (clientWidth minus padding) for both initial mount and ResizeObserver callbacks, resolving grid column calculation errors when gallery padding was present.
+- Removed `scrollbar-gutter: stable` from the gallery to reclaim permanent scrollbar space.
+- Shrunk mobile toolbar buttons and filter pills to prevent overflow on narrow screens.
+- Matched the workflows sidebar glass style to the tag drawer with translucent background and 32px backdrop blur.
+- Kept the version subtitle visible at the 768px breakpoint instead of hiding it.
+- Tightened nav bar padding and simplified button styles from gradients to flat colors.
+
 ## [0.7.7] - 2026-02-08
 
 ### Added

@@ -28,6 +28,9 @@ type TopBarProps = {
   availableTags: string[];
   showUntagged: boolean;
   imageCount: number;
+  loading: boolean;
+  status: string;
+  error: string | null;
   onOpenDrawer: () => void;
   onToggleTool: (tool: ToolPanel) => void;
   onDismissTool: () => void;
@@ -73,6 +76,9 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       availableTags,
       showUntagged,
       imageCount,
+      loading,
+      status,
+      error,
       onOpenDrawer,
       onToggleTool,
       onDismissTool,
@@ -155,7 +161,10 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             </button>
 
             <div className="filter-pill" title={currentFilterLabel}>
-              {currentFilterLabel}
+              <span className="filter-pill-label">{currentFilterLabel}</span>
+              <span className="filter-pill-count">
+                {loading ? '…' : imageCount}
+              </span>
             </div>
 
             <div className="toolbar-actions" ref={toolButtonsRef}>
@@ -602,6 +611,21 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
             {activeTool === 'search' && (
               <div className="tool-panel">
                 <div className="tool-hint">Search tools coming soon.</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(error || status) && (
+          <div className="topbar-status-row">
+            {error && (
+              <div className="topbar-error" role="alert">
+                {error}
+              </div>
+            )}
+            {status && !error && (
+              <div className="topbar-status">
+                {status}
               </div>
             )}
           </div>
