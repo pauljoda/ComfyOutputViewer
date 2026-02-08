@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.4] - 2026-02-08
+
+### Changed
+- Improved image detail modal responsiveness by reducing heavy work during initial open and image-to-image navigation.
+- Deferred prompt-metadata fetches for newly opened images to a short background prefetch window and only show prompt loading UI when the prompt panel is explicitly opened.
+- Added lightweight in-memory prompt metadata caching to avoid repeated prompt API roundtrips when revisiting images.
+- Added adjacent-image preloading (previous/next) in the modal flow so navigation feels faster and more fluid.
+- Removed `TransformWrapper` remount-on-image behavior to reduce navigation churn and keep modal interactions smoother.
+- Tightened modal transition timing and prioritized modal image decode/fetch for faster visible paint.
+
 ## [0.8.3] - 2026-02-08
 
 ### Changed

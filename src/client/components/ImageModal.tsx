@@ -1,5 +1,5 @@
 import type { SyntheticEvent, TouchEvent } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TransformComponent, TransformWrapper } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
@@ -45,6 +45,9 @@ type PromptData = {
   createdAt: number;
 };
 
+const promptMetadataCache = new Map<string, PromptData | null>();
+const preloadedImageUrls = new Set<string>();
+
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.96;
 const FIT_HEIGHT_RATIO = 0.94;
@@ -55,6 +58,8 @@ type ImageModalProps = {
   image: ImageItem;
   index: number;
   total: number;
+  prevImageUrl?: string | null;
+  nextImageUrl?: string | null;
   modalTool: ModalTool;
   availableTags: string[];
   onUpdateTags: (tags: string[]) => void;
@@ -74,6 +79,8 @@ export default function ImageModal({
   image,
   index,
   total,
+  prevImageUrl = null,
+  nextImageUrl = null,
   modalTool,
   availableTags,
   onUpdateTags,
@@ -95,43 +102,81 @@ export default function ImageModal({
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptAvailable, setPromptAvailable] = useState(false);
 
-  const loadPromptData = async (signal?: AbortSignal) => {
+  const loadPromptData = useCallback(async (options?: { signal?: AbortSignal; showLoading?: boolean }) => {
+    const signal = options?.signal;
+    const showLoading = options?.showLoading ?? false;
+    if (promptMetadataCache.has(image.id)) {
+      const cached = promptMetadataCache.get(image.id) ?? null;
+      setPromptData(cached);
+      setPromptAvailable(Boolean(cached));
+      if (!cached && modalTool === 'prompt') {
+        setPromptError('No prompt data found for this image');
+      }
+      return;
+    }
     try {
-      setPromptLoading(true);
-      setPromptError(null);
+      if (showLoading) {
+        setPromptLoading(true);
+        setPromptError(null);
+      }
       const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
         signal
       });
+      promptMetadataCache.set(image.id, data);
       setPromptData(data);
       setPromptAvailable(true);
     } catch (err) {
       if (signal?.aborted) return;
+      const message = err instanceof Error ? err.message : 'No prompt data found for this image';
+      const missing = /no prompt data found|404|not found/i.test(message);
+      if (missing) {
+        promptMetadataCache.set(image.id, null);
+      }
       setPromptAvailable(false);
       setPromptData(null);
       if (modalTool === 'prompt') {
-        setPromptError(err instanceof Error ? err.message : 'No prompt data found');
+        setPromptError(message);
       }
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && showLoading) {
         setPromptLoading(false);
       }
     }
-  };
+  }, [image.id, modalTool]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setPromptAvailable(false);
-    setPromptData(null);
+    const cached = promptMetadataCache.get(image.id) ?? null;
+    const hasCached = promptMetadataCache.has(image.id);
+    setPromptData(cached);
+    setPromptAvailable(Boolean(cached));
     setPromptError(null);
-    loadPromptData(controller.signal);
-    return () => controller.abort();
+    setPromptLoading(false);
+
+    if (hasCached) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      loadPromptData({ signal: controller.signal, showLoading: false });
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [image.id]);
 
   useEffect(() => {
-    if (modalTool === 'prompt' && promptAvailable && !promptData && !promptLoading) {
-      loadPromptData();
+    if (modalTool !== 'prompt') return;
+    if (promptData) return;
+    if (promptMetadataCache.has(image.id) && !promptMetadataCache.get(image.id)) {
+      setPromptError('No prompt data found for this image');
+      return;
     }
-  }, [modalTool, promptAvailable, promptData, promptLoading]);
+    const controller = new AbortController();
+    loadPromptData({ signal: controller.signal, showLoading: true });
+    return () => controller.abort();
+  }, [image.id, loadPromptData, modalTool, promptData]);
 
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -149,7 +194,6 @@ export default function ImageModal({
   const debugRafRef = useRef(0);
   const [debugInfo, setDebugInfo] = useState<null | Record<string, string>>(null);
   const lastStateRef = useRef<{ scale: number; positionX: number; positionY: number } | null>(null);
-  const [transformReady, setTransformReady] = useState(false);
   const debugEnabled = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -387,6 +431,19 @@ export default function ImageModal({
     setTagInput('');
   }, [image.id]);
 
+  useEffect(() => {
+    const candidates = [prevImageUrl, nextImageUrl].filter(
+      (value): value is string => Boolean(value && value !== image.url)
+    );
+    for (const candidate of candidates) {
+      if (preloadedImageUrls.has(candidate)) continue;
+      preloadedImageUrls.add(candidate);
+      const preload = new Image();
+      preload.decoding = 'async';
+      preload.src = candidate;
+    }
+  }, [image.url, nextImageUrl, prevImageUrl]);
+
   const handleAddTagValue = (value: string) => {
     const normalized = normalizeTagInput(value);
     if (!normalized) return;
@@ -463,12 +520,12 @@ export default function ImageModal({
     setMinScale(DEFAULT_MIN_SCALE);
     transformRef.current?.resetTransform(0);
     setSwipeIncoming(true);
-    const timer = window.setTimeout(() => setSwipeIncoming(false), 200);
+    const timer = window.setTimeout(() => setSwipeIncoming(false), 120);
     return () => window.clearTimeout(timer);
   }, [image.id]);
 
   useEffect(() => {
-    if (!transformReady || typeof ResizeObserver === 'undefined') return;
+    if (typeof ResizeObserver === 'undefined') return;
     let raf = 0;
     let observer: ResizeObserver | null = null;
     let cancelled = false;
@@ -498,7 +555,7 @@ export default function ImageModal({
       if (raf) window.cancelAnimationFrame(raf);
       observer?.disconnect();
     };
-  }, [image.id, transformReady]);
+  }, [image.id]);
 
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragStartRef.current = { x: event.clientX, y: event.clientY };
@@ -541,7 +598,6 @@ export default function ImageModal({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90" role="dialog" aria-modal="true">
       <TransformWrapper
-        key={image.id}
         ref={transformRef}
         initialScale={1}
         minScale={minScale}
@@ -563,7 +619,6 @@ export default function ImageModal({
           scheduleDebugUpdate('transform', state);
         }}
         onInit={() => {
-          setTransformReady(true);
           scheduleDebugUpdate('init');
         }}
       >
@@ -804,6 +859,8 @@ export default function ImageModal({
                   className={`max-h-full max-w-full transition-opacity ${swipeIncoming ? 'opacity-0' : 'opacity-100'}`}
                   src={image.url}
                   alt={image.name}
+                  decoding="async"
+                  fetchPriority="high"
                   style={{ maxWidth: '100%', maxHeight: '100%', height: 'auto', width: 'auto' }}
                   onLoad={handleImageLoad}
                   ref={handleImageRef}
