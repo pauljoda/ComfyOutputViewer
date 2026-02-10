@@ -78,27 +78,111 @@ function buildMockGeneratingState(row) {
 
 const TEXT_INPUT_TYPES = new Set(['text', 'negative', 'number', 'seed']);
 
+function normalizeLookupKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function compactLookupKey(value) {
+  return normalizeLookupKey(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function coerceLookupValue(value) {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (value && typeof value === 'object' && 'value' in value) {
+    const inner = value.value;
+    if (typeof inner === 'string' || typeof inner === 'number' || typeof inner === 'boolean') {
+      return String(inner);
+    }
+  }
+  return String(value);
+}
+
+function getInputAliasKeys(input) {
+  const aliases = [];
+  const labelCompact = compactLookupKey(input.label);
+  const keyCompact = compactLookupKey(input.input_key);
+  const isNegative =
+    input.input_type === 'negative' ||
+    labelCompact.includes('negative') ||
+    keyCompact.includes('negative');
+
+  if (isNegative) {
+    aliases.push('negativeprompt', 'negative');
+  } else if (
+    input.input_type === 'text' &&
+    (
+      labelCompact.includes('prompt') ||
+      labelCompact.includes('positive') ||
+      keyCompact === 'text' ||
+      keyCompact === 'prompt'
+    )
+  ) {
+    aliases.push('prompt', 'positiveprompt', 'positive');
+  }
+
+  if (input.input_type === 'seed' || labelCompact.includes('seed') || keyCompact.includes('seed')) {
+    aliases.push('seed');
+  }
+
+  return aliases;
+}
+
 function resolveTriggeredInputValues(workflowInputs, body) {
   const inputValuesMap = new Map();
-  const bodyKeys = new Map();
-  for (const [key, value] of Object.entries(body || {})) {
-    bodyKeys.set(key.trim().toLowerCase(), String(value));
+  const payload =
+    body &&
+    typeof body === 'object' &&
+    body.inputs &&
+    typeof body.inputs === 'object' &&
+    !Array.isArray(body.inputs)
+      ? body.inputs
+      : body;
+  const rawKeys = new Map();
+  const compactKeys = new Map();
+  for (const [key, value] of Object.entries(payload || {})) {
+    const rawKey = normalizeLookupKey(key);
+    const compactKey = compactLookupKey(key);
+    if (!rawKey) continue;
+    const coerced = coerceLookupValue(value);
+    rawKeys.set(rawKey, coerced);
+    if (compactKey) {
+      compactKeys.set(compactKey, coerced);
+    }
   }
   for (const input of workflowInputs) {
     if (!TEXT_INPUT_TYPES.has(input.input_type)) continue;
-    const labelKey = (input.label || '').trim().toLowerCase();
-    const inputKeyKey = (input.input_key || '').trim().toLowerCase();
+    const labelKey = normalizeLookupKey(input.label);
+    const inputKeyKey = normalizeLookupKey(input.input_key);
+    const labelCompactKey = compactLookupKey(input.label);
+    const inputCompactKey = compactLookupKey(input.input_key);
     let value;
-    if (labelKey && bodyKeys.has(labelKey)) {
-      value = bodyKeys.get(labelKey);
-    } else if (inputKeyKey && bodyKeys.has(inputKeyKey)) {
-      value = bodyKeys.get(inputKeyKey);
+    if (labelKey && rawKeys.has(labelKey)) {
+      value = rawKeys.get(labelKey);
+    } else if (inputKeyKey && rawKeys.has(inputKeyKey)) {
+      value = rawKeys.get(inputKeyKey);
+    } else if (labelCompactKey && compactKeys.has(labelCompactKey)) {
+      value = compactKeys.get(labelCompactKey);
+    } else if (inputCompactKey && compactKeys.has(inputCompactKey)) {
+      value = compactKeys.get(inputCompactKey);
+    } else {
+      const aliasKeys = getInputAliasKeys(input);
+      for (const aliasKey of aliasKeys) {
+        if (compactKeys.has(aliasKey)) {
+          value = compactKeys.get(aliasKey);
+          break;
+        }
+      }
+    }
+
+    if (value !== undefined) {
+      inputValuesMap.set(input.id, String(value));
     } else if (input.default_value !== null && input.default_value !== undefined) {
-      value = input.default_value;
+      inputValuesMap.set(input.id, String(input.default_value));
     } else {
       continue;
     }
-    inputValuesMap.set(input.id, String(value));
   }
   return inputValuesMap;
 }

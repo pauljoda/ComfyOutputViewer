@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] - 2026-02-10
+
+### Fixed
+- Improved external trigger/MCP input resolution to better match real-world AI tool payloads by accepting normalized key variants (e.g. spacing/underscore differences) and prompt aliases (e.g. `prompt` for positive prompt fields).
+- Added support for primitive non-string MCP input values (`number`, `boolean`) and normalized them into workflow input values.
+- Updated MCP `run_workflow` responses to include `appliedInputs` so callers can verify exactly which values were queued versus defaults.
+- Added regression tests for prompt-alias mapping and MCP numeric input handling.
+
 ## [0.9.1] - 2026-02-10
 
 ### Fixed

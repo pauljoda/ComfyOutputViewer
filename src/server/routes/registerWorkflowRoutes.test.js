@@ -318,6 +318,42 @@ describe('registerWorkflowRoutes', () => {
     expect(queuedPrompt['10'].inputs.prompt).toBe('test via input key');
   });
 
+  it('trigger maps generic prompt alias to positive prompt fields', async () => {
+    const app = express();
+    app.use(express.json());
+    const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-alias' }));
+    const promptInputs = [
+      {
+        id: 900,
+        workflow_id: 1,
+        node_id: '10',
+        input_key: 'text',
+        input_type: 'text',
+        label: 'Positive Prompt'
+      }
+    ];
+    const { deps } = createBaseDeps({
+      getComfyApiReady: vi.fn(async () => ({
+        queuePrompt: queueMock,
+        interrupt: vi.fn(async () => {})
+      })),
+      statements: {
+        ...createBaseDeps().deps.statements,
+        selectWorkflowInputs: makeIterable(promptInputs)
+      }
+    });
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).post('/api/workflows/1/trigger').send({
+      prompt: 'alias prompt value'
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ok).toBe(true);
+    const queuedPrompt = queueMock.mock.calls[0][1];
+    expect(queuedPrompt['10'].inputs.text).toBe('alias prompt value');
+  });
+
   it('trigger uses default values for missing inputs', async () => {
     const app = express();
     app.use(express.json());

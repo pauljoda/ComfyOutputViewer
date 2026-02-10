@@ -120,13 +120,25 @@ describe('createMcpServer', () => {
     const server = createMcpServer(deps);
     const result = await callTool(server, 'run_workflow', {
       workflowId: 1,
-      inputs: { 'Positive Prompt': 'a sunset' }
+      inputs: { 'Positive Prompt': 'a sunset', Steps: 45 }
     });
 
     expect(result.isError).toBeFalsy();
     const response = JSON.parse(result.content[0].text);
     expect(response.ok).toBe(true);
     expect(response.jobId).toBe(42);
+    expect(response.appliedInputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Positive Prompt',
+          value: 'a sunset'
+        }),
+        expect.objectContaining({
+          label: 'Steps',
+          value: '45'
+        })
+      ])
+    );
     expect(deps.executeWorkflowFromInputMap).toHaveBeenCalled();
   });
 

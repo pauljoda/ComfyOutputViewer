@@ -2,6 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 const TEXT_INPUT_TYPES = new Set(['text', 'negative', 'number', 'seed']);
+const MCP_INPUT_VALUE_SCHEMA = z.union([
+  z.string(),
+  z.number(),
+  z.boolean()
+]);
 
 export function createMcpServer({
   statements,
@@ -52,7 +57,7 @@ export function createMcpServer({
     'Trigger a ComfyUI workflow with the given text-based inputs. Use list_workflows first to see available workflows and their input fields. Pass inputs as label-to-value pairs.',
     {
       workflowId: z.number().describe('The workflow ID to run (get this from list_workflows)'),
-      inputs: z.record(z.string(), z.string()).describe('Input values as label-to-value pairs, e.g. {"Positive Prompt": "a cat sitting on a windowsill", "Steps": "30"}')
+      inputs: z.record(z.string(), MCP_INPUT_VALUE_SCHEMA).describe('Input values as label-to-value pairs, e.g. {"Positive Prompt": "a cat sitting on a windowsill", "Steps": 30}. Label keys are preferred, but input keys are also accepted.')
     },
     async ({ workflowId, inputs }) => {
       try {
@@ -71,6 +76,18 @@ export function createMcpServer({
 
         const inputValuesMap = resolveTriggeredInputValues(workflowInputs, inputs);
         const result = await executeWorkflowFromInputMap({ workflowId, inputValuesMap });
+        const appliedInputs = workflowInputs
+          .filter((input) => TEXT_INPUT_TYPES.has(input.input_type))
+          .map((input) => {
+            if (!inputValuesMap.has(input.id)) return null;
+            return {
+              label: input.label,
+              key: input.input_key,
+              type: input.input_type,
+              value: inputValuesMap.get(input.id)
+            };
+          })
+          .filter(Boolean);
 
         if (!result.ok) {
           return {
@@ -86,6 +103,7 @@ export function createMcpServer({
               ok: true,
               jobId: result.jobId,
               promptId: result.promptId,
+              appliedInputs,
               message: `Workflow "${workflowRow.name}" queued successfully. Use get_job_status with jobId ${result.jobId} to check progress and get output images.`
             }, null, 2)
           }]
