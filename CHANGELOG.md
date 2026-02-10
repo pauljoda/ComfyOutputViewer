@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.6] - 2026-02-10
+
+### Fixed
+- Gallery left tag drawer selection now applies a single tag at a time (with tap-again to clear), preventing accidental multi-tag accumulation from drawer clicks.
+- Removed redundant theme selection from the gallery filter panel since theme controls are already available in the app header.
+
+### Changed
+- Preserved multi-tag filtering behavior in the filter tools so users can still build combined tag filters intentionally outside the side drawer.
+
 ## [0.9.5] - 2026-02-10
 
 ### Fixed

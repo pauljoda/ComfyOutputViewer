@@ -48,7 +48,6 @@ import {
   type SlideshowSettings,
   type SortMode,
   type SyncResponse,
-  type ThemeMode,
   type TileFit,
   type ToolPanel
 } from '../../types';
@@ -81,9 +80,7 @@ const tileFitSerializer: StorageSerializer<TileFit> = {
 const sortSerializer = enumSerializer<SortMode>(DEFAULT_SORT, SORT_MODES);
 
 export default function GalleryWorkspace() {
-  const { themeMode, setThemeMode, goHomeSignal } = useOutletContext<{
-    themeMode: ThemeMode;
-    setThemeMode: React.Dispatch<React.SetStateAction<ThemeMode>>;
+  const { goHomeSignal } = useOutletContext<{
     goHomeSignal: number;
   }>();
   const { tagCounts, availableTags, updateFromImages } = useTags();
@@ -311,9 +308,7 @@ export default function GalleryWorkspace() {
 
   const handleToggleDrawerTag = (tag: string) => {
     setShowUntagged(false);
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((entry) => entry !== tag) : [...prev, tag]
-    );
+    setSelectedTags((prev) => (prev.length === 1 && prev[0] === tag ? [] : [tag]));
   };
 
   const handleSelectAllImages = () => {
@@ -616,7 +611,6 @@ export default function GalleryWorkspace() {
         maxColumns={maxColumns}
         tileFit={tileFit}
         sortMode={sortMode}
-        themeMode={themeMode}
         favoritesOnly={favoritesOnly}
         hideHidden={hideHidden}
         minRating={minRating}
@@ -644,7 +638,6 @@ export default function GalleryWorkspace() {
         onColumnsChange={setColumns}
         onTileFitChange={setTileFit}
         onSortModeChange={setSortMode}
-        onThemeModeChange={setThemeMode}
         onFavoritesOnlyChange={setFavoritesOnly}
         onHideHiddenChange={setHideHidden}
         onMinRatingChange={handleMinRatingChange}

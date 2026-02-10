@@ -18,7 +18,6 @@ import { COLUMN_MIN } from '../constants';
 import type {
   ActiveTool,
   SortMode,
-  ThemeMode,
   TileFit,
   ToolPanel
 } from '../types';
@@ -34,7 +33,6 @@ type TopBarProps = {
   maxColumns: number;
   tileFit: TileFit;
   sortMode: SortMode;
-  themeMode: ThemeMode;
   favoritesOnly: boolean;
   hideHidden: boolean;
   minRating: number;
@@ -59,7 +57,6 @@ type TopBarProps = {
   onColumnsChange: (value: number) => void;
   onTileFitChange: (value: TileFit) => void;
   onSortModeChange: (value: SortMode) => void;
-  onThemeModeChange: (value: ThemeMode) => void;
   onFavoritesOnlyChange: (value: boolean) => void;
   onHideHiddenChange: (value: boolean) => void;
   onMinRatingChange: (value: number) => void;
@@ -82,7 +79,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       maxColumns,
       tileFit,
       sortMode,
-      themeMode,
       favoritesOnly,
       hideHidden,
       minRating,
@@ -107,7 +103,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onColumnsChange,
       onTileFitChange,
       onSortModeChange,
-      onThemeModeChange,
       onFavoritesOnlyChange,
       onHideHiddenChange,
       onMinRatingChange,
@@ -466,18 +461,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     </Button>
                   </div>
                 </div>
-                <label className="flex items-center justify-between text-sm">
-                  <span>Theme</span>
-                  <select
-                    value={themeMode}
-                    onChange={(event) => onThemeModeChange(event.target.value as ThemeMode)}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  >
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
-                </label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Tags (match all)</span>
