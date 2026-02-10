@@ -75,6 +75,107 @@ function buildMockGeneratingState(row) {
     }
   };
 }
+
+const TEXT_INPUT_TYPES = new Set(['text', 'negative', 'number', 'seed']);
+
+function resolveTriggeredInputValues(workflowInputs, body) {
+  const inputValuesMap = new Map();
+  const bodyKeys = new Map();
+  for (const [key, value] of Object.entries(body || {})) {
+    bodyKeys.set(key.trim().toLowerCase(), String(value));
+  }
+  for (const input of workflowInputs) {
+    if (!TEXT_INPUT_TYPES.has(input.input_type)) continue;
+    const labelKey = (input.label || '').trim().toLowerCase();
+    const inputKeyKey = (input.input_key || '').trim().toLowerCase();
+    let value;
+    if (labelKey && bodyKeys.has(labelKey)) {
+      value = bodyKeys.get(labelKey);
+    } else if (inputKeyKey && bodyKeys.has(inputKeyKey)) {
+      value = bodyKeys.get(inputKeyKey);
+    } else if (input.default_value !== null && input.default_value !== undefined) {
+      value = input.default_value;
+    } else {
+      continue;
+    }
+    inputValuesMap.set(input.id, String(value));
+  }
+  return inputValuesMap;
+}
+
+function applyTextInputsToPrompt(promptJson, workflowInputs, inputValuesMap) {
+  for (const input of workflowInputs) {
+    if (!inputValuesMap.has(input.id)) continue;
+    if (input.input_type === 'image') continue;
+    const value = inputValuesMap.get(input.id);
+    const node = promptJson[input.node_id];
+    if (node && node.inputs) {
+      if (input.input_type === 'number' || input.input_type === 'seed') {
+        const numericValue = Number(value);
+        node.inputs[input.input_key] = Number.isFinite(numericValue) ? numericValue : value;
+      } else {
+        node.inputs[input.input_key] = value;
+      }
+    }
+  }
+}
+
+async function createJobAndQueue({ workflowId, promptJson, workflowInputs, inputValuesMap, formatValue }) {
+  const now = Date.now();
+  const jobResult = statements.insertJob.run(workflowId, null, 'pending', now);
+  const jobId = Number(jobResult.lastInsertRowid);
+  const totalNodes = promptJson && typeof promptJson === 'object' ? Object.keys(promptJson).length : 0;
+  runtimeState.jobOverallById.set(jobId, { totalNodes, executedNodes: new Set(), updatedAt: now });
+
+  const fmt = typeof formatValue === 'function' ? formatValue : (v) => (typeof v === 'string' ? v : String(v));
+  runTransaction(() => {
+    for (const input of workflowInputs) {
+      const value = inputValuesMap.get(input.id);
+      if (value !== undefined) {
+        statements.insertJobInput.run(jobId, input.id, fmt(value));
+      }
+    }
+  });
+  broadcastJobUpdate(jobId);
+
+  try {
+    const api = await getComfyApiReady();
+    const result = await api.queuePrompt(0, promptJson);
+    if (!result || !result.prompt_id) {
+      const errorText = 'Failed to queue prompt in ComfyUI';
+      statements.updateJobStatus.run('error', errorText, now, now, jobId);
+      clearJobTransient(jobId);
+      broadcastJobUpdate(jobId);
+      return { ok: false, error: errorText, jobId };
+    }
+    const promptId = result.prompt_id;
+    statements.updateJobPromptId.run(promptId, jobId);
+    runtimeState.promptJobIdByPromptId.set(promptId, jobId);
+    statements.updateJobStatus.run('queued', null, now, null, jobId);
+    broadcastJobUpdate(jobId);
+    pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId);
+    return { ok: true, jobId, promptId };
+  } catch (fetchErr) {
+    const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
+    statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
+    clearJobTransient(jobId);
+    broadcastJobUpdate(jobId);
+    return { ok: false, error: errorMessage, jobId };
+  }
+}
+
+async function executeWorkflowFromInputMap({ workflowId, inputValuesMap }) {
+  const workflowRow = statements.selectWorkflowById.get(workflowId);
+  if (!workflowRow) throw new Error('Workflow not found');
+  const workflowInputs = [];
+  for (const row of statements.selectWorkflowInputs.iterate(workflowId)) {
+    workflowInputs.push(row);
+  }
+  const promptJson = JSON.parse(workflowRow.api_json);
+  applyTextInputsToPrompt(promptJson, workflowInputs, inputValuesMap);
+  return createJobAndQueue({ workflowId, promptJson, workflowInputs, inputValuesMap });
+}
+
 app.get('/api/workflow-folders', async (_req, res) => {
   try {
     const folders = [];
@@ -480,100 +581,48 @@ app.post('/api/workflows/:id/run', async (req, res) => {
       }
     };
 
+    // Apply image inputs to prompt
     for (const input of workflowInputs) {
       if (!inputValuesMap.has(input.id)) continue;
+      if (input.input_type !== 'image') continue;
       const value = inputValuesMap.get(input.id);
       const node = promptJson[input.node_id];
       if (node && node.inputs) {
-        if (input.input_type === 'image') {
-          const imageValue = parseImageValue(value);
-          if (imageValue) {
-            const filename = imageValue.filename || '';
-            if (input.input_key === 'subfolder') {
-              if (imageValue.subfolder) {
-                node.inputs.subfolder = imageValue.subfolder;
-              }
-            } else if (input.input_key === 'type') {
-              if (imageValue.type) {
-                node.inputs.type = imageValue.type;
-              }
-            } else {
-              node.inputs[input.input_key] = filename;
-            }
+        const imageValue = parseImageValue(value);
+        if (imageValue) {
+          const filename = imageValue.filename || '';
+          if (input.input_key === 'subfolder') {
             if (imageValue.subfolder) {
               node.inputs.subfolder = imageValue.subfolder;
             }
+          } else if (input.input_key === 'type') {
             if (imageValue.type) {
               node.inputs.type = imageValue.type;
             }
-            continue;
+          } else {
+            node.inputs[input.input_key] = filename;
+          }
+          if (imageValue.subfolder) {
+            node.inputs.subfolder = imageValue.subfolder;
+          }
+          if (imageValue.type) {
+            node.inputs.type = imageValue.type;
           }
         }
-        if (input.input_type === 'number' || input.input_type === 'seed') {
-          const numericValue = Number(value);
-          node.inputs[input.input_key] = Number.isFinite(numericValue) ? numericValue : value;
-        } else {
-          node.inputs[input.input_key] = value;
-        }
       }
     }
 
-    // Create job record
-    const now = Date.now();
-    const jobResult = statements.insertJob.run(workflowId, null, 'pending', now);
-    const jobId = Number(jobResult.lastInsertRowid);
-    const totalNodes =
-      promptJson && typeof promptJson === 'object' ? Object.keys(promptJson).length : 0;
-    runtimeState.jobOverallById.set(jobId, {
-      totalNodes,
-      executedNodes: new Set(),
-      updatedAt: now
+    // Apply text-based inputs to prompt
+    applyTextInputsToPrompt(promptJson, workflowInputs, inputValuesMap);
+
+    // Create job and queue to ComfyUI
+    const result = await createJobAndQueue({
+      workflowId, promptJson, workflowInputs, inputValuesMap, formatValue: formatJobInputValue
     });
-
-    // Save job inputs
-    runTransaction(() => {
-      for (const input of workflowInputs) {
-        const value = inputValuesMap.get(input.id);
-        if (value !== undefined) {
-          const storedValue = formatJobInputValue(value);
-          statements.insertJobInput.run(jobId, input.id, storedValue);
-        }
-      }
-    });
-    broadcastJobUpdate(jobId);
-
-    // Send to ComfyUI
-    try {
-      const api = await getComfyApiReady();
-      const result = await api.queuePrompt(0, promptJson);
-
-      if (!result || !result.prompt_id) {
-        const errorText = 'Failed to queue prompt in ComfyUI';
-        statements.updateJobStatus.run('error', errorText, now, now, jobId);
-        clearJobTransient(jobId);
-        broadcastJobUpdate(jobId);
-        return res.status(500).json({ ok: false, error: errorText, jobId });
-      }
-
-      const promptId = result.prompt_id;
-
-      // Update job with prompt ID
-      statements.updateJobPromptId.run(promptId, jobId);
-      runtimeState.promptJobIdByPromptId.set(promptId, jobId);
-      statements.updateJobStatus.run('queued', null, now, null, jobId);
-      broadcastJobUpdate(jobId);
-
-      // Start polling for completion in the background
-      pollJobCompletion(jobId, promptId, workflowInputs, inputValuesMap, workflowId);
-
-      res.json({ ok: true, jobId, promptId });
-    } catch (fetchErr) {
-      const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Failed to connect to ComfyUI';
-      statements.updateJobStatus.run('error', errorMessage, now, now, jobId);
-      clearJobTransient(jobId);
-      broadcastJobUpdate(jobId);
-      res.status(500).json({ ok: false, error: errorMessage, jobId });
+    if (!result.ok) {
+      return res.status(500).json(result);
     }
+    res.json(result);
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to run workflow');
   }
@@ -839,4 +888,91 @@ app.post('/api/jobs/:id/cancel', async (req, res) => {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to cancel job');
   }
 });
+
+// Trigger schema - returns expected input fields for external API calls
+app.get('/api/workflows/:id/trigger-schema', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const workflowRow = statements.selectWorkflowById.get(workflowId);
+    if (!workflowRow) {
+      return res.status(404).send('Workflow not found');
+    }
+
+    const fields = [];
+    for (const input of statements.selectWorkflowInputs.iterate(workflowId)) {
+      if (!TEXT_INPUT_TYPES.has(input.input_type)) continue;
+      fields.push({
+        label: input.label,
+        key: input.input_key,
+        type: input.input_type,
+        defaultValue: input.default_value ?? null,
+        required: input.default_value === null || input.default_value === undefined
+      });
+    }
+
+    const example = {};
+    for (const field of fields) {
+      if (field.defaultValue !== null) {
+        example[field.label] = field.defaultValue;
+      } else if (field.type === 'number') {
+        example[field.label] = '30';
+      } else if (field.type === 'seed') {
+        example[field.label] = '12345';
+      } else if (field.type === 'negative') {
+        example[field.label] = 'blurry, low quality';
+      } else {
+        example[field.label] = 'a beautiful sunset over mountains';
+      }
+    }
+
+    res.json({
+      workflowId,
+      workflowName: workflowRow.name,
+      description: workflowRow.description || null,
+      endpoint: `/api/workflows/${workflowId}/trigger`,
+      method: 'POST',
+      contentType: 'application/json',
+      fields,
+      example
+    });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to get trigger schema');
+  }
+});
+
+// Trigger workflow - external API for running workflows with label-based inputs
+app.post('/api/workflows/:id/trigger', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const body = req.body || {};
+
+    const workflowRow = statements.selectWorkflowById.get(workflowId);
+    if (!workflowRow) {
+      return res.status(404).send('Workflow not found');
+    }
+
+    const workflowInputs = [];
+    for (const row of statements.selectWorkflowInputs.iterate(workflowId)) {
+      workflowInputs.push(row);
+    }
+
+    const inputValuesMap = resolveTriggeredInputValues(workflowInputs, body);
+
+    // Build prompt JSON for text-based inputs only
+    const promptJson = JSON.parse(workflowRow.api_json);
+    applyTextInputsToPrompt(promptJson, workflowInputs, inputValuesMap);
+
+    const result = await createJobAndQueue({
+      workflowId, promptJson, workflowInputs, inputValuesMap
+    });
+    if (!result.ok) {
+      return res.status(500).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to trigger workflow');
+  }
+});
+
+return { buildJobPayload, resolveTriggeredInputValues, executeWorkflowFromInputMap };
 }

@@ -237,6 +237,189 @@ describe('registerWorkflowRoutes', () => {
     expect(response.body).toEqual({ ok: false, status: 'completed' });
   });
 
+  it('trigger-schema returns text-based fields and example', async () => {
+    const app = express();
+    app.use(express.json());
+    const { deps } = createBaseDeps();
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).get('/api/workflows/1/trigger-schema');
+
+    expect(response.status).toBe(200);
+    expect(response.body.workflowId).toBe(1);
+    expect(response.body.workflowName).toBe('WF 1');
+    expect(response.body.endpoint).toBe('/api/workflows/1/trigger');
+    expect(response.body.method).toBe('POST');
+    // Should only include text input (id 900), not image input (id 901)
+    expect(response.body.fields).toHaveLength(1);
+    expect(response.body.fields[0].label).toBe('Prompt');
+    expect(response.body.fields[0].type).toBe('text');
+    expect(response.body.example).toHaveProperty('Prompt');
+  });
+
+  it('trigger-schema returns 404 for missing workflow', async () => {
+    const app = express();
+    app.use(express.json());
+    const { deps } = createBaseDeps();
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).get('/api/workflows/999/trigger-schema');
+    expect(response.status).toBe(404);
+  });
+
+  it('trigger maps label-based inputs and queues workflow', async () => {
+    const app = express();
+    app.use(express.json());
+    const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-1' }));
+    const { deps, jobStore } = createBaseDeps({
+      getComfyApiReady: vi.fn(async () => ({
+        queuePrompt: queueMock,
+        interrupt: vi.fn(async () => {})
+      }))
+    });
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).post('/api/workflows/1/trigger').send({
+      'Prompt': 'a beautiful sunset'
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ok).toBe(true);
+    expect(response.body.jobId).toBe(100);
+    expect(response.body.promptId).toBe('trigger-prompt-1');
+    // Verify the prompt JSON was modified correctly
+    const queuedPrompt = queueMock.mock.calls[0][1];
+    expect(queuedPrompt['10'].inputs.prompt).toBe('a beautiful sunset');
+    // Image node should be untouched (not a text type)
+    expect(queuedPrompt['20'].inputs.image).toBe('x.png');
+    expect(jobStore.get(100)?.prompt_id).toBe('trigger-prompt-1');
+  });
+
+  it('trigger falls back to input_key matching', async () => {
+    const app = express();
+    app.use(express.json());
+    const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-2' }));
+    const { deps } = createBaseDeps({
+      getComfyApiReady: vi.fn(async () => ({
+        queuePrompt: queueMock,
+        interrupt: vi.fn(async () => {})
+      }))
+    });
+    registerWorkflowRoutes(app, deps);
+
+    // Use input_key 'prompt' instead of label 'Prompt'
+    const response = await request(app).post('/api/workflows/1/trigger').send({
+      'prompt': 'test via input key'
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ok).toBe(true);
+    const queuedPrompt = queueMock.mock.calls[0][1];
+    expect(queuedPrompt['10'].inputs.prompt).toBe('test via input key');
+  });
+
+  it('trigger uses default values for missing inputs', async () => {
+    const app = express();
+    app.use(express.json());
+    const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-3' }));
+    // Create workflow inputs with default values
+    const inputsWithDefaults = [
+      {
+        id: 900,
+        workflow_id: 1,
+        node_id: '10',
+        input_key: 'prompt',
+        input_type: 'text',
+        label: 'Prompt',
+        default_value: 'default prompt text'
+      },
+      {
+        id: 901,
+        workflow_id: 1,
+        node_id: '20',
+        input_key: 'image',
+        input_type: 'image',
+        label: 'Image'
+      }
+    ];
+    const { deps } = createBaseDeps({
+      getComfyApiReady: vi.fn(async () => ({
+        queuePrompt: queueMock,
+        interrupt: vi.fn(async () => {})
+      })),
+      statements: {
+        ...createBaseDeps().deps.statements,
+        selectWorkflowInputs: makeIterable(inputsWithDefaults)
+      }
+    });
+    registerWorkflowRoutes(app, deps);
+
+    // Send empty body - should use defaults
+    const response = await request(app).post('/api/workflows/1/trigger').send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body.ok).toBe(true);
+    const queuedPrompt = queueMock.mock.calls[0][1];
+    expect(queuedPrompt['10'].inputs.prompt).toBe('default prompt text');
+  });
+
+  it('trigger returns 404 for missing workflow', async () => {
+    const app = express();
+    app.use(express.json());
+    const { deps } = createBaseDeps();
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).post('/api/workflows/999/trigger').send({
+      'Prompt': 'test'
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it('trigger handles number and seed types correctly', async () => {
+    const app = express();
+    app.use(express.json());
+    const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-4' }));
+    const numericInputs = [
+      {
+        id: 900,
+        workflow_id: 1,
+        node_id: '10',
+        input_key: 'prompt',
+        input_type: 'text',
+        label: 'Prompt'
+      },
+      {
+        id: 902,
+        workflow_id: 1,
+        node_id: '10',
+        input_key: 'seed',
+        input_type: 'seed',
+        label: 'Seed'
+      }
+    ];
+    const { deps } = createBaseDeps({
+      getComfyApiReady: vi.fn(async () => ({
+        queuePrompt: queueMock,
+        interrupt: vi.fn(async () => {})
+      })),
+      statements: {
+        ...createBaseDeps().deps.statements,
+        selectWorkflowInputs: makeIterable(numericInputs)
+      }
+    });
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).post('/api/workflows/1/trigger').send({
+      'Prompt': 'test',
+      'Seed': '42'
+    });
+
+    expect(response.status).toBe(200);
+    const queuedPrompt = queueMock.mock.calls[0][1];
+    expect(queuedPrompt['10'].inputs.prompt).toBe('test');
+    expect(queuedPrompt['10'].inputs.seed).toBe(42);
+  });
+
   it('returns mock live payload details for seeded generating jobs in mock mode', async () => {
     const previousMockMode = process.env.MOCK_DEV_MODE;
     process.env.MOCK_DEV_MODE = '1';

@@ -1,6 +1,6 @@
 {
   "name": "comfy-output-viewer",
-  "version": "0.8.11",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,7 @@
     "test:client:coverage": "vitest run --config vitest.client.config.ts --coverage --coverage.reportsDirectory=coverage/client"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@saintno/comfyui-sdk": "^0.2.49",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

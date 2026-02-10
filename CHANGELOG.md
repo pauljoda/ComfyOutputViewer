@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] - 2026-02-09
+
+### Added
+- External workflow trigger API: `POST /api/workflows/:id/trigger` accepts a flat JSON body with label-based or input-key-based field names, resolves text-based inputs (text, negative, number, seed), and queues the workflow to ComfyUI identically to the in-app Run button.
+- Trigger schema endpoint: `GET /api/workflows/:id/trigger-schema` returns the expected input fields, types, defaults, and an example payload for a workflow.
+- MCP (Model Context Protocol) server mounted at `/mcp/sse` and `/mcp/messages` with SSE transport, exposing `list_workflows`, `run_workflow`, and `get_job_status` tools for AI integration.
+- Export API modal in the workflow UI: an "API" button next to "Run Workflow" opens a dialog with JSON payload, curl command, and auto-generated Open WebUI Python Tool tabs, each with copy-to-clipboard.
+- Open WebUI Tool generator: the Export API modal produces a ready-to-paste Python `Tools` class with `Valves` for server URL configuration and automatic job polling.
+- Added `@modelcontextprotocol/sdk` dependency for the MCP server.
+- New test coverage for trigger/schema endpoints and MCP server tools.
+
+### Changed
+- Extracted shared workflow execution helpers (`createJobAndQueue`, `applyTextInputsToPrompt`, `resolveTriggeredInputValues`, `executeWorkflowFromInputMap`) from the `/run` handler in `registerWorkflowRoutes.js` to support both the internal run flow and the external trigger/MCP paths without code duplication.
+- `registerWorkflowRoutes` now returns `{ buildJobPayload, resolveTriggeredInputValues, executeWorkflowFromInputMap }` for use by the MCP server.
+- Added `/mcp` to the Vite dev proxy configuration.
+
 ## [0.8.11] - 2026-02-08
 
 ### Fixed

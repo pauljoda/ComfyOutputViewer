@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Code2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import ImageModal from '../ImageModal';
 import ImageInputField from './ImageInputField';
 import JobCard from './JobCard';
 import SystemStatsPanel from './SystemStatsPanel';
+import ExportApiModal from './ExportApiModal';
 import WorkflowEditorPanel from './WorkflowEditorPanel';
 import { useTags } from '../../contexts/TagsContext';
 import { api } from '../../lib/api';
@@ -40,6 +41,7 @@ export default function WorkflowDetail({
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
   const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
+  const [exportApiOpen, setExportApiOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [jobClock, setJobClock] = useState(() => Date.now());
   const [wsConnected, setWsConnected] = useState(false);
@@ -808,9 +810,13 @@ export default function WorkflowDetail({
             </div>
           )}
 
-          <div>
+          <div className="flex gap-2">
             <Button onClick={handleRun} disabled={running}>
               {running ? 'Running...' : 'Run Workflow'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setExportApiOpen(true)}>
+              <Code2 className="mr-1 h-3.5 w-3.5" />
+              API
             </Button>
           </div>
 
@@ -910,6 +916,11 @@ export default function WorkflowDetail({
           onNext={() => {}}
         />
       )}
+      <ExportApiModal
+        workflowId={workflow.id}
+        open={exportApiOpen}
+        onOpenChange={setExportApiOpen}
+      />
     </div>
   );
 }

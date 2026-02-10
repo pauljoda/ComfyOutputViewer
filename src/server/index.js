@@ -19,6 +19,7 @@ import { ComfyRuntimeState } from './lib/ComfyRuntimeState.js';
 import { registerComfyRoutes } from './routes/registerComfyRoutes.js';
 import { registerImageRoutes } from './routes/registerImageRoutes.js';
 import { registerWorkflowRoutes } from './routes/registerWorkflowRoutes.js';
+import { createMcpServer } from './mcp/createMcpServer.js';
 
 dotenv.config();
 
@@ -240,32 +241,33 @@ registerImageRoutes(app, {
   resolveImageExtension
 });
 
-registerWorkflowRoutes(app, {
-  statements,
-  runTransaction,
-  getComfyApiReady,
-  getPromptIdFromQueueItem,
-  clearJobTransient,
-  isGeneratingStatus,
-  pollJobCompletion,
-  runtimeState,
-  fetchImageOutputsWithRetry,
-  fetchPromptHistory,
-  collectImageOutputs,
-  downloadAndRecordOutputs,
-  ensureOverallEntry,
-  getQueueInfoForPrompt,
-  getThumbUrl,
-  resolveDataPath,
-  isHashBlacklisted,
-  existsSync,
-  wsClients,
-  setBroadcastJobUpdate: (fn) => {
-    if (typeof fn === 'function') {
-      broadcastJobUpdate = fn;
+const { buildJobPayload, resolveTriggeredInputValues, executeWorkflowFromInputMap } =
+  registerWorkflowRoutes(app, {
+    statements,
+    runTransaction,
+    getComfyApiReady,
+    getPromptIdFromQueueItem,
+    clearJobTransient,
+    isGeneratingStatus,
+    pollJobCompletion,
+    runtimeState,
+    fetchImageOutputsWithRetry,
+    fetchPromptHistory,
+    collectImageOutputs,
+    downloadAndRecordOutputs,
+    ensureOverallEntry,
+    getQueueInfoForPrompt,
+    getThumbUrl,
+    resolveDataPath,
+    isHashBlacklisted,
+    existsSync,
+    wsClients,
+    setBroadcastJobUpdate: (fn) => {
+      if (typeof fn === 'function') {
+        broadcastJobUpdate = fn;
+      }
     }
-  }
-});
+  });
 
 registerComfyRoutes(app, {
   path,
@@ -274,6 +276,48 @@ registerComfyRoutes(app, {
   getComfyApiReady,
   getPromptIdFromQueueItem,
   getJobIdForPrompt
+});
+
+// MCP server for AI tool integration
+const mcpServer = createMcpServer({
+  statements,
+  resolveTriggeredInputValues,
+  executeWorkflowFromInputMap,
+  buildJobPayload
+});
+const mcpTransports = new Map();
+
+app.get('/mcp/sse', async (req, res) => {
+  try {
+    const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
+    const transport = new SSEServerTransport('/mcp/messages', res);
+    mcpTransports.set(transport.sessionId, transport);
+    res.on('close', () => {
+      mcpTransports.delete(transport.sessionId);
+    });
+    await mcpServer.connect(transport);
+  } catch (err) {
+    console.error('MCP SSE connection error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('MCP server error');
+    }
+  }
+});
+
+app.post('/mcp/messages', async (req, res) => {
+  const sessionId = req.query.sessionId;
+  const transport = mcpTransports.get(sessionId);
+  if (!transport) {
+    return res.status(400).send('Invalid or expired MCP session');
+  }
+  try {
+    await transport.handlePostMessage(req, res);
+  } catch (err) {
+    console.error('MCP message error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('MCP message handling error');
+    }
+  }
 });
 
 if (isProd) {
