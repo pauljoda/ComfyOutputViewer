@@ -2,13 +2,15 @@ import express from 'express';
 import path from 'path';
 import os from 'os';
 import fs from 'fs/promises';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { createReadStream, createWriteStream, existsSync } from 'fs';
 import http from 'node:http';
 import dotenv from 'dotenv';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createDatabase } from './db/createDatabase.js';
 import { createMetadataRepository } from './db/createMetadataRepository.js';
 import { createImageService } from './services/createImageService.js';
@@ -279,23 +281,121 @@ registerComfyRoutes(app, {
 });
 
 // MCP server for AI tool integration
-const mcpServer = createMcpServer({
-  statements,
-  resolveTriggeredInputValues,
-  executeWorkflowFromInputMap,
-  buildJobPayload
+function createMcpToolServer() {
+  return createMcpServer({
+    statements,
+    resolveTriggeredInputValues,
+    executeWorkflowFromInputMap,
+    buildJobPayload
+  });
+}
+
+const mcpSseTransports = new Map();
+const mcpStreamableTransports = new Map();
+
+function getSingleHeaderValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+app.post('/mcp', async (req, res) => {
+  const sessionId = getSingleHeaderValue(req.headers['mcp-session-id']);
+  const sessionState = sessionId ? mcpStreamableTransports.get(sessionId) : null;
+  let transport = sessionState?.transport || null;
+
+  try {
+    if (!transport) {
+      if (sessionId || !isInitializeRequest(req.body)) {
+        return res.status(400).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Bad Request: No valid MCP session ID provided'
+          },
+          id: null
+        });
+      }
+
+      const mcpToolServer = createMcpToolServer();
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (nextSessionId) => {
+          mcpStreamableTransports.set(nextSessionId, { transport, mcpToolServer });
+        }
+      });
+
+      transport.onclose = () => {
+        const activeSessionId = transport?.sessionId;
+        if (activeSessionId) {
+          const activeSession = mcpStreamableTransports.get(activeSessionId);
+          if (activeSession) {
+            void activeSession.mcpToolServer.close().catch((closeErr) => {
+              console.warn('Failed to close MCP session server:', closeErr);
+            });
+          }
+          mcpStreamableTransports.delete(activeSessionId);
+        }
+      };
+
+      await mcpToolServer.connect(transport);
+    }
+
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error('MCP Streamable HTTP POST error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('MCP server error');
+    }
+  }
 });
-const mcpTransports = new Map();
+
+app.get('/mcp', async (req, res) => {
+  const sessionId = getSingleHeaderValue(req.headers['mcp-session-id']);
+  const transport = sessionId ? mcpStreamableTransports.get(sessionId)?.transport : null;
+  if (!transport) {
+    return res.status(400).send('Invalid or missing MCP session ID');
+  }
+  try {
+    await transport.handleRequest(req, res);
+  } catch (err) {
+    console.error('MCP Streamable HTTP GET error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('MCP stream error');
+    }
+  }
+});
+
+app.delete('/mcp', async (req, res) => {
+  const sessionId = getSingleHeaderValue(req.headers['mcp-session-id']);
+  const transport = sessionId ? mcpStreamableTransports.get(sessionId)?.transport : null;
+  if (!transport) {
+    return res.status(400).send('Invalid or missing MCP session ID');
+  }
+  try {
+    await transport.handleRequest(req, res);
+  } catch (err) {
+    console.error('MCP Streamable HTTP DELETE error:', err);
+    if (!res.headersSent) {
+      res.status(500).send('MCP session close error');
+    }
+  }
+});
 
 app.get('/mcp/sse', async (req, res) => {
   try {
+    const mcpToolServer = createMcpToolServer();
     const { SSEServerTransport } = await import('@modelcontextprotocol/sdk/server/sse.js');
     const transport = new SSEServerTransport('/mcp/messages', res);
-    mcpTransports.set(transport.sessionId, transport);
+    mcpSseTransports.set(transport.sessionId, { transport, mcpToolServer });
     res.on('close', () => {
-      mcpTransports.delete(transport.sessionId);
+      const activeSession = mcpSseTransports.get(transport.sessionId);
+      if (activeSession) {
+        void activeSession.mcpToolServer.close().catch((closeErr) => {
+          console.warn('Failed to close MCP SSE session server:', closeErr);
+        });
+      }
+      mcpSseTransports.delete(transport.sessionId);
     });
-    await mcpServer.connect(transport);
+    await mcpToolServer.connect(transport);
   } catch (err) {
     console.error('MCP SSE connection error:', err);
     if (!res.headersSent) {
@@ -306,7 +406,7 @@ app.get('/mcp/sse', async (req, res) => {
 
 app.post('/mcp/messages', async (req, res) => {
   const sessionId = req.query.sessionId;
-  const transport = mcpTransports.get(sessionId);
+  const transport = mcpSseTransports.get(sessionId)?.transport;
   if (!transport) {
     return res.status(400).send('Invalid or expired MCP session');
   }

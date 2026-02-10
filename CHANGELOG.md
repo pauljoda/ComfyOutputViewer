@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] - 2026-02-10
+
+### Fixed
+- Added a standard MCP Streamable HTTP endpoint at `/mcp` (`POST`/`GET`/`DELETE`) so Open WebUI can connect without relying on the legacy SSE transport.
+- Fixed MCP session stability by creating an isolated MCP server per session, preventing reconnect failures after the first `initialize` call.
+- Kept existing `/mcp/sse` + `/mcp/messages` routes for backward compatibility while introducing the Streamable HTTP path for current MCP clients.
+
 ## [0.9.0] - 2026-02-09
 
 ### Added

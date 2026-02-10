@@ -72,6 +72,9 @@ API endpoints:
 - `GET /api/images/:path/prompt` -> get prompt metadata for an image
 
 MCP endpoints (Model Context Protocol):
+- `POST /mcp` -> Streamable HTTP MCP JSON-RPC transport (initialize/tool calls)
+- `GET /mcp` -> Streamable HTTP MCP SSE stream for active sessions
+- `DELETE /mcp` -> Streamable HTTP MCP session termination
 - `GET /mcp/sse` -> SSE stream for MCP client connections
 - `POST /mcp/messages` -> JSON-RPC message handling for MCP tools
 - MCP tools: `list_workflows`, `run_workflow`, `get_job_status`
@@ -151,6 +154,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added standard MCP Streamable HTTP transport compatibility and session stability fixes (v0.9.1): introduced `/mcp` (`POST`/`GET`/`DELETE`) for spec-aligned MCP clients like Open WebUI, switched MCP session handling to isolated per-session server instances to prevent reconnect/initialize failures, and kept legacy `/mcp/sse` + `/mcp/messages` routes for backward compatibility.
 - Added external workflow trigger API, MCP server, and Export API modal (v0.9.0): added `POST /api/workflows/:id/trigger` for label-based external workflow execution, `GET /api/workflows/:id/trigger-schema` for API discovery, MCP server at `/mcp/sse` with `list_workflows`/`run_workflow`/`get_job_status` tools using `@modelcontextprotocol/sdk`, Export API modal in the workflow UI with JSON/curl/Open WebUI Tool tabs, extracted shared execution helpers from the `/run` handler, and added test coverage for all new endpoints and MCP tools.
 - Reintroduced iOS/mobile input focus zoom prevention (v0.8.11): added a WebKit + mobile CSS safeguard in `src/client/globals.css` that forces 16px font size on text-entry controls so Safari no longer zooms and shifts the viewport when inputs are focused.
 - Expanded mock sandbox jobs for workflow demos (v0.8.10): `mock:seed` now preloads workflow jobs across completed/running/queued/pending/error/cancelled states with seeded inputs and outputs, `dev:mock` now enables `MOCK_DEV_MODE=1`, workflow job payloads now include static mock progress/queue/preview data for seeded in-progress cards, and queue resume skips polling mock prompt IDs so demo states remain stable for screenshots.
