@@ -354,7 +354,7 @@ describe('registerWorkflowRoutes', () => {
     expect(queuedPrompt['10'].inputs.text).toBe('alias prompt value');
   });
 
-  it('trigger uses default values for missing inputs', async () => {
+  it('trigger preserves workflow json values for missing inputs', async () => {
     const app = express();
     app.use(express.json());
     const queueMock = vi.fn(async () => ({ prompt_id: 'trigger-prompt-3' }));
@@ -390,13 +390,13 @@ describe('registerWorkflowRoutes', () => {
     });
     registerWorkflowRoutes(app, deps);
 
-    // Send empty body - should use defaults
+    // Send empty body - should preserve existing API JSON value
     const response = await request(app).post('/api/workflows/1/trigger').send({});
 
     expect(response.status).toBe(200);
     expect(response.body.ok).toBe(true);
     const queuedPrompt = queueMock.mock.calls[0][1];
-    expect(queuedPrompt['10'].inputs.prompt).toBe('default prompt text');
+    expect(queuedPrompt['10'].inputs.prompt).toBe('old');
   });
 
   it('trigger returns 404 for missing workflow', async () => {

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.3] - 2026-02-10
+
+### Fixed
+- Fixed MCP Streamable HTTP session cleanup recursion that could trigger `RangeError: Maximum call stack size exceeded` when transports closed.
+- Updated external trigger/MCP input resolution to preserve workflow JSON values for unspecified fields (matching UI run behavior) instead of auto-injecting stored default values that could overwrite prompt values unexpectedly.
+
 ## [0.9.2] - 2026-02-10
 
 ### Fixed

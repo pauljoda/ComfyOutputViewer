@@ -129,7 +129,8 @@ function getInputAliasKeys(input) {
   return aliases;
 }
 
-function resolveTriggeredInputValues(workflowInputs, body) {
+function resolveTriggeredInputValues(workflowInputs, body, options = {}) {
+  const { includeDefaults = false } = options;
   const inputValuesMap = new Map();
   const payload =
     body &&
@@ -178,7 +179,11 @@ function resolveTriggeredInputValues(workflowInputs, body) {
 
     if (value !== undefined) {
       inputValuesMap.set(input.id, String(value));
-    } else if (input.default_value !== null && input.default_value !== undefined) {
+    } else if (
+      includeDefaults &&
+      input.default_value !== null &&
+      input.default_value !== undefined
+    ) {
       inputValuesMap.set(input.id, String(input.default_value));
     } else {
       continue;

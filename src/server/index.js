@@ -326,12 +326,6 @@ app.post('/mcp', async (req, res) => {
       transport.onclose = () => {
         const activeSessionId = transport?.sessionId;
         if (activeSessionId) {
-          const activeSession = mcpStreamableTransports.get(activeSessionId);
-          if (activeSession) {
-            void activeSession.mcpToolServer.close().catch((closeErr) => {
-              console.warn('Failed to close MCP session server:', closeErr);
-            });
-          }
           mcpStreamableTransports.delete(activeSessionId);
         }
       };
@@ -387,12 +381,6 @@ app.get('/mcp/sse', async (req, res) => {
     const transport = new SSEServerTransport('/mcp/messages', res);
     mcpSseTransports.set(transport.sessionId, { transport, mcpToolServer });
     res.on('close', () => {
-      const activeSession = mcpSseTransports.get(transport.sessionId);
-      if (activeSession) {
-        void activeSession.mcpToolServer.close().catch((closeErr) => {
-          console.warn('Failed to close MCP SSE session server:', closeErr);
-        });
-      }
       mcpSseTransports.delete(transport.sessionId);
     });
     await mcpToolServer.connect(transport);
