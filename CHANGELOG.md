@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.4] - 2026-02-10
+
+### Added
+- Expanded the Export API modal Open WebUI tab into an MCP-focused setup panel with:
+  - ready-to-import Open WebUI MCP server JSON (`/mcp`) for Comfy Output Viewer tools,
+  - one-click JSON download for import convenience,
+  - a copyable system prompt template tailored to the selected workflow ID and input labels, including the `run_workflow` JSON payload format.
+
+### Changed
+- Renamed the Export API tab label from `Open WebUI Tool` to `Open WebUI MCP` to reflect the MCP-based integration flow.
+
 ## [0.9.3] - 2026-02-10
 
 ### Fixed

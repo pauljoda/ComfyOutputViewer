@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Download } from 'lucide-react';
 import { Button } from '../ui/button';
 import {
   Dialog,
@@ -42,113 +42,66 @@ type Tab = (typeof TABS)[number];
 const TAB_LABELS: Record<Tab, string> = {
   json: 'JSON',
   curl: 'curl',
-  openwebui: 'Open WebUI Tool',
+  openwebui: 'Open WebUI MCP',
 };
 
-function toSnakeCase(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
+function generateOpenWebUiMcpImportJson(baseUrl: string): string {
+  const config = [{
+    type: 'mcp',
+    url: `${baseUrl}/mcp`,
+    spec_type: 'url',
+    spec: '',
+    path: 'openapi.json',
+    auth_type: 'none',
+    config: {},
+    id: 'comfy-output-viewer-mcp',
+    name: 'Comfy Output Viewer MCP',
+    description: 'Local Comfy Output Viewer MCP server (list_workflows, run_workflow, get_job_status).',
+    info: {
+      id: 'comfy-output-viewer-mcp',
+      name: 'Comfy Output Viewer MCP',
+      description: 'Local Comfy Output Viewer MCP server (list_workflows, run_workflow, get_job_status).'
+    }
+  }];
+  return JSON.stringify(config, null, 2);
 }
 
-function generateOpenWebUiTool(schema: TriggerSchema, baseUrl: string): string {
-  const snakeName = toSnakeCase(schema.workflowName);
-  const fields = schema.fields;
-
-  const paramDefs = fields
-    .map((f) => {
-      const name = toSnakeCase(f.label);
-      const defaultVal = f.defaultValue !== null ? f.defaultValue : '';
-      return `        ${name}: str = "${defaultVal}",`;
+function generateOpenWebUiSystemPrompt(schema: TriggerSchema): string {
+  const fieldHints = schema.fields
+    .map((field) => {
+      const requiredHint = field.required ? 'required' : 'optional';
+      const defaultHint = field.defaultValue !== null ? ` (default: ${field.defaultValue})` : '';
+      return `- ${field.label} [${field.type}, ${requiredHint}]${defaultHint}`;
     })
     .join('\n');
 
-  const payloadEntries = fields
-    .map((f) => {
-      const name = toSnakeCase(f.label);
-      return `            "${f.label}": ${name},`;
-    })
-    .join('\n');
+  const inputTemplate = schema.fields.reduce<Record<string, string>>((acc, field) => {
+    acc[field.label] = field.defaultValue ?? `<${field.type}>`;
+    return acc;
+  }, {});
 
-  const fieldDescs = fields
-    .map((f) => {
-      const req = f.required ? ' (required)' : '';
-      const def = f.defaultValue !== null ? ` [default: ${f.defaultValue}]` : '';
-      return `        :param ${toSnakeCase(f.label)}: ${f.label} (${f.type})${req}${def}`;
-    })
-    .join('\n');
+  const payloadTemplate = JSON.stringify({
+    workflowId: schema.workflowId,
+    inputs: inputTemplate
+  }, null, 2);
 
-  return `"""
-ComfyUI Workflow: ${schema.workflowName}
-Auto-generated Open WebUI Tool for triggering workflow #${schema.workflowId}
-"""
+  return `You control Comfy Output Viewer through MCP tools.
 
-import time
-import requests
-from pydantic import BaseModel, Field
+Default workflow for this chat:
+- Workflow ID: ${schema.workflowId}
+- Workflow Name: ${schema.workflowName}
 
+Available input fields for workflow ${schema.workflowId}:
+${fieldHints}
 
-class Tools:
-    class Valves(BaseModel):
-        comfy_viewer_url: str = Field(
-            default="${baseUrl}",
-            description="Base URL of the Comfy Output Viewer server"
-        )
-
-    def __init__(self):
-        self.valves = self.Valves()
-
-    def run_${snakeName}(
-        self,
-${paramDefs}
-    ) -> str:
-        """
-        Run the ${schema.workflowName} ComfyUI workflow.
-${fieldDescs}
-        """
-        url = f"{self.valves.comfy_viewer_url}/api/workflows/${schema.workflowId}/trigger"
-        payload = {
-${payloadEntries}
-        }
-
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            result = response.json()
-            job_id = result.get("jobId")
-
-            if not result.get("ok"):
-                return f"Failed to queue workflow: {result}"
-
-            # Poll for completion (up to 10 minutes)
-            for _ in range(120):
-                time.sleep(5)
-                status_resp = requests.get(
-                    f"{self.valves.comfy_viewer_url}/api/jobs/{job_id}",
-                    timeout=10
-                )
-                status_resp.raise_for_status()
-                job = status_resp.json().get("job", {})
-                status = job.get("status")
-
-                if status == "completed":
-                    outputs = job.get("outputs", [])
-                    image_urls = [
-                        f"{self.valves.comfy_viewer_url}/images/{o['imagePath']}"
-                        for o in outputs if o.get("exists", True)
-                    ]
-                    return (
-                        f"Workflow completed! Generated {len(image_urls)} image(s):\\n"
-                        + "\\n".join(image_urls)
-                    )
-                elif status in ("error", "cancelled"):
-                    error = job.get("errorMessage", "Unknown error")
-                    return f"Workflow {status}: {error}"
-
-            return f"Workflow still running after timeout. Job ID: {job_id}"
-        except Exception as e:
-            return f"Error triggering workflow: {str(e)}"
+When the user asks to generate:
+1. Call run_workflow with this JSON shape:
+\`\`\`json
+${payloadTemplate}
+\`\`\`
+2. Use exact field labels from the list above.
+3. Return only queue confirmation with jobId + appliedInputs unless user asks for status checks.
+4. Only call get_job_status when the user explicitly asks to check progress/results.
 `;
 }
 
@@ -177,6 +130,27 @@ function CopyButton({ text }: { text: string }) {
     <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       {copied ? 'Copied' : 'Copy'}
+    </Button>
+  );
+}
+
+function DownloadButton({ filename, text }: { filename: string; text: string }) {
+  const handleDownload = useCallback(() => {
+    const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filename, text]);
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5">
+      <Download className="h-3.5 w-3.5" />
+      Download JSON
     </Button>
   );
 }
@@ -213,7 +187,9 @@ export default function ExportApiModal({ workflowId, open, onOpenChange }: Expor
     ? `curl -X POST ${baseUrl}${schema.endpoint} \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(schema.example, null, 2).replace(/'/g, "'\\''")}'`
     : '';
 
-  const openWebUiTool = schema ? generateOpenWebUiTool(schema, baseUrl) : '';
+  const openWebUiMcpJson = generateOpenWebUiMcpImportJson(baseUrl);
+  const openWebUiSystemPrompt = schema ? generateOpenWebUiSystemPrompt(schema) : '';
+  const mcpFilename = `openwebui-mcp-comfy-output-viewer-workflow-${workflowId}.json`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -295,17 +271,33 @@ export default function ExportApiModal({ workflowId, open, onOpenChange }: Expor
               )}
 
               {activeTab === 'openwebui' && (
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <p className="text-xs text-muted-foreground">
-                    Paste this into Open WebUI &rarr; Workspace &rarr; Tools &rarr; Create Tool.
-                    Configure the server URL in the tool's Valves settings.
+                    Import the MCP server JSON in Open WebUI: Workspace &rarr; Tools &rarr; Import.
                   </p>
-                  <div className="flex justify-end">
-                    <CopyButton text={openWebUiTool} />
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium">MCP Import JSON</p>
+                      <div className="flex gap-2">
+                        <CopyButton text={openWebUiMcpJson} />
+                        <DownloadButton filename={mcpFilename} text={openWebUiMcpJson} />
+                      </div>
+                    </div>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-56 whitespace-pre-wrap break-all">
+                      {openWebUiMcpJson}
+                    </pre>
                   </div>
-                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-64 whitespace-pre-wrap break-all">
-                    {openWebUiTool}
-                  </pre>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium">System Prompt Template (Workflow {schema.workflowId})</p>
+                      <CopyButton text={openWebUiSystemPrompt} />
+                    </div>
+                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-64 whitespace-pre-wrap break-all">
+                      {openWebUiSystemPrompt}
+                    </pre>
+                  </div>
                 </div>
               )}
             </div>
