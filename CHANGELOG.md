@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.5] - 2026-02-10
+
+### Fixed
+- Gallery filtered-tag views now use fill/crop card rendering consistent with the full gallery view to avoid letterboxed card presentation while browsing tag-filtered results.
+- Image detail modal tag/rating tool panels now float above the image instead of changing modal layout height, preventing the zoom stage from resizing when tools are toggled.
+- Workflow output modal navigation now supports stable previous/next behavior across output paths and handles path matching more robustly.
+- Workflow sidebar behavior improved: remembers/restores last opened workflow, avoids auto-selecting the first workflow when no valid remembered selection exists, and expands the main content area cleanly when the drawer is collapsed.
+- Workflow organization UX improved for reliability and mobile support: strengthened drag/drop reorder handling and added explicit up/down reorder controls for touch/mobile usage.
+- Slideshow close control moved into the bottom control bar so it no longer overlays image content.
+- Export API modal copy-to-clipboard now has stronger secure/insecure-context fallbacks to improve reliability across environments.
+
+### Changed
+- Refined tag discovery/filter UX in both the gallery tag drawer and filter popover with searchable tag input, sort options, and denser tag list presentation for large tag sets.
+- Refined rating filter UX in the top toolbar with clearer star-based min/max controls and cleaner presentation.
+
 ## [0.9.4] - 2026-02-10
 
 ### Added

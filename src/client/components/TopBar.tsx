@@ -133,8 +133,6 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
     const bulkTagSuggestions = availableTags.filter(
       (tag) => !bulkTagQuery || tag.includes(bulkTagQuery)
     );
-    const ratingOptions = [0, 1, 2, 3, 4, 5];
-    const maxRatingOptions = [5, 4, 3, 2, 1, 0];
     const formatMinLabel = (value: number) => (value === 0 ? 'Any' : `${value}+`);
     const formatMaxLabel = (value: number) => (value === 5 ? 'Any' : `${value}`);
 
@@ -429,34 +427,45 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                   <EyeOff className="h-3.5 w-3.5" />
                   Hide hidden
                 </label>
-                <label className="flex items-center justify-between text-sm">
-                  <span>Min rating</span>
-                  <select
-                    value={minRating}
-                    onChange={(event) => onMinRatingChange(Number(event.target.value))}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  >
-                    {ratingOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {formatMinLabel(value)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex items-center justify-between text-sm">
-                  <span>Max rating</span>
-                  <select
-                    value={maxRating}
-                    onChange={(event) => onMaxRatingChange(Number(event.target.value))}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                  >
-                    {maxRatingOptions.map((value) => (
-                      <option key={value} value={value}>
-                        {formatMaxLabel(value)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-2">
+                  <div className="text-sm font-medium">Rating range</div>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="shrink-0 text-xs text-muted-foreground">Min</span>
+                    <RatingStars
+                      value={minRating}
+                      onChange={(value) => onMinRatingChange(value)}
+                      allowClear
+                      size="sm"
+                      label="Minimum rating"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onMinRatingChange(0)}
+                    >
+                      {formatMinLabel(minRating)}
+                    </Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="shrink-0 text-xs text-muted-foreground">Max</span>
+                    <RatingStars
+                      value={maxRating}
+                      onChange={(value) => onMaxRatingChange(value === 0 ? 5 : value)}
+                      allowClear
+                      size="sm"
+                      label="Maximum rating"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onMaxRatingChange(5)}
+                    >
+                      {formatMaxLabel(maxRating)}
+                    </Button>
+                  </div>
+                </div>
                 <label className="flex items-center justify-between text-sm">
                   <span>Theme</span>
                   <select
@@ -502,6 +511,39 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                         <span aria-hidden="true">x</span>
                       </button>
                     ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      list="tag-filter-suggestions"
+                      name="filterTag"
+                      autoComplete="off"
+                      value={tagInput}
+                      onChange={(event) => setTagInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault();
+                          if (!tagInput.trim()) return;
+                          onAddFilterTag(tagInput);
+                          setTagInput('');
+                        }
+                      }}
+                      placeholder="Add tag filter…"
+                      aria-label="Add tag filter"
+                      className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={() => {
+                        if (!tagInput.trim()) return;
+                        onAddFilterTag(tagInput);
+                        setTagInput('');
+                      }}
+                      disabled={!tagInput.trim()}
+                    >
+                      Add
+                    </Button>
                   </div>
                   {filterSuggestions.length > 0 && (
                     <div className="flex flex-wrap gap-1">

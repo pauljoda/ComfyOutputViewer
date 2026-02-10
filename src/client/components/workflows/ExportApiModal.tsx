@@ -109,20 +109,45 @@ function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const markCopied = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Fallback for older browsers
+    };
+    if (typeof window !== 'undefined' && window.isSecureContext && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        markCopied();
+        return;
+      } catch {
+        // Continue with fallback.
+      }
+    }
+    try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.pointerEvents = 'none';
+      textarea.style.left = '-9999px';
       document.body.appendChild(textarea);
+      textarea.focus();
       textarea.select();
-      document.execCommand('copy');
+      textarea.setSelectionRange(0, textarea.value.length);
+      const copiedWithExec = document.execCommand('copy');
       document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedWithExec) {
+        markCopied();
+        return;
+      }
+    } catch {
+      // Continue with fallback.
+    }
+    try {
+      window.prompt('Copy to clipboard: Ctrl/Cmd+C, Enter', text);
+      markCopied();
+    } catch {
+      // no-op
     }
   }, [text]);
 

@@ -3,7 +3,7 @@ type RatingStarsProps = {
   onChange?: (value: number) => void;
   max?: number;
   disabled?: boolean;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
   className?: string;
   label?: string;
   allowClear?: boolean;
@@ -23,7 +23,7 @@ export default function RatingStars({
   allowClear = false
 }: RatingStarsProps) {
   const stars = Array.from({ length: max }, (_, index) => index + 1);
-  const iconSize = size === 'sm' ? 14 : 18;
+  const iconSize = size === 'sm' ? 14 : size === 'lg' ? 22 : 18;
   const handleSelect = (rating: number) => {
     if (!onChange || disabled) return;
     const next = allowClear && rating === value ? 0 : rating;

@@ -590,6 +590,8 @@ export default function GalleryWorkspace() {
     const available = Math.max(0, galleryWidth - totalGap);
     return Math.max(MIN_TILE_SIZE, Math.floor(available / effectiveColumns));
   }, [galleryWidth, effectiveColumns]);
+  const galleryTileFit: TileFit =
+    selectedTags.length > 0 || showUntagged ? 'cover' : tileFit;
 
   const handleSelectImage = useCallback((imageId: string) => {
     if (multiSelect) {
@@ -684,7 +686,7 @@ export default function GalleryWorkspace() {
       <Gallery
         ref={galleryRef}
         images={filteredImages}
-        tileFit={tileFit}
+        tileFit={galleryTileFit}
         tileSize={tileSize}
         columns={effectiveColumns}
         multiSelect={multiSelect}

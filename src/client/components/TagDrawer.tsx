@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -31,6 +32,20 @@ export default function TagDrawer({
   onSync
 }: TagDrawerProps) {
   const isAllSelected = !showUntagged && selectedTags.length === 0;
+  const [query, setQuery] = useState('');
+  const [sortMode, setSortMode] = useState<'count' | 'alpha'>('count');
+
+  const visibleTags = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = normalizedQuery
+      ? tags.filter((entry) => entry.tag.toLowerCase().includes(normalizedQuery))
+      : tags;
+    return [...filtered].sort((a, b) => {
+      if (sortMode === 'alpha') return a.tag.localeCompare(b.tag);
+      if (b.count !== a.count) return b.count - a.count;
+      return a.tag.localeCompare(b.tag);
+    });
+  }, [query, sortMode, tags]);
 
   return (
     <>
@@ -78,19 +93,39 @@ export default function TagDrawer({
             <Badge variant="secondary">{untaggedCount}</Badge>
           </button>
 
-          <div className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Tags
+          <div className="px-4 py-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Find tag…"
+                className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                aria-label="Find tag"
+              />
+              <select
+                value={sortMode}
+                onChange={(event) => setSortMode(event.target.value as 'count' | 'alpha')}
+                className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                aria-label="Sort tags"
+              >
+                <option value="count">By count</option>
+                <option value="alpha">A-Z</option>
+              </select>
+            </div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Tags
+            </div>
           </div>
 
-          {tags.length === 0 && (
+          {visibleTags.length === 0 && (
             <div className="px-4 py-2 text-sm text-muted-foreground">No tags yet.</div>
           )}
-          {tags.map(({ tag, count }) => (
+          {visibleTags.map(({ tag, count }) => (
             <button
               key={tag}
               type="button"
-              className={`flex w-full items-center justify-between px-4 py-2 text-sm hover:bg-accent ${
-                selectedTags.includes(tag) ? 'bg-primary/10 text-primary font-medium' : ''
+              className={`flex w-full items-center justify-between px-4 py-2.5 text-sm hover:bg-accent ${
+                selectedTags.includes(tag) ? 'bg-primary/10 text-primary font-medium ring-1 ring-primary/20' : ''
               }`}
               onClick={() => onToggleTag(tag)}
             >

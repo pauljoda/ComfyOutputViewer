@@ -492,11 +492,19 @@ export default function WorkflowDetail({
     if (paths.length === 0) {
       return;
     }
-    setOutputPaths(paths);
+    const allPaths = jobs
+      .flatMap((entry) => entry.outputs?.filter((item) => item.exists !== false) ?? [])
+      .reduce<string[]>((acc, entry) => {
+        if (!acc.includes(entry.imagePath)) {
+          acc.push(entry.imagePath);
+        }
+        return acc;
+      }, []);
+    setOutputPaths(allPaths.length > 0 ? allPaths : paths);
     setSelectedOutputPath(output.imagePath);
     setSelectedInputPath(null);
     setOutputTool(null);
-    await loadOutputImages(paths);
+    await loadOutputImages(allPaths.length > 0 ? allPaths : paths);
   };
 
   const handleOpenInputPreview = async (imagePath: string) => {
@@ -507,7 +515,19 @@ export default function WorkflowDetail({
     await loadOutputImage(imagePath);
   };
 
-  const selectedOutputIndex = selectedOutputPath ? outputPaths.indexOf(selectedOutputPath) : -1;
+  const selectedOutputIndex = selectedOutputPath
+    ? outputPaths.findIndex((path) => {
+      if (path === selectedOutputPath) return true;
+      const decode = (value: string) => {
+        try {
+          return decodeURIComponent(value);
+        } catch {
+          return value;
+        }
+      };
+      return decode(path) === decode(selectedOutputPath);
+    })
+    : -1;
   const selectedOutputImage = selectedOutputPath
     ? outputCache[selectedOutputPath] ?? buildFallbackImage(selectedOutputPath)
     : null;
@@ -875,14 +895,20 @@ export default function WorkflowDetail({
             setOutputTool(null);
           }}
           onPrev={() => {
-            if (selectedOutputIndex > 0) {
-              setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
+            if (outputPaths.length === 0) return;
+            if (selectedOutputIndex <= 0) {
+              setSelectedOutputPath(outputPaths[outputPaths.length - 1]);
+              return;
             }
+            setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
           }}
           onNext={() => {
-            if (selectedOutputIndex >= 0 && selectedOutputIndex < outputPaths.length - 1) {
-              setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
+            if (outputPaths.length === 0) return;
+            if (selectedOutputIndex === -1 || selectedOutputIndex >= outputPaths.length - 1) {
+              setSelectedOutputPath(outputPaths[0]);
+              return;
             }
+            setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
           }}
         />
       )}

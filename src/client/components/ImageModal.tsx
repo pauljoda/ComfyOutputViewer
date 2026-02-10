@@ -302,8 +302,12 @@ export default function ImageModal({
   const tagQuery = normalizeTagInput(tagInput);
   const imageTags = Array.isArray(image.tags) ? image.tags : [];
   const safeAvailableTags = Array.isArray(availableTags) ? availableTags : [];
-  const suggestions = safeAvailableTags.filter(
-    (tag) => !imageTags.includes(tag) && (!tagQuery || tag.includes(tagQuery))
+  const suggestions = useMemo(
+    () =>
+      safeAvailableTags
+        .filter((tag) => !imageTags.includes(tag) && (!tagQuery || tag.includes(tagQuery)))
+        .sort((a, b) => a.localeCompare(b)),
+    [imageTags, safeAvailableTags, tagQuery]
   );
 
   const promptInputs = useMemo<PromptInput[]>(() => {
@@ -650,28 +654,41 @@ export default function ImageModal({
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* Tool panels (tags, rating) */}
-            {modalTool && modalTool !== 'prompt' && (
-              <div className="border-t border-white/10 bg-background/90 p-3">
+          {/* Floating tool panels (tags, rating) */}
+          {modalTool && modalTool !== 'prompt' && (
+            <div className="pointer-events-none absolute inset-x-0 top-12 z-20 px-3">
+              <div
+                className="pointer-events-auto mx-auto w-full max-w-3xl rounded-lg border border-white/10 bg-background/92 p-3 shadow-xl backdrop-blur-sm"
+                onClick={(event) => event.stopPropagation()}
+              >
                 {modalTool === 'tags' && (
                   <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {image.tags.length === 0 && (
-                        <span className="text-xs text-muted-foreground">No tags yet.</span>
-                      )}
-                      {image.tags.map((tag) => (
-                        <button
-                          key={tag}
-                          className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
-                          type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          title="Remove tag"
-                        >
-                          {tag}
-                          <span aria-hidden="true">&times;</span>
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-foreground">Tags</p>
+                      <span className="text-[11px] text-muted-foreground">
+                        {image.tags.length} selected
+                      </span>
+                    </div>
+                    <div className="max-h-24 overflow-y-auto rounded-md border border-white/10 bg-background/70 p-2">
+                      <div className="flex flex-wrap gap-1">
+                        {image.tags.length === 0 && (
+                          <span className="text-xs text-muted-foreground">No tags yet.</span>
+                        )}
+                        {image.tags.map((tag) => (
+                          <button
+                            key={tag}
+                            className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
+                            type="button"
+                            onClick={() => handleRemoveTag(tag)}
+                            title="Remove tag"
+                          >
+                            {tag}
+                            <span aria-hidden="true">&times;</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -686,7 +703,7 @@ export default function ImageModal({
                             handleAddTag();
                           }
                         }}
-                        placeholder="Type a tag…"
+                        placeholder="Search or add tag…"
                         className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-sm"
                       />
                       <Button size="sm" onClick={handleAddTag} disabled={!tagInput.trim()}>
@@ -694,18 +711,20 @@ export default function ImageModal({
                       </Button>
                     </div>
                     {suggestions.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {suggestions.map((tag) => (
-                          <button
-                            key={tag}
-                            className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
-                            type="button"
-                            onClick={() => handleAddTagValue(tag)}
-                            title="Add tag"
-                          >
-                            {tag}
-                          </button>
-                        ))}
+                      <div className="max-h-28 overflow-y-auto rounded-md border border-white/10 bg-background/70 p-2">
+                        <div className="flex flex-wrap gap-1">
+                          {suggestions.slice(0, 120).map((tag) => (
+                            <button
+                              key={tag}
+                              className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+                              type="button"
+                              onClick={() => handleAddTagValue(tag)}
+                              title="Add tag"
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                     <datalist id={suggestionId}>
@@ -717,12 +736,13 @@ export default function ImageModal({
                   </div>
                 )}
                 {modalTool === 'rating' && (
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="text-sm text-foreground">Rate this image</span>
                     <RatingStars
                       value={image.rating}
                       onChange={onRate}
                       allowClear
+                      size="lg"
                       label="Image rating"
                     />
                     <span className="text-xs text-muted-foreground">
@@ -731,8 +751,8 @@ export default function ImageModal({
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Prompt overlay */}
           {modalTool === 'prompt' && promptAvailable && (

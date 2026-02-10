@@ -233,16 +233,6 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black" onClick={handleImageClick}>
-      <button
-        data-slideshow-control
-        className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white/80 hover:bg-black/60 hover:text-white"
-        type="button"
-        onClick={onClose}
-        aria-label="Exit slideshow"
-      >
-        <X className="h-5 w-5" />
-      </button>
-
       <div className="flex flex-1 items-center justify-center overflow-hidden">
         {currentImage && (
           <div
@@ -277,6 +267,19 @@ export default function SlideshowView({ images, settings, onClose }: SlideshowVi
           </div>
         )}
         <div className="flex items-center justify-center gap-4 py-2">
+          <button
+            data-slideshow-control
+            className="inline-flex h-8 items-center justify-center rounded-md px-2 text-xs text-white/80 hover:bg-white/10 hover:text-white"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            aria-label="Exit slideshow"
+          >
+            <X className="mr-1 h-4 w-4" />
+            Close
+          </button>
           <button
             data-slideshow-control
             className="inline-flex h-8 w-8 items-center justify-center rounded-md text-white/80 hover:text-white"

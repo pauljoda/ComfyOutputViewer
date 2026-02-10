@@ -5,6 +5,8 @@ import {
   Plus,
   GripVertical,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   FolderPlus,
   Check,
   X,
@@ -19,6 +21,8 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { api } from '../../lib/api';
 import type { Workflow, WorkflowFolder } from '../../types';
 
+const LAST_WORKFLOW_STORAGE_KEY = 'cov_last_workflow_id';
+
 export default function WorkflowsWorkspace() {
   const { workflowId } = useParams<{ workflowId?: string }>();
   const navigate = useNavigate();
@@ -28,7 +32,6 @@ export default function WorkflowsWorkspace() {
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [missingWorkflowId, setMissingWorkflowId] = useState<number | null>(null);
   const [importMode, setImportMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const isMobile = useMediaQuery('(max-width: 900px)');
@@ -152,6 +155,7 @@ export default function WorkflowsWorkspace() {
   const handleDragStart = (e: React.DragEvent, workflow: Workflow) => {
     setDraggedWorkflow(workflow);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/workflow-id', String(workflow.id));
   };
 
   const handleDragEnd = () => {
@@ -172,22 +176,33 @@ export default function WorkflowsWorkspace() {
   const handleDrop = async (e: React.DragEvent, target: { type: 'folder' | 'root' | 'workflow'; id: number | null }) => {
     e.preventDefault();
     setDragOverTarget(null);
-    if (!draggedWorkflow) return;
+    const dragIdFromTransfer = Number(e.dataTransfer.getData('text/workflow-id'));
+    const draggedId = Number.isFinite(dragIdFromTransfer) && dragIdFromTransfer > 0
+      ? dragIdFromTransfer
+      : draggedWorkflow?.id;
+    if (!draggedId) return;
+    const activeDraggedWorkflow =
+      workflows.find((workflow) => workflow.id === draggedId) ?? draggedWorkflow;
+    if (!activeDraggedWorkflow) return;
 
     if (target.type === 'folder' || target.type === 'root') {
       const targetFolderId = target.type === 'root' ? null : target.id;
-      if (draggedWorkflow.folderId !== targetFolderId) {
-        await handleMoveWorkflow(draggedWorkflow.id, targetFolderId);
+      if ((activeDraggedWorkflow.folderId ?? null) !== targetFolderId) {
+        await handleMoveWorkflow(activeDraggedWorkflow.id, targetFolderId);
       }
     } else if (target.type === 'workflow' && target.id !== null) {
-      // Reorder within the same folder
       const targetWorkflow = workflows.find((w) => w.id === target.id);
       if (!targetWorkflow) return;
       const folderId = targetWorkflow.folderId ?? null;
+      if ((activeDraggedWorkflow.folderId ?? null) !== folderId) {
+        await handleMoveWorkflow(activeDraggedWorkflow.id, folderId);
+        setDraggedWorkflow(null);
+        return;
+      }
       const workflowsInFolder = workflows
         .filter((w) => (w.folderId ?? null) === folderId)
         .sort((a, b) => a.sortOrder - b.sortOrder);
-      const draggedIndex = workflowsInFolder.findIndex((w) => w.id === draggedWorkflow.id);
+      const draggedIndex = workflowsInFolder.findIndex((w) => w.id === activeDraggedWorkflow.id);
       const targetIndex = workflowsInFolder.findIndex((w) => w.id === target.id);
       if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) return;
       const newOrder = [...workflowsInFolder];
@@ -196,6 +211,21 @@ export default function WorkflowsWorkspace() {
       await handleReorderWorkflows(newOrder.map((w) => w.id), folderId);
     }
     setDraggedWorkflow(null);
+  };
+
+  const handleStepReorder = async (workflow: Workflow, direction: -1 | 1) => {
+    const folderId = workflow.folderId ?? null;
+    const workflowsInFolder = workflows
+      .filter((item) => (item.folderId ?? null) === folderId)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+    const currentIndex = workflowsInFolder.findIndex((item) => item.id === workflow.id);
+    if (currentIndex === -1) return;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= workflowsInFolder.length) return;
+    const nextOrder = [...workflowsInFolder];
+    const [removed] = nextOrder.splice(currentIndex, 1);
+    nextOrder.splice(targetIndex, 0, removed);
+    await handleReorderWorkflows(nextOrder.map((item) => item.id), folderId);
   };
 
   const rootWorkflows = useMemo(() => {
@@ -228,16 +258,41 @@ export default function WorkflowsWorkspace() {
     if (workflowId && workflows.length > 0) {
       const workflow = workflows.find((w) => w.id === Number(workflowId));
       setSelectedWorkflow(workflow || null);
-      setMissingWorkflowId(workflow ? null : Number(workflowId));
+      if (workflow) {
+        try {
+          window.localStorage.setItem(LAST_WORKFLOW_STORAGE_KEY, String(workflow.id));
+        } catch (err) {
+          console.warn('Failed to persist last workflow selection:', err);
+        }
+      }
     } else {
       setSelectedWorkflow(null);
-      setMissingWorkflowId(null);
     }
   }, [workflowId, workflows]);
 
   useEffect(() => {
     if (workflowId || workflows.length === 0) return;
-    navigate(`/workflows/${workflows[0].id}`, { replace: true });
+    let lastWorkflowId: number | null = null;
+    try {
+      const storedId = window.localStorage.getItem(LAST_WORKFLOW_STORAGE_KEY);
+      const parsedId = Number(storedId);
+      if (Number.isFinite(parsedId) && parsedId > 0) {
+        lastWorkflowId = parsedId;
+      }
+    } catch (err) {
+      console.warn('Failed to read last workflow selection:', err);
+    }
+    if (lastWorkflowId === null) return;
+    const existing = workflows.find((workflow) => workflow.id === lastWorkflowId);
+    if (!existing) {
+      try {
+        window.localStorage.removeItem(LAST_WORKFLOW_STORAGE_KEY);
+      } catch (err) {
+        console.warn('Failed to clear stale workflow selection:', err);
+      }
+      return;
+    }
+    navigate(`/workflows/${existing.id}`, { replace: true });
   }, [workflowId, workflows, navigate]);
 
   useEffect(() => {
@@ -272,6 +327,11 @@ export default function WorkflowsWorkspace() {
   }, [location.state]);
 
   const handleSelectWorkflow = (workflow: Workflow) => {
+    try {
+      window.localStorage.setItem(LAST_WORKFLOW_STORAGE_KEY, String(workflow.id));
+    } catch (err) {
+      console.warn('Failed to persist selected workflow:', err);
+    }
     navigate(`/workflows/${workflow.id}`);
   };
 
@@ -288,6 +348,13 @@ export default function WorkflowsWorkspace() {
     if (!confirmed) return;
     try {
       await api(`/api/workflows/${workflow.id}`, { method: 'DELETE' });
+      try {
+        if (window.localStorage.getItem(LAST_WORKFLOW_STORAGE_KEY) === String(workflow.id)) {
+          window.localStorage.removeItem(LAST_WORKFLOW_STORAGE_KEY);
+        }
+      } catch (err) {
+        console.warn('Failed to clear deleted workflow selection:', err);
+      }
       if (selectedWorkflow?.id === workflow.id) {
         navigate('/workflows');
         setSelectedWorkflow(null);
@@ -309,6 +376,11 @@ export default function WorkflowsWorkspace() {
       setImportMode(false);
       setEditMode(false);
       if (result.id) {
+        try {
+          window.localStorage.setItem(LAST_WORKFLOW_STORAGE_KEY, String(result.id));
+        } catch (err) {
+          console.warn('Failed to persist imported workflow selection:', err);
+        }
         navigate(`/workflows/${result.id}`);
       }
     }
@@ -329,15 +401,15 @@ export default function WorkflowsWorkspace() {
         dragOverTarget?.type === 'workflow' && dragOverTarget.id === workflow.id ? 'bg-orange-500/10' : ''
       } ${organizationMode ? 'flex-row items-center' : 'flex-col'}`}
       onClick={() => !organizationMode && handleSelectWorkflow(workflow)}
-      draggable={organizationMode}
-      onDragStart={(e) => handleDragStart(e, workflow)}
+      draggable={organizationMode && !isMobile}
+      onDragStart={(e) => organizationMode && !isMobile && handleDragStart(e, workflow)}
       onDragEnd={handleDragEnd}
-      onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'workflow', id: workflow.id })}
+      onDragOver={(e) => organizationMode && !isMobile && handleDragOver(e, { type: 'workflow', id: workflow.id })}
       onDragLeave={handleDragLeave}
-      onDrop={(e) => organizationMode && handleDrop(e, { type: 'workflow', id: workflow.id })}
+      onDrop={(e) => organizationMode && !isMobile && handleDrop(e, { type: 'workflow', id: workflow.id })}
       style={organizationMode ? { cursor: 'grab' } : undefined}
     >
-      {organizationMode && (
+      {organizationMode && !isMobile && (
         <span className="mr-1 inline-flex shrink-0 items-center justify-center text-muted-foreground" style={{ cursor: 'grab' }}>
           <GripVertical className="size-3" />
         </span>
@@ -348,19 +420,45 @@ export default function WorkflowsWorkspace() {
           <span className="max-w-full truncate text-xs text-muted-foreground">{workflow.description}</span>
         )}
       </div>
+      {organizationMode && (
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleStepReorder(workflow, -1);
+            }}
+            aria-label={`Move ${workflow.name} up`}
+            title="Move up"
+          >
+            <ChevronUp className="size-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={(event) => {
+              event.stopPropagation();
+              void handleStepReorder(workflow, 1);
+            }}
+            aria-label={`Move ${workflow.name} down`}
+            title="Move down"
+          >
+            <ChevronDown className="size-3" />
+          </Button>
+        </div>
+      )}
     </button>
   );
 
   return (
     <div className="flex h-full flex-col">
-      <div
-        className={`relative flex flex-1 overflow-hidden ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${
-          isMobile ? 'is-mobile' : ''
-        }`}
-      >
+      <div className="relative flex flex-1 overflow-hidden">
         <aside
-          className={`flex w-70 shrink-0 flex-col border-r border-border bg-background/70 backdrop-blur-[32px] backdrop-saturate-[180%] transition-[width,opacity,transform,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-            !sidebarOpen && !isMobile ? 'w-0 min-w-0 overflow-hidden border-r-0 opacity-0 p-0' : ''
+          className={`flex shrink-0 flex-col border-r border-border bg-background/70 backdrop-blur-[32px] backdrop-saturate-[180%] transition-[width,opacity,transform,padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+            !isMobile && sidebarOpen ? 'w-[min(22rem,28vw)] min-w-[16rem]' : ''
+          } ${
+            !sidebarOpen && !isMobile ? 'w-0 min-w-0 overflow-hidden border-r-0 opacity-0 p-0 pointer-events-none' : ''
           } ${isMobile ? 'absolute inset-y-0 left-0 z-20 w-[min(78vw,320px)] border-r-0 shadow-2xl' : ''} ${
             isMobile && sidebarOpen ? 'translate-x-0' : ''
           } ${isMobile && !sidebarOpen ? '-translate-x-full' : ''}`}
@@ -403,7 +501,11 @@ export default function WorkflowsWorkspace() {
                   Add
                 </Button>
               </div>
-              <p className="m-0 text-[11px] text-muted-foreground">Drag workflows to reorder or move to folders</p>
+              <p className="m-0 text-[11px] text-muted-foreground">
+                {isMobile
+                  ? 'Use up/down controls to reorder. Drag-to-move works on desktop.'
+                  : 'Drag workflows to reorder or move to folders. Up/down controls also work.'}
+              </p>
             </div>
           )}
 
@@ -426,9 +528,9 @@ export default function WorkflowsWorkspace() {
                 <div
                   key={`folder-${folder.id}`}
                   className={`mb-1 rounded-lg transition-colors ${isDragOver ? 'bg-orange-500/10' : ''}`}
-                  onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'folder', id: folder.id })}
+                  onDragOver={(e) => organizationMode && !isMobile && handleDragOver(e, { type: 'folder', id: folder.id })}
                   onDragLeave={handleDragLeave}
-                  onDrop={(e) => organizationMode && handleDrop(e, { type: 'folder', id: folder.id })}
+                  onDrop={(e) => organizationMode && !isMobile && handleDrop(e, { type: 'folder', id: folder.id })}
                 >
                   <div className="flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/50">
                     <button
@@ -529,9 +631,9 @@ export default function WorkflowsWorkspace() {
             {folders.length > 0 && (
               <div
                 className={`min-h-2 rounded-lg transition-[min-height,background-color] ${dragOverTarget?.type === 'root' ? 'min-h-10 bg-orange-500/10' : ''}`}
-                onDragOver={(e) => organizationMode && handleDragOver(e, { type: 'root', id: null })}
+                onDragOver={(e) => organizationMode && !isMobile && handleDragOver(e, { type: 'root', id: null })}
                 onDragLeave={handleDragLeave}
-                onDrop={(e) => organizationMode && handleDrop(e, { type: 'root', id: null })}
+                onDrop={(e) => organizationMode && !isMobile && handleDrop(e, { type: 'root', id: null })}
               >
                 {organizationMode && rootWorkflows.length === 0 && (
                   <div className="p-3 text-center text-[11px] text-muted-foreground">Drop here for no folder</div>
@@ -544,7 +646,7 @@ export default function WorkflowsWorkspace() {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-6 max-[900px]:p-4">
+        <main className="min-w-0 flex-1 overflow-y-auto p-6 max-[900px]:p-4">
           <div className="mb-4 flex items-center gap-3">
             <Button
               variant="ghost"
@@ -566,14 +668,8 @@ export default function WorkflowsWorkspace() {
             />
           ) : !selectedWorkflow ? (
             <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
-              <h3 className="mb-2 text-lg font-semibold text-foreground">{missingWorkflowId ? 'Workflow not found' : 'Select a workflow'}</h3>
-              {missingWorkflowId ? (
-                <p className="m-0 text-sm text-destructive">
-                  Workflow #{missingWorkflowId} could not be found. It may have been deleted.
-                </p>
-              ) : (
-                <p className="m-0 text-sm">Choose a workflow from the sidebar or import a new one to get started.</p>
-              )}
+              <h3 className="mb-2 text-lg font-semibold text-foreground">Select a workflow</h3>
+              <p className="m-0 text-sm">Choose a workflow from the sidebar or import a new one to get started.</p>
             </div>
           ) : (
             <WorkflowDetail
