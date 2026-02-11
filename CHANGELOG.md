@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.17] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting auto-tag state/persistence/handler logic from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into a dedicated hook module: `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
+- Reduced `useWorkflowDetailController` surface area while preserving existing `WorkflowDetail` API/behavior.
+- Updated frontend architecture/refactor docs to reflect the new hook layering and remaining decomposition targets.
+- Bumped app version to `0.9.17` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
+### Added
+- Added `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.test.tsx` coverage for auto-tag settings normalization and fallback-ref persistence behavior.
+
 ## [0.9.16] - 2026-02-11
 
 ### Fixed

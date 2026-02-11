@@ -192,6 +192,7 @@ Related non-component support modules under component folders:
 - `src/client/components/workflows/formatters.ts`
 - `src/client/components/workflows/types.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`
 
 ## 5) Common Components
 
@@ -213,15 +214,15 @@ Context-level common dependency:
 
 ### Main organization risks
 - Very large orchestration/controller files (high cognitive load):
-  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~1012 lines)
-  - `src/client/components/ImageModal.tsx` (~880 lines)
+  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~935 lines)
+  - `src/client/components/ImageModal.tsx` (~898 lines)
   - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~700 lines)
   - `src/client/components/TopBar.tsx` (~615 lines)
-- `WorkflowDetail` is now a thin shell, but its controller hook is still monolithic and mixes multiple concerns (auto-tag persistence, run pipeline, jobs stream/polling, output modal state, metadata mutations).
+- `WorkflowDetail` is now a thin shell, and auto-tag logic has been extracted, but its controller hook still mixes several concerns (run pipeline, jobs stream/polling, output modal state, metadata mutations).
 - Domain logic and network effects are still concentrated in a few large files (especially workspace components, `ImageModal`, and the workflow controller hook).
 
 ### Suggested refactor targets (highest impact first)
-1. Split `useWorkflowDetailController` into focused hooks/modules (`useWorkflowAutoTag`, `useWorkflowJobStream`, `useWorkflowOutputModalState`, `useWorkflowRunPipeline`).
+1. Continue splitting `useWorkflowDetailController` into focused hooks/modules (`useWorkflowJobStream`, `useWorkflowOutputModalState`, `useWorkflowRunPipeline`) after extracting `useWorkflowAutoTagSettings`.
 2. Split `GalleryWorkspace` follow-up composition surfaces (`GalleryFiltersController`, `GalleryActionsController`, `GalleryModalController`) now that controller extraction exists.
 3. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
 4. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.

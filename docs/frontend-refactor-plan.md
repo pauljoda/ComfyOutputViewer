@@ -7,6 +7,7 @@ Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
 - Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
 - Completed: extracted remaining `WorkflowDetail` controller/state concerns into `workflows/workflow-detail/useWorkflowDetailController.ts`.
+- Completed: started phase-2 `useWorkflowDetailController` decomposition by extracting auto-tag state/persistence/handlers into `workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
 
 ## 1) Deep Review Findings
@@ -35,7 +36,7 @@ Progress snapshot:
 ### Remaining review backlog (pending)
 1. `useWorkflowDetailController` is now the primary complexity hotspot and should be split into focused hooks/modules.
 - File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
-- Plan: split auto-tag, job stream/polling, and output modal state into dedicated hooks in phase 2.
+- Plan: continue splitting remaining concerns (job stream/polling + output modal state + run pipeline) into dedicated hooks in phase 2.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -63,7 +64,8 @@ Progress snapshot:
 
 Current size:
 - `src/client/components/workflows/WorkflowDetail.tsx`: ~141 LOC (orchestrator/composition shell)
-- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~1012 LOC (controller/state/effects)
+- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~935 LOC (controller/state/effects, reduced after auto-tag extraction)
+- `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`: ~168 LOC (auto-tag state/persistence/handlers)
 
 ### Target file split
 - `src/client/components/workflows/WorkflowDetail.tsx`
@@ -74,6 +76,7 @@ Current size:
 - `src/client/components/workflows/workflow-detail/WorkflowJobsSection.tsx`
 - `src/client/components/workflows/workflow-detail/WorkflowOutputModalController.tsx`
 - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`
 
 ### Proposed prop contracts (phase 1)
 
@@ -287,6 +290,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Split `useWorkflowDetailController` into smaller hooks/modules (auto-tag, jobs, output modal state).
+1. Continue splitting `useWorkflowDetailController` into smaller hooks/modules (jobs, output modal state, run pipeline) after completing auto-tag extraction.
 2. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
 3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.

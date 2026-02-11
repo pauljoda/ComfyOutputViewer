@@ -3,6 +3,7 @@ import { api } from '../../../lib/api';
 import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../../../lib/imagesApi';
 import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
+import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import type {
   ImageUploadValue,
   SystemStatsResponse,
@@ -83,10 +84,6 @@ export function useWorkflowDetailController({
 }: UseWorkflowDetailControllerArgs): UseWorkflowDetailControllerResult {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
-  const [autoTagEnabled, setAutoTagEnabled] = useState(false);
-  const [autoTagInputRefs, setAutoTagInputRefs] = useState<Set<string>>(new Set());
-  const [autoTagMaxWords, setAutoTagMaxWords] = useState(2);
-  const [autoTagSaving, setAutoTagSaving] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
   const [exportApiOpen, setExportApiOpen] = useState(false);
@@ -112,27 +109,11 @@ export function useWorkflowDetailController({
 
   workflowIdRef.current = workflow.id;
 
-  const autoTagEligibleInputs = useMemo(
-    () => inputs.filter((input) => input.inputType === 'text' || input.inputType === 'negative'),
-    [inputs]
-  );
-
-  const defaultAutoTagRefs = useMemo(
-    () =>
-      autoTagEligibleInputs
-        .filter((input) => input.inputType !== 'negative')
-        .map((input) => `${input.nodeId}:${input.inputKey}`),
-    [autoTagEligibleInputs]
-  );
-
-  const normalizeAutoTagMaxWords = useCallback((value: unknown) => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return 2;
-    const rounded = Math.floor(parsed);
-    if (rounded < 1) return 1;
-    if (rounded > 20) return 20;
-    return rounded;
-  }, []);
+  const autoTag = useWorkflowAutoTagSettings({
+    workflowId: workflow.id,
+    inputs,
+    onError: setError
+  });
 
   useEffect(() => {
     return () => {
@@ -144,11 +125,12 @@ export function useWorkflowDetailController({
   }, [workflow.id]);
 
   useEffect(() => {
-    setAutoTagEnabled(Boolean(workflow.autoTagEnabled));
-    setAutoTagInputRefs(new Set(workflow.autoTagInputRefs || []));
-    setAutoTagMaxWords(normalizeAutoTagMaxWords(workflow.autoTagMaxWords));
-    setAutoTagSaving(false);
-  }, [workflow.id, normalizeAutoTagMaxWords]);
+    autoTag.applyAutoTagSettings({
+      autoTagEnabled: workflow.autoTagEnabled,
+      autoTagInputRefs: workflow.autoTagInputRefs,
+      autoTagMaxWords: workflow.autoTagMaxWords
+    });
+  }, [workflow.id, autoTag.applyAutoTagSettings]);
 
   const mergeJobUpdate = useCallback((job: Job) => {
     if (job.workflowId !== workflowIdRef.current) {
@@ -210,9 +192,7 @@ export function useWorkflowDetailController({
         );
         if (workflowIdRef.current !== workflowId) return;
         setInputs(response.inputs);
-        setAutoTagEnabled(Boolean(response.workflow.autoTagEnabled));
-        setAutoTagInputRefs(new Set(response.workflow.autoTagInputRefs || []));
-        setAutoTagMaxWords(normalizeAutoTagMaxWords(response.workflow.autoTagMaxWords));
+        autoTag.applyAutoTagSettings(response.workflow);
         const defaults: Record<number, string> = {};
         for (const input of response.inputs) {
           defaults[input.id] = input.defaultValue || '';
@@ -238,7 +218,7 @@ export function useWorkflowDetailController({
         setError(err instanceof Error ? err.message : 'Failed to load workflow details');
       }
     },
-    [normalizeAutoTagMaxWords]
+    [autoTag.applyAutoTagSettings]
   );
 
   const loadJobs = useCallback(async (targetWorkflowId?: number) => {
@@ -472,95 +452,6 @@ export function useWorkflowDetailController({
       setInputTool(null);
     }
   }, [selectedInputPath]);
-
-  const buildOrderedAutoTagRefs = useCallback(
-    (refs: Set<string>) => {
-      const rank = new Map(
-        autoTagEligibleInputs.map((input, index) => [`${input.nodeId}:${input.inputKey}`, index])
-      );
-      return [...refs].sort((a, b) => {
-        const rankA = rank.get(a);
-        const rankB = rank.get(b);
-        if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
-        if (rankA !== undefined) return -1;
-        if (rankB !== undefined) return 1;
-        return a.localeCompare(b);
-      });
-    },
-    [autoTagEligibleInputs]
-  );
-
-  const persistAutoTagSettings = useCallback(
-    async (enabled: boolean, refs: Set<string>, maxWords: number) => {
-      setAutoTagSaving(true);
-      try {
-        const orderedRefs = buildOrderedAutoTagRefs(refs);
-        const normalizedMaxWords = normalizeAutoTagMaxWords(maxWords);
-        const response = await api<{
-          autoTagEnabled: boolean;
-          autoTagInputRefs: string[];
-          autoTagMaxWords: number;
-        }>(`/api/workflows/${workflow.id}/auto-tag`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            enabled,
-            inputRefs: orderedRefs,
-            maxWords: normalizedMaxWords
-          })
-        });
-        setAutoTagEnabled(Boolean(response.autoTagEnabled));
-        setAutoTagInputRefs(new Set(response.autoTagInputRefs || []));
-        setAutoTagMaxWords(normalizeAutoTagMaxWords(response.autoTagMaxWords));
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to save auto-tag settings');
-      } finally {
-        setAutoTagSaving(false);
-      }
-    },
-    [buildOrderedAutoTagRefs, normalizeAutoTagMaxWords, workflow.id]
-  );
-
-  const handleToggleAutoTagEnabled = useCallback(() => {
-    const nextEnabled = !autoTagEnabled;
-    let nextRefs = new Set(autoTagInputRefs);
-    if (nextEnabled && nextRefs.size === 0) {
-      const fallbackRefs =
-        defaultAutoTagRefs.length > 0
-          ? defaultAutoTagRefs
-          : autoTagEligibleInputs.map((input) => `${input.nodeId}:${input.inputKey}`);
-      nextRefs = new Set(fallbackRefs);
-    }
-    setAutoTagEnabled(nextEnabled);
-    setAutoTagInputRefs(nextRefs);
-    void persistAutoTagSettings(nextEnabled, nextRefs, autoTagMaxWords);
-  }, [
-    autoTagEnabled,
-    autoTagInputRefs,
-    autoTagEligibleInputs,
-    autoTagMaxWords,
-    defaultAutoTagRefs,
-    persistAutoTagSettings
-  ]);
-
-  const handleToggleAutoTagInput = useCallback(
-    (input: WorkflowInput) => {
-      const ref = `${input.nodeId}:${input.inputKey}`;
-      const nextRefs = new Set(autoTagInputRefs);
-      if (nextRefs.has(ref)) {
-        nextRefs.delete(ref);
-      } else {
-        nextRefs.add(ref);
-      }
-      setAutoTagInputRefs(nextRefs);
-      void persistAutoTagSettings(autoTagEnabled, nextRefs, autoTagMaxWords);
-    },
-    [autoTagEnabled, autoTagInputRefs, autoTagMaxWords, persistAutoTagSettings]
-  );
-
-  const handleAutoTagMaxWordsBlur = useCallback(() => {
-    void persistAutoTagSettings(autoTagEnabled, autoTagInputRefs, autoTagMaxWords);
-  }, [autoTagEnabled, autoTagInputRefs, autoTagMaxWords, persistAutoTagSettings]);
 
   const handleInputChange = useCallback((inputId: number, value: string) => {
     isInputDirtyRef.current = true;
@@ -987,12 +878,12 @@ export function useWorkflowDetailController({
   return {
     inputs,
     inputValues,
-    autoTagEnabled,
-    autoTagInputRefs,
-    autoTagMaxWords,
-    autoTagSaving,
-    autoTagEligibleInputs,
-    normalizeAutoTagMaxWords,
+    autoTagEnabled: autoTag.autoTagEnabled,
+    autoTagInputRefs: autoTag.autoTagInputRefs,
+    autoTagMaxWords: autoTag.autoTagMaxWords,
+    autoTagSaving: autoTag.autoTagSaving,
+    autoTagEligibleInputs: autoTag.autoTagEligibleInputs,
+    normalizeAutoTagMaxWords: autoTag.normalizeAutoTagMaxWords,
     running,
     error,
     jobs,
@@ -1009,11 +900,11 @@ export function useWorkflowDetailController({
     exportApiOpen,
     promptPreview,
     setError,
-    setAutoTagMaxWords,
+    setAutoTagMaxWords: autoTag.setAutoTagMaxWords,
     setExportApiOpen,
-    handleToggleAutoTagEnabled,
-    handleToggleAutoTagInput,
-    handleAutoTagMaxWordsBlur,
+    handleToggleAutoTagEnabled: autoTag.handleToggleAutoTagEnabled,
+    handleToggleAutoTagInput: autoTag.handleToggleAutoTagInput,
+    handleAutoTagMaxWordsBlur: autoTag.handleAutoTagMaxWordsBlur,
     handleInputChange,
     handleRun,
     handleOpenInputPreview,
