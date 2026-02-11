@@ -152,6 +152,7 @@ If a request is purely informational and makes no changes, do not commit.
 
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
+- Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -160,6 +161,10 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Began frontend cleanup and refactor prep (v0.9.11): added `docs/frontend-refactor-plan.md` with deep-review findings, concrete split contracts for `WorkflowDetail` + `GalleryWorkspace`, hook/data-flow trees, and a staged deprecation plan for unused `ui/*` components.
+- Hardened frontend image path URL handling (v0.9.11): added shared `buildImageUrl`/`encodeImagePath` helpers in `src/client/utils/images.ts`, updated workflow image preview/output URL callsites to use safe segment encoding, and added reserved-character regression coverage in `src/client/utils/images.test.ts`.
+- Fixed gallery/workflow UX state edge cases (v0.9.11): cleared stale workflow list errors on successful reload, cleared gallery `selectedId` when active filters remove the selected image to avoid surprise modal reopen, and reset workflow JSON file input so re-selecting the same file re-imports reliably.
+- Removed dead legacy status bar files (v0.9.11): deleted unused `src/client/components/StatusBar.tsx` and `src/client/components/StatusBar.test.tsx` now that status handling is fully integrated in `TopBar`.
 - Added frontend architecture audit documentation (v0.9.11): created `docs/frontend-architecture-audit.md` with app-shell/page component trees, per-page layering maps, shared/common component inventory, unreachable component list, and labeled page-section sketches for Gallery and Workflows.
 - Refined generated auto-tag text sanitization (v0.9.11): updated prompt-tag parsing on both client (`src/client/utils/promptTags.ts`) and server generation flow (`src/server/services/createWorkflowExecutionService.js`) to strip leading/trailing non-alphanumeric characters (punctuation/symbols) from parsed tags while preserving interior symbols (e.g. `dr. person`), and added regression tests for parsing + generation behavior.
 - Added auto-tag max-word filtering controls + persistence (v0.9.10): added Step 1 `Max words per tag` control in `AutoTagModal` (default 2), filtered parsed tags by space-delimited word count so over-limit tags are ignored, added persistent per-workflow `maxWords` for generate-time auto-tag settings via `PUT /api/workflows/:id/auto-tag`, surfaced `autoTagMaxWords` in workflow API payloads/UI, and extended workflow-output auto-tag application to respect that limit when saving metadata.

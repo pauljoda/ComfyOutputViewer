@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterImages, isSortMode, sortImages } from './images';
+import { buildImageUrl, filterImages, isSortMode, sortImages } from './images';
 import type { ImageItem } from '../types';
 
 const images: ImageItem[] = [
@@ -82,5 +82,9 @@ describe('image utils', () => {
       maxRating: 5
     });
     expect(untagged.map((image) => image.id)).toEqual(['b']);
+  });
+
+  it('builds image urls safely for reserved path characters', () => {
+    expect(buildImageUrl('folder name/a#b?c%.png')).toBe('/images/folder%20name/a%23b%3Fc%25.png');
   });
 });

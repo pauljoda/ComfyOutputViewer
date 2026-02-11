@@ -145,6 +145,8 @@ export default function WorkflowEditorPanel({ mode, workflow, onClose, onSaved }
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    // Allow selecting the same file again in subsequent uploads.
+    event.target.value = '';
 
     const reader = new FileReader();
     reader.onload = (e) => {

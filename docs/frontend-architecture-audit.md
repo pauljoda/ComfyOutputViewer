@@ -3,6 +3,8 @@
 Date: 2026-02-11  
 Scope: `src/client` component organization, page layering, and reuse.
 
+Follow-up implementation plan: `docs/frontend-refactor-plan.md`.
+
 ## 1) Frontend Layering (Current)
 
 ```text
@@ -170,7 +172,6 @@ Legend:
 | `src/client/components/SlideshowView.tsx` | gallery domain | G |
 | `src/client/components/ImageModal.tsx` | shared domain | Shared |
 | `src/client/components/RatingStars.tsx` | shared domain | Shared |
-| `src/client/components/StatusBar.tsx` | legacy domain | Unused |
 | `src/client/components/ui/button.tsx` | shared UI primitive | Shared |
 | `src/client/components/ui/badge.tsx` | shared UI primitive | G |
 | `src/client/components/ui/popover.tsx` | shared UI primitive | App shell |

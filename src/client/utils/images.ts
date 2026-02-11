@@ -9,6 +9,15 @@ export const compareStrings = (a: string, b: string) =>
 export const getCreatedMs = (image: ImageItem) =>
   Number.isFinite(image.createdMs) && image.createdMs > 0 ? image.createdMs : image.mtimeMs;
 
+export const encodeImagePath = (imagePath: string) =>
+  imagePath
+    .replace(/^\/+/, '')
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
+export const buildImageUrl = (imagePath: string) => `/images/${encodeImagePath(imagePath)}`;
+
 export const isSortMode = (value: string | null): value is SortMode =>
   value !== null && Object.prototype.hasOwnProperty.call(SORTERS, value);
 

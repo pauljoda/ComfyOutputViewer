@@ -1,6 +1,7 @@
 import { Button } from '../ui/button';
 import type { Job, JobOutput } from '../../types';
 import { formatDuration } from './formatters';
+import { buildImageUrl } from '../../utils/images';
 
 type JobCardProps = {
   job: Job;
@@ -190,7 +191,7 @@ export default function JobCard({ job, now, onOpenOutput, onCancel, onRecheck }:
               aria-label={`Open output ${index + 1}`}
             >
               <img
-                src={output.thumbUrl || `/images/${encodeURI(output.imagePath)}`}
+                src={output.thumbUrl || buildImageUrl(output.imagePath)}
                 alt={`Output ${index + 1}`}
                 className="h-full w-full object-cover"
                 loading="lazy"

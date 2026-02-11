@@ -52,6 +52,7 @@ export default function WorkflowsWorkspace() {
   const loadWorkflows = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const [workflowsRes, foldersRes] = await Promise.all([
         api<{ workflows: Workflow[] }>('/api/workflows'),
         api<{ folders: WorkflowFolder[] }>('/api/workflow-folders')

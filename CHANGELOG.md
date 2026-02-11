@@ -8,10 +8,18 @@ All notable changes to this project will be documented in this file.
 - Updated generated auto-tag normalization to strip leading/trailing non-alphanumeric characters (punctuation/symbols) from parsed tags while preserving interior symbols.
 - Kept interior punctuation intact for valid phrases (for example, `dr. person` remains `dr. person`).
 - Applied the same edge-trimming behavior to both bulk Auto Tag parsing and generation-time workflow auto-tagging for consistent results.
+- Hardened workflow/gallery local image URL generation by adding shared `buildImageUrl` path-segment encoding for reserved characters (`#`, `?`, `%`) while preserving folder separators.
+- Workflow list reload now clears stale error state before fetch attempts, preventing old error banners from persisting after successful responses.
 
 ### Added
 - Added regression coverage for edge punctuation/symbol trimming in prompt-tag parsing and generation-time auto-tag application.
 - Added frontend architecture audit documentation in `docs/frontend-architecture-audit.md`, including per-page component relationship trees, shared component mapping, unreachable component inventory, and labeled layout sketches for Gallery and Workflows pages.
+- Added a concrete frontend cleanup/refactor prep document in `docs/frontend-refactor-plan.md` with deep-review findings, split contracts for `WorkflowDetail` and `GalleryWorkspace`, hook/data-flow trees, and staged deprecation plan for unused `ui/*` primitives.
+
+### Fixed
+- Fixed gallery modal selection state so selected images are cleared when they leave the active filtered image set, preventing unexpected modal reopen on filter restoration.
+- Fixed workflow JSON import picker behavior so choosing the same file repeatedly still triggers file parsing.
+- Removed dead legacy frontend status bar component/test (`src/client/components/StatusBar.tsx`, `src/client/components/StatusBar.test.tsx`).
 
 ## [0.9.10] - 2026-02-11
 

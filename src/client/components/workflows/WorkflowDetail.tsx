@@ -10,6 +10,7 @@ import WorkflowEditorPanel from './WorkflowEditorPanel';
 import { useTags } from '../../contexts/TagsContext';
 import { api } from '../../lib/api';
 import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../../lib/imagesApi';
+import { buildImageUrl } from '../../utils/images';
 import type { Workflow, WorkflowInput, Job, JobOutput, ImageItem, ModalTool } from '../../types';
 import type { SystemStatsResponse, WorkflowEditorSaveResult, WorkflowPrefill, WorkflowPrefillEntry, ImageUploadValue } from './types';
 
@@ -261,7 +262,7 @@ export default function WorkflowDetail({
     return {
       id: imagePath,
       name,
-      url: `/images/${encodeURI(imagePath)}`,
+      url: buildImageUrl(imagePath),
       favorite: false,
       hidden: false,
       rating: 0,
@@ -489,7 +490,7 @@ export default function WorkflowDetail({
     if (!imagePath) return '';
     const cached = imageUploadCacheRef.current.get(imagePath);
     if (cached) return cached;
-    const sourceUrl = `/images/${encodeURI(imagePath)}`;
+    const sourceUrl = buildImageUrl(imagePath);
     const imageResponse = await fetch(sourceUrl);
     if (!imageResponse.ok) {
       throw new Error(`Failed to load selected image: ${imagePath}`);

@@ -227,6 +227,13 @@ export default function GalleryWorkspace() {
   const selectedImage = selectedIndex >= 0 ? filteredImages[selectedIndex] : null;
 
   useEffect(() => {
+    if (!selectedId) return;
+    if (filteredImages.some((image) => image.id === selectedId)) return;
+    setSelectedId(null);
+    setModalTool(null);
+  }, [filteredImages, selectedId]);
+
+  useEffect(() => {
     if (selectedId) {
       setModalTool(null);
     }

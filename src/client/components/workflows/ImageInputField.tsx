@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import ImagePickerModal from './ImagePickerModal';
+import { buildImageUrl } from '../../utils/images';
 
 type ImageInputFieldProps = {
   value: string;
@@ -16,7 +17,7 @@ export default function ImageInputField({ value, onChange, onPreview, onError }:
   const displayValue = isLocal ? value.slice('local:'.length) : value;
   const previewSrc =
     isLocal && displayValue
-      ? `/images/${encodeURI(displayValue)}`
+      ? buildImageUrl(displayValue)
       : !isLocal &&
           (displayValue.startsWith('http://') ||
             displayValue.startsWith('https://') ||
