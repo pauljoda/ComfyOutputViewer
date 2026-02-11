@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import { useWorkflowInputState } from './useWorkflowInputState';
@@ -6,6 +6,7 @@ import { useWorkflowJobs } from './useWorkflowJobs';
 import { useWorkflowMetadataMutations } from './useWorkflowMetadataMutations';
 import { useWorkflowOutputCache } from './useWorkflowOutputCache';
 import { useWorkflowOutputModalState } from './useWorkflowOutputModalState';
+import { useWorkflowPromptPreview } from './useWorkflowPromptPreview';
 import { useWorkflowRunPipeline } from './useWorkflowRunPipeline';
 import type { SystemStatsResponse, WorkflowPrefill } from '../types';
 
@@ -221,27 +222,11 @@ export function useWorkflowDetailController({
 
   const handleRun = runPipeline.handleRun;
 
-  const promptPreview = useMemo(() => {
-    try {
-      const cloned = JSON.parse(JSON.stringify(workflow.apiJson));
-      for (const input of inputs) {
-        if (Object.prototype.hasOwnProperty.call(inputValues, input.id) && cloned[input.nodeId]) {
-          const rawValue = inputValues[input.id];
-          const resolvedValue =
-            input.inputType === 'image' && rawValue?.startsWith('local:')
-              ? rawValue.slice('local:'.length)
-              : rawValue;
-          cloned[input.nodeId].inputs[input.inputKey] =
-            input.inputType === 'number' || input.inputType === 'seed'
-              ? Number(resolvedValue)
-              : resolvedValue;
-        }
-      }
-      return JSON.stringify(cloned, null, 2);
-    } catch (err) {
-      return `Failed to build prompt JSON: ${err instanceof Error ? err.message : 'Unknown error'}`;
-    }
-  }, [inputs, inputValues, workflow.apiJson]);
+  const promptPreview = useWorkflowPromptPreview({
+    apiJson: workflow.apiJson,
+    inputs,
+    inputValues
+  });
 
   return {
     inputs,

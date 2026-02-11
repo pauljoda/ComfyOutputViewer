@@ -201,6 +201,7 @@ Related non-component support modules under component folders:
 - `src/client/components/workflows/workflow-detail/useWorkflowMetadataMutations.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowInputState.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowPromptPreview.ts`
 
 ## 5) Common Components
 
@@ -222,16 +223,16 @@ Context-level common dependency:
 
 ### Main organization risks
 - Very large orchestration/controller files (high cognitive load):
-  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~303 lines)
+  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~288 lines)
   - `src/client/components/ImageModal.tsx` (~898 lines)
   - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~700 lines)
   - `src/client/components/TopBar.tsx` (~615 lines)
-- `WorkflowDetail` is now a thin shell, and auto-tag/jobs/run/output-modal/metadata/output-cache/input-state concerns are extracted; remaining controller complexity is mostly composition/wiring and prompt-preview derivation.
+- `WorkflowDetail` is now a thin shell, and auto-tag/jobs/run/output-modal/metadata/output-cache/input-state/prompt-preview concerns are extracted; remaining controller complexity is mostly composition/wiring.
 - Domain logic and network effects are still concentrated in a few large files (especially workspace components, `ImageModal`, and the workflow controller hook).
 
 ### Suggested refactor targets (highest impact first)
-1. Decide whether to keep `useWorkflowDetailController` as the stable orchestration boundary or extract final composition-only helpers (for example prompt preview derivation).
-2. Continue `GalleryWorkspace` follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after extracting `GalleryModalController`.
+1. Continue `GalleryWorkspace` follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after extracting `GalleryModalController`.
+2. Keep `useWorkflowDetailController` as the current orchestration boundary unless new complexity hotspots emerge.
 3. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
 4. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.
 5. Maintain strict reachability checks for `ui/*` primitives to keep shared surface minimal.

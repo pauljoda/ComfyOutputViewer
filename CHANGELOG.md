@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.25] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting prompt-preview derivation from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowPromptPreview.ts`.
+- Reduced `useWorkflowDetailController` complexity further while preserving behavior and its public result contract used by `WorkflowDetail`.
+- Updated frontend architecture/refactor docs to reflect the new prompt-preview hook layer and revised next-step focus.
+- Bumped app version to `0.9.25` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.24] - 2026-02-11
 
 ### Changed
