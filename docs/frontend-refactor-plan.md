@@ -13,6 +13,7 @@ Progress snapshot:
 - Completed: extracted workflow run pipeline (image-input upload bridge + run submission flow) into `workflows/workflow-detail/useWorkflowRunPipeline.ts`.
 - Completed: extracted output-modal state/navigation/open flows into `workflows/workflow-detail/useWorkflowOutputModalState.ts`.
 - Completed: extracted output/input metadata mutation handlers into `workflows/workflow-detail/useWorkflowMetadataMutations.ts`.
+- Completed: extracted output image cache/fallback/loading concerns into `workflows/workflow-detail/useWorkflowOutputCache.ts`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
 
 ## 1) Deep Review Findings
@@ -69,12 +70,13 @@ Progress snapshot:
 
 Current size:
 - `src/client/components/workflows/WorkflowDetail.tsx`: ~141 LOC (orchestrator/composition shell)
-- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~430 LOC (controller/state/effects, reduced after auto-tag + jobs + run + output-modal + metadata extraction)
+- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~390 LOC (controller/state/effects, reduced after auto-tag + jobs + run + output-modal + metadata + output-cache extraction)
 - `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`: ~168 LOC (auto-tag state/persistence/handlers)
 - `src/client/components/workflows/workflow-detail/useWorkflowJobs.ts`: ~260 LOC (jobs stream/polling/cancel/recheck/system stats)
 - `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`: ~115 LOC (image-input upload bridge + run submission flow)
 - `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`: ~232 LOC (output modal state + open flows + navigation/tool toggles)
 - `src/client/components/workflows/workflow-detail/useWorkflowMetadataMutations.ts`: ~223 LOC (output/input metadata mutation handlers + optimistic cache updates + delete flows)
+- `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`: ~67 LOC (output image fetch/cache/fallback helpers)
 
 ### Target file split
 - `src/client/components/workflows/WorkflowDetail.tsx`
@@ -90,6 +92,7 @@ Current size:
 - `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowMetadataMutations.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`
 
 ### Proposed prop contracts (phase 1)
 

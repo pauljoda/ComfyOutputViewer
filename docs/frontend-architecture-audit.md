@@ -199,6 +199,7 @@ Related non-component support modules under component folders:
 - `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowMetadataMutations.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`
 
 ## 5) Common Components
 
@@ -220,11 +221,11 @@ Context-level common dependency:
 
 ### Main organization risks
 - Very large orchestration/controller files (high cognitive load):
-  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~430 lines)
+  - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~390 lines)
   - `src/client/components/ImageModal.tsx` (~898 lines)
   - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~700 lines)
   - `src/client/components/TopBar.tsx` (~615 lines)
-- `WorkflowDetail` is now a thin shell, and auto-tag/jobs/run/output-modal/metadata concerns are extracted; remaining controller complexity is mostly prefill/default-loading orchestration and cross-hook wiring.
+- `WorkflowDetail` is now a thin shell, and auto-tag/jobs/run/output-modal/metadata/output-cache concerns are extracted; remaining controller complexity is mostly prefill/default-loading orchestration and cross-hook wiring.
 - Domain logic and network effects are still concentrated in a few large files (especially workspace components, `ImageModal`, and the workflow controller hook).
 
 ### Suggested refactor targets (highest impact first)

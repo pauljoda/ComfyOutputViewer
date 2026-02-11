@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.23] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting output image cache/fallback/loading concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`.
+- Reduced `useWorkflowDetailController` complexity further while preserving behavior and its public result contract used by `WorkflowDetail`.
+- Updated frontend architecture/refactor docs to reflect the new output-cache hook layer and remaining orchestration decisions.
+- Bumped app version to `0.9.23` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.22] - 2026-02-11
 
 ### Changed

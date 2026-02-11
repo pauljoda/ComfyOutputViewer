@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
-import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import { useWorkflowJobs } from './useWorkflowJobs';
 import { useWorkflowMetadataMutations } from './useWorkflowMetadataMutations';
+import { useWorkflowOutputCache } from './useWorkflowOutputCache';
 import { useWorkflowOutputModalState } from './useWorkflowOutputModalState';
 import { useWorkflowRunPipeline } from './useWorkflowRunPipeline';
 import type {
@@ -89,7 +89,6 @@ export function useWorkflowDetailController({
   const [running, setRunning] = useState(false);
   const [exportApiOpen, setExportApiOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [outputCache, setOutputCache] = useState<Record<string, ImageItem>>({});
   const prefillAppliedRef = useRef<string | null>(null);
   const isInputDirtyRef = useRef(false);
   const previousWorkflowIdRef = useRef<number | null>(null);
@@ -129,6 +128,9 @@ export function useWorkflowDetailController({
     mergeJobUpdate,
     loadJobs
   });
+  const outputCacheState = useWorkflowOutputCache();
+  const { outputCache, setOutputCache, buildFallbackImage, loadOutputImage, loadOutputImages } =
+    outputCacheState;
 
   useEffect(() => {
     autoTag.applyAutoTagSettings({
@@ -244,48 +246,6 @@ export function useWorkflowDetailController({
     onPrefillApplied?.();
   }, [prefill, inputs, workflow.id, onPrefillApplied]);
 
-  const buildFallbackImage = useCallback((imagePath: string): ImageItem => {
-    const name = imagePath.split('/').pop() || imagePath;
-    return {
-      id: imagePath,
-      name,
-      url: buildImageUrl(imagePath),
-      favorite: false,
-      hidden: false,
-      rating: 0,
-      tags: [],
-      createdMs: 0,
-      mtimeMs: 0,
-      size: 0
-    };
-  }, []);
-
-  const loadOutputImage = useCallback(
-    async (imagePath: string, options: { force?: boolean } = {}) => {
-      if (!options.force && outputCache[imagePath]) return;
-      try {
-        const image = await api<ImageItem>(`/api/images/${encodeURIComponent(imagePath)}`);
-        const normalizedImage = {
-          ...image,
-          tags: Array.isArray(image.tags) ? image.tags : []
-        };
-        setOutputCache((prev) => ({ ...prev, [imagePath]: normalizedImage }));
-      } catch (err) {
-        setOutputCache((prev) => {
-          if (prev[imagePath]) return prev;
-          return { ...prev, [imagePath]: buildFallbackImage(imagePath) };
-        });
-      }
-    },
-    [buildFallbackImage, outputCache]
-  );
-
-  const loadOutputImages = useCallback(
-    async (paths: string[]) => {
-      await Promise.all(paths.map((path) => loadOutputImage(path)));
-    },
-    [loadOutputImage]
-  );
   const outputModalState = useWorkflowOutputModalState({
     workflowId: workflow.id,
     jobs,
