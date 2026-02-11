@@ -24,7 +24,11 @@ export function parsePromptTags(text: string): string[] {
   return tags;
 }
 
-export type PromptInput = {
+/**
+ * Minimal prompt input shape. BulkPromptEntry's sub-arrays satisfy this
+ * structurally so no unsafe casts are needed.
+ */
+type PromptInputLike = {
   inputId?: number;
   label?: string;
   inputType?: string;
@@ -32,38 +36,39 @@ export type PromptInput = {
   value: unknown;
 };
 
-type PromptPayload = {
-  workflowInputs?: PromptInput[];
-  inputs?: PromptInput[];
+/**
+ * Minimal prompt shape accepted by utility functions.
+ * BulkPromptEntry satisfies this interface structurally.
+ */
+export type PromptLike = {
+  promptData?: {
+    inputs?: PromptInputLike[];
+    workflowInputs?: PromptInputLike[];
+  };
+  jobInputs?: PromptInputLike[];
 };
 
-export type PromptData = {
-  promptData: PromptPayload;
-  jobInputs?: PromptInput[];
-};
+/** Derives a stable grouping key from an input's label/inputKey/inputId. */
+function inputGroupKey(input: PromptInputLike): string {
+  return input.label || input.inputKey || `input_${input.inputId ?? 'unknown'}`;
+}
 
 /**
  * Resolves the flat list of inputs from prompt metadata,
  * checking promptData.inputs, workflowInputs, then jobInputs.
  */
-export function resolvePromptInputs(prompt: PromptData): PromptInput[] {
-  if (Array.isArray(prompt.promptData?.inputs) && prompt.promptData.inputs.length > 0) {
-    return prompt.promptData.inputs;
+export function resolvePromptInputs(prompt: PromptLike): PromptInputLike[] {
+  if (Array.isArray(prompt.promptData?.inputs) && prompt.promptData!.inputs!.length > 0) {
+    return prompt.promptData!.inputs!;
   }
   if (
     Array.isArray(prompt.promptData?.workflowInputs) &&
-    prompt.promptData.workflowInputs.length > 0
+    prompt.promptData!.workflowInputs!.length > 0
   ) {
-    return prompt.promptData.workflowInputs;
+    return prompt.promptData!.workflowInputs!;
   }
   if (Array.isArray(prompt.jobInputs) && prompt.jobInputs.length > 0) {
-    return prompt.jobInputs.map((input) => ({
-      inputId: input.inputId,
-      label: input.label,
-      inputType: input.inputType,
-      inputKey: input.inputKey,
-      value: input.value
-    }));
+    return prompt.jobInputs;
   }
   return [];
 }
@@ -87,7 +92,7 @@ export type DiscoveredInput = {
  * Returns a list of distinct inputs the user can choose from.
  */
 export function discoverTextInputs(
-  prompts: Record<string, PromptData>
+  prompts: Record<string, PromptLike>
 ): DiscoveredInput[] {
   const groups = new Map<
     string,
@@ -105,7 +110,7 @@ export function discoverTextInputs(
       const value = input.value;
       if (typeof value !== 'string' || !value.trim()) continue;
 
-      const key = input.label || input.inputKey || `input_${input.inputId ?? 'unknown'}`;
+      const key = inputGroupKey(input);
       if (seenKeys.has(key)) continue;
       seenKeys.add(key);
 
@@ -141,7 +146,7 @@ export function discoverTextInputs(
  * matches one of the provided selectedKeys.
  */
 export function extractTagsFromPrompt(
-  prompt: PromptData,
+  prompt: PromptLike,
   selectedKeys: Set<string>
 ): string[] {
   const inputs = resolvePromptInputs(prompt);
@@ -149,8 +154,7 @@ export function extractTagsFromPrompt(
   const tags: string[] = [];
 
   for (const input of inputs) {
-    const key = input.label || input.inputKey || `input_${input.inputId ?? 'unknown'}`;
-    if (!selectedKeys.has(key)) continue;
+    if (!selectedKeys.has(inputGroupKey(input))) continue;
     const value = input.value;
     if (typeof value !== 'string' || !value.trim()) continue;
     for (const tag of parsePromptTags(value)) {

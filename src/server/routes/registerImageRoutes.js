@@ -176,6 +176,9 @@ app.post('/api/prompts/bulk', async (req, res) => {
     if (!Array.isArray(paths) || paths.length === 0) {
       return res.status(400).send('Missing paths');
     }
+    if (paths.length > 1000) {
+      return res.status(400).send('Too many paths (max 1000)');
+    }
     const prompts = {};
     for (const imagePath of paths) {
       if (typeof imagePath !== 'string' || !imagePath) continue;

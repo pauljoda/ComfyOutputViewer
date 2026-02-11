@@ -8,7 +8,7 @@ import {
   discoverTextInputs,
   extractTagsFromPrompt,
   type DiscoveredInput,
-  type PromptData
+  type PromptLike
 } from '../utils/promptTags';
 import { normalizeTagInput } from '../utils/tags';
 
@@ -60,9 +60,7 @@ export default function AutoTagModal({
         setPrompts(promptMap);
 
         // Discover all text inputs across prompts
-        const discovered = discoverTextInputs(
-          promptMap as unknown as Record<string, PromptData>
-        );
+        const discovered = discoverTextInputs(promptMap);
 
         if (discovered.length === 0) {
           setError('No text inputs found in the prompt metadata for the selected images.');
@@ -115,7 +113,7 @@ export default function AutoTagModal({
   ) => {
     const result: AutoTagEntry[] = [];
     for (const img of images) {
-      const prompt = promptMap[img.id] as unknown as PromptData | undefined;
+      const prompt = promptMap[img.id] as PromptLike | undefined;
       if (!prompt) continue;
       const parsedTags = extractTagsFromPrompt(prompt, keys);
       if (parsedTags.length === 0) continue;
@@ -222,7 +220,10 @@ export default function AutoTagModal({
                   : step === 'select-inputs'
                     ? `${imagesWithPromptCount} of ${images.length} image${images.length !== 1 ? 's' : ''} have prompt data`
                     : entries.length > 0
-                      ? `${entries.length} image${entries.length !== 1 ? 's' : ''} with tags, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add`
+                      ? `${entries.length} image${entries.length !== 1 ? 's' : ''} with tags, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add` +
+                        (imagesWithPromptCount > entries.length
+                          ? ` (${imagesWithPromptCount - entries.length} skipped — no matching tags)`
+                          : '')
                       : 'No parseable tags found for the selected inputs'}
               </div>
             </div>
