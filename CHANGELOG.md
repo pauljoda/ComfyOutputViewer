@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.27] - 2026-02-11
+
+### Changed
+- Continued gallery workspace decomposition by extracting the gallery/action composition surface (Gallery grid + modal stack wiring) from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryActionsController.tsx`.
+- Kept gallery behavior and existing handler contracts unchanged while further simplifying `GalleryWorkspace`.
+- Updated frontend architecture/refactor docs to reflect completion of the planned `GalleryFiltersController` + `GalleryActionsController` splits.
+- Bumped app version to `0.9.27` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.26] - 2026-02-11
 
 ### Changed

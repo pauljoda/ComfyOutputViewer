@@ -1,8 +1,7 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
-import Gallery from '../Gallery';
+import GalleryActionsController from './GalleryActionsController';
 import GalleryFiltersController from './GalleryFiltersController';
-import GalleryModalController from './GalleryModalController';
 import { useGalleryWorkspaceController } from './useGalleryWorkspaceController';
 
 export default function GalleryWorkspace() {
@@ -170,47 +169,48 @@ export default function GalleryWorkspace() {
         }}
       />
 
-      <Gallery
-        ref={galleryRef}
-        images={filteredImages}
-        tileFit={galleryTileFit}
-        tileSize={tileSize}
-        columns={effectiveColumns}
-        multiSelect={multiSelect}
-        selectedIds={selectedIdSet}
-        onSelectImage={handleSelectImageWithOptions}
-        onToggleFavorite={handleToggleFavorite}
-        onToggleHidden={handleToggleHidden}
-      />
-
-      <GalleryModalController
-        selectedImage={selectedImage}
-        selectedIndex={selectedIndex}
-        filteredImages={filteredImages}
-        dataImages={data.images}
-        selectedIdSet={selectedIdSet}
-        availableTags={availableTags}
-        autoTagScope={autoTagScope}
-        showSlideshowSettings={showSlideshowSettings}
-        slideshowActive={slideshowActive}
-        slideshowSettings={slideshowSettings}
-        modalTool={modalTool}
-        onUpdateTags={handleUpdateTags}
-        onToggleTags={() => setModalTool((current) => (current === 'tags' ? null : 'tags'))}
-        onToggleRating={() => setModalTool((current) => (current === 'rating' ? null : 'rating'))}
-        onTogglePrompt={() => setModalTool((current) => (current === 'prompt' ? null : 'prompt'))}
-        onToggleFavorite={handleToggleFavorite}
-        onToggleHidden={handleToggleHidden}
-        onRate={handleUpdateRating}
-        onDelete={handleDeleteImage}
-        onCloseImage={() => setSelectedId(null)}
-        onPrevImage={movePrev}
-        onNextImage={moveNext}
-        onApplyAutoTag={handleAutoTagApply}
-        onCloseAutoTag={() => setAutoTagScope(null)}
-        onStartSlideshow={handleStartSlideshow}
-        onCloseSlideshowSettings={() => setShowSlideshowSettings(false)}
-        onCloseSlideshow={handleCloseSlideshow}
+      <GalleryActionsController
+        galleryRef={galleryRef}
+        galleryProps={{
+          images: filteredImages,
+          tileFit: galleryTileFit,
+          tileSize,
+          columns: effectiveColumns,
+          multiSelect,
+          selectedIds: selectedIdSet,
+          onSelectImage: handleSelectImageWithOptions,
+          onToggleFavorite: handleToggleFavorite,
+          onToggleHidden: handleToggleHidden
+        }}
+        modalProps={{
+          selectedImage,
+          selectedIndex,
+          filteredImages,
+          dataImages: data.images,
+          selectedIdSet,
+          availableTags,
+          autoTagScope,
+          showSlideshowSettings,
+          slideshowActive,
+          slideshowSettings,
+          modalTool,
+          onUpdateTags: handleUpdateTags,
+          onToggleTags: () => setModalTool((current) => (current === 'tags' ? null : 'tags')),
+          onToggleRating: () => setModalTool((current) => (current === 'rating' ? null : 'rating')),
+          onTogglePrompt: () => setModalTool((current) => (current === 'prompt' ? null : 'prompt')),
+          onToggleFavorite: handleToggleFavorite,
+          onToggleHidden: handleToggleHidden,
+          onRate: handleUpdateRating,
+          onDelete: handleDeleteImage,
+          onCloseImage: () => setSelectedId(null),
+          onPrevImage: movePrev,
+          onNextImage: moveNext,
+          onApplyAutoTag: handleAutoTagApply,
+          onCloseAutoTag: () => setAutoTagScope(null),
+          onStartSlideshow: handleStartSlideshow,
+          onCloseSlideshowSettings: () => setShowSlideshowSettings(false),
+          onCloseSlideshow: handleCloseSlideshow
+        }}
       />
     </div>
   );

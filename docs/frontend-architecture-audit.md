@@ -54,18 +54,19 @@ GalleryPage
    │  └─ TagDrawer
    │     ├─ ui/button
    │     └─ ui/badge
-   ├─ Gallery
-   │  └─ ImageCard
-   └─ GalleryModalController
-      ├─ ImageModal
-      │  ├─ ui/button
-      │  └─ RatingStars
-      ├─ AutoTagModal
-      │  ├─ ui/button
-      │  └─ ui/badge
-      ├─ SlideshowSettingsModal
-      │  └─ ui/button
-      └─ SlideshowView
+   └─ GalleryActionsController
+      ├─ Gallery
+      │  └─ ImageCard
+      └─ GalleryModalController
+         ├─ ImageModal
+         │  ├─ ui/button
+         │  └─ RatingStars
+         ├─ AutoTagModal
+         │  ├─ ui/button
+         │  └─ ui/badge
+         ├─ SlideshowSettingsModal
+         │  └─ ui/button
+         └─ SlideshowView
 ```
 
 ### 2.3 Workflows Page Tree
@@ -180,6 +181,7 @@ Legend:
 | `src/client/components/TagDrawer.tsx` | gallery domain | G |
 | `src/client/components/Gallery.tsx` | gallery domain | G |
 | `src/client/components/gallery/GalleryFiltersController.tsx` | gallery domain | G |
+| `src/client/components/gallery/GalleryActionsController.tsx` | gallery domain | G |
 | `src/client/components/gallery/GalleryModalController.tsx` | gallery domain | G |
 | `src/client/components/ImageCard.tsx` | gallery domain | G |
 | `src/client/components/AutoTagModal.tsx` | gallery domain | G |
@@ -233,10 +235,10 @@ Context-level common dependency:
 - Domain logic and network effects are still concentrated in a few large files (especially workspace components, `ImageModal`, and the workflow controller hook).
 
 ### Suggested refactor targets (highest impact first)
-1. Continue `GalleryWorkspace` follow-up composition splits by extracting `GalleryActionsController` after extracting `GalleryModalController` and `GalleryFiltersController`.
-2. Keep `useWorkflowDetailController` as the current orchestration boundary unless new complexity hotspots emerge.
-3. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
-4. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.
+1. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
+2. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.
+3. Keep `useWorkflowDetailController` as the current orchestration boundary unless new complexity hotspots emerge.
+4. Keep `GalleryWorkspace` as the current composition boundary unless new complexity hotspots emerge.
 5. Maintain strict reachability checks for `ui/*` primitives to keep shared surface minimal.
 
 ## 7) Questions For Next Pass

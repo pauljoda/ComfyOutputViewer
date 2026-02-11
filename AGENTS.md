@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: keep `useWorkflowDetailController` as a stable orchestration boundary after sub-hook extraction, and continue gallery follow-up composition splits with remaining `GalleryActionsController` extraction after `GalleryModalController` + `GalleryFiltersController`.
+- Continue frontend phase-2 hardening after phase-1 modularization: keep `useWorkflowDetailController` and `GalleryWorkspace` as stable orchestration/composition boundaries after recent sub-component extraction, and focus remaining frontend decomposition on `TopBar` and `ImageModal`.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued gallery workspace decomposition (v0.9.27): extracted the gallery/action composition surface (Gallery grid + modal stack wiring) from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryActionsController.tsx`, preserving behavior while simplifying workspace composition.
+- Updated frontend architecture/refactor docs after gallery split completion (v0.9.27): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect completion of planned gallery filters/actions splits and shift next-step focus to `TopBar` + `ImageModal`.
+- Bumped package/app version to `0.9.27` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued gallery workspace decomposition (v0.9.26): extracted the filter/navigation composition surface (TopBar + active-tool backdrop + TagDrawer wiring) from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryFiltersController.tsx`, preserving behavior while further simplifying workspace composition.
 - Updated frontend architecture/refactor docs for gallery-filters extraction progress (v0.9.26): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new gallery layering and next-step focus (`GalleryActionsController`).
 - Bumped package/app version to `0.9.26` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

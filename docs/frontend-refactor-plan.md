@@ -7,6 +7,7 @@ Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
 - Completed: extracted gallery modal composition surface into `src/client/components/gallery/GalleryModalController.tsx`.
 - Completed: extracted gallery filter/navigation composition surface into `src/client/components/gallery/GalleryFiltersController.tsx`.
+- Completed: extracted gallery action composition surface into `src/client/components/gallery/GalleryActionsController.tsx`.
 - Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
 - Completed: extracted remaining `WorkflowDetail` controller/state concerns into `workflows/workflow-detail/useWorkflowDetailController.ts`.
 - Completed: started phase-2 `useWorkflowDetailController` decomposition by extracting auto-tag state/persistence/handlers into `workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
@@ -43,9 +44,9 @@ Progress snapshot:
 - Status: Fixed (`event.target.value = ''` reset after capture).
 
 ### Remaining review backlog (pending)
-1. `GalleryWorkspace` remains the primary complexity hotspot for ongoing frontend organization cleanup.
-- File: `src/client/components/gallery/GalleryWorkspace.tsx`
-- Plan: continue composition splits by extracting `GalleryActionsController` while preserving behavior.
+1. `TopBar` and `ImageModal` remain the primary complexity hotspots for ongoing frontend organization cleanup.
+- Files: `src/client/components/TopBar.tsx`, `src/client/components/ImageModal.tsx`
+- Plan: continue composition splits by extracting tool-panel sections from `TopBar` and interaction/prompt sub-hooks from `ImageModal` while preserving behavior.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -314,6 +315,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Continue `GalleryWorkspace` follow-up cleanup around action composition surfaces after completing modal + filters extraction.
-2. Extract `GalleryActionsController` as the next lowest-risk handler boundary.
-3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.
+1. Shift phase-2 cleanup focus to `TopBar` and `ImageModal` after completing `GalleryFiltersController` + `GalleryActionsController`.
+2. Evaluate whether to extract `TopBar` tool panels or `ImageModal` prompt/gesture hooks first based on the lowest-risk boundary.
+3. Keep `GalleryWorkspace` as a stable composition boundary unless new complexity hotspots emerge.
