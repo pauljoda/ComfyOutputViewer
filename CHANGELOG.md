@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.18] - 2026-02-11
+
+### Changed
+- Continued gallery workspace follow-up cleanup by extracting modal-layer composition from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryModalController.tsx` (image modal, auto-tag modal, slideshow settings/view wiring), keeping behavior stable.
+- Reduced `GalleryWorkspace` to a thinner page-composition shell and updated architecture/refactor docs to reflect the new layering.
+- Bumped app version to `0.9.18` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.17] - 2026-02-11
 
 ### Changed

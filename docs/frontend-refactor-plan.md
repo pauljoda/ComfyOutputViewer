@@ -5,6 +5,7 @@ Scope: Deep review findings + concrete split plan for `WorkflowDetail` and `Gall
 
 Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
+- Completed: extracted gallery modal composition surface into `src/client/components/gallery/GalleryModalController.tsx`.
 - Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
 - Completed: extracted remaining `WorkflowDetail` controller/state concerns into `workflows/workflow-detail/useWorkflowDetailController.ts`.
 - Completed: started phase-2 `useWorkflowDetailController` decomposition by extracting auto-tag state/persistence/handlers into `workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
@@ -291,5 +292,5 @@ Completed:
 ## 7) Execution Order (Recommended)
 
 1. Continue splitting `useWorkflowDetailController` into smaller hooks/modules (jobs, output modal state, run pipeline) after completing auto-tag extraction.
-2. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
+2. Continue `GalleryWorkspace` follow-up cleanup around filter/action composition surfaces (modal composition extraction completed via `GalleryModalController`).
 3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.

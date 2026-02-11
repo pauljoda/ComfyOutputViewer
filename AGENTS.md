@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: continue splitting `useWorkflowDetailController` (jobs/output modal/run pipeline), and keep reducing large client surfaces (`GalleryWorkspace`, `ImageModal`, `TopBar`) with behavior-preserving extractions.
+- Continue frontend phase-2 hardening after phase-1 modularization: continue splitting `useWorkflowDetailController` (jobs/output modal/run pipeline), and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued gallery workspace cleanup (v0.9.18): extracted modal-layer composition from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryModalController.tsx`, centralizing image modal/auto-tag modal/slideshow wiring while preserving behavior.
+- Updated frontend architecture/refactor docs for gallery modal extraction progress (v0.9.18): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new gallery layering and remaining follow-up surfaces.
+- Bumped package/app version to `0.9.18` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued workflow controller decomposition (v0.9.17): extracted auto-tag state/persistence/handlers from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`, reducing main-controller complexity while preserving behavior.
 - Added auto-tag settings hook tests (v0.9.17): created `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.test.tsx` covering max-word normalization bounds and fallback input-ref persistence when enabling auto-tag with an empty selection.
 - Updated frontend architecture/refactor docs for the new hook layering (v0.9.17): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect partial controller decomposition progress and remaining split targets.

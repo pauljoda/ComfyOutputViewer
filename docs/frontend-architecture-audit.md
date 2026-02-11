@@ -55,15 +55,16 @@ GalleryPage
    │  └─ ui/badge
    ├─ Gallery
    │  └─ ImageCard
-   ├─ ImageModal
-   │  ├─ ui/button
-   │  └─ RatingStars
-   ├─ AutoTagModal
-   │  ├─ ui/button
-   │  └─ ui/badge
-   ├─ SlideshowSettingsModal
-   │  └─ ui/button
-   └─ SlideshowView
+   └─ GalleryModalController
+      ├─ ImageModal
+      │  ├─ ui/button
+      │  └─ RatingStars
+      ├─ AutoTagModal
+      │  ├─ ui/button
+      │  └─ ui/badge
+      ├─ SlideshowSettingsModal
+      │  └─ ui/button
+      └─ SlideshowView
 ```
 
 ### 2.3 Workflows Page Tree
@@ -177,6 +178,7 @@ Legend:
 | `src/client/components/TopBar.tsx` | gallery domain | G |
 | `src/client/components/TagDrawer.tsx` | gallery domain | G |
 | `src/client/components/Gallery.tsx` | gallery domain | G |
+| `src/client/components/gallery/GalleryModalController.tsx` | gallery domain | G |
 | `src/client/components/ImageCard.tsx` | gallery domain | G |
 | `src/client/components/AutoTagModal.tsx` | gallery domain | G |
 | `src/client/components/SlideshowSettingsModal.tsx` | gallery domain | G |
@@ -223,7 +225,7 @@ Context-level common dependency:
 
 ### Suggested refactor targets (highest impact first)
 1. Continue splitting `useWorkflowDetailController` into focused hooks/modules (`useWorkflowJobStream`, `useWorkflowOutputModalState`, `useWorkflowRunPipeline`) after extracting `useWorkflowAutoTagSettings`.
-2. Split `GalleryWorkspace` follow-up composition surfaces (`GalleryFiltersController`, `GalleryActionsController`, `GalleryModalController`) now that controller extraction exists.
+2. Continue `GalleryWorkspace` follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after extracting `GalleryModalController`.
 3. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
 4. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.
 5. Maintain strict reachability checks for `ui/*` primitives to keep shared surface minimal.
