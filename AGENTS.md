@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: finalize `useWorkflowDetailController` orchestration boundaries after sub-hook extractions (remaining prefill/default-loading wiring) and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
+- Continue frontend phase-2 hardening after phase-1 modularization: finalize `useWorkflowDetailController` orchestration boundaries after sub-hook extractions (remaining composition/wiring decisions) and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued workflow controller decomposition (v0.9.24): extracted workflow input synchronization concerns (workflow detail loading, dirty/default merge behavior, prefill application, and input-change tracking) from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowInputState.ts`, reducing controller orchestration size while preserving behavior.
+- Updated frontend architecture/refactor docs for input-state extraction progress (v0.9.24): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and remaining orchestration decisions.
+- Bumped package/app version to `0.9.24` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued workflow controller decomposition (v0.9.23): extracted output image cache/fallback/loading concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowOutputCache.ts`, isolating output cache fetch logic while preserving behavior.
 - Updated frontend architecture/refactor docs for output-cache extraction progress (v0.9.23): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and remaining orchestration decisions.
 - Bumped package/app version to `0.9.23` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.24] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting workflow input synchronization concerns (detail loading, dirty/default merge behavior, prefill application, and input-change tracking) from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowInputState.ts`.
+- Reduced `useWorkflowDetailController` complexity further while preserving behavior and its public result contract used by `WorkflowDetail`.
+- Updated frontend architecture/refactor docs to reflect the new input-state hook layer and remaining orchestration decisions.
+- Bumped app version to `0.9.24` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.23] - 2026-02-11
 
 ### Changed
