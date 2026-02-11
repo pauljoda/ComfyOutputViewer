@@ -33,11 +33,7 @@ Progress snapshot:
 - Status: Fixed (`event.target.value = ''` reset after capture).
 
 ### Remaining review backlog (pending)
-1. `ImageModal` prompt fetch path still has room for cancellation hardening in secondary prompt-open fetch path.
-- File: `src/client/components/ImageModal.tsx`
-- Plan: unify request lifecycle with `AbortController` ref in phase 2.
-
-2. `useWorkflowDetailController` is now the primary complexity hotspot and should be split into focused hooks/modules.
+1. `useWorkflowDetailController` is now the primary complexity hotspot and should be split into focused hooks/modules.
 - File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
 - Plan: split auto-tag, job stream/polling, and output modal state into dedicated hooks in phase 2.
 
@@ -49,6 +45,10 @@ Progress snapshot:
 2. Stage-click dismiss behavior decision for `ImageModal`.
 - File: `src/client/components/ImageModal.tsx`
 - Status: Fixed; blank stage clicks now dismiss while preserving existing close paths.
+
+3. `ImageModal` prompt fetch cancellation in secondary prompt-open path.
+- File: `src/client/components/ImageModal.tsx`
+- Status: Fixed by unifying prompt request lifecycle (shared abort/stale-guard path for preload and prompt-open retry).
 
 ## 2) Cleanup Started In This Pass
 
@@ -287,7 +287,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Patch remaining `ImageModal` prompt-fetch cancellation hardening.
-2. Split `useWorkflowDetailController` into smaller hooks/modules (auto-tag, jobs, output modal state).
-3. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
-4. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.
+1. Split `useWorkflowDetailController` into smaller hooks/modules (auto-tag, jobs, output modal state).
+2. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
+3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.

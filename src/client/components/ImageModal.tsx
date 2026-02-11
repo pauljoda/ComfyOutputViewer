@@ -94,44 +94,62 @@ export default function ImageModal({
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [promptAvailable, setPromptAvailable] = useState(false);
+  const promptRequestAbortRef = useRef<AbortController | null>(null);
+  const promptRequestIdRef = useRef(0);
+  const modalToolRef = useRef(modalTool);
 
-  const loadPromptData = async (signal?: AbortSignal) => {
+  modalToolRef.current = modalTool;
+
+  const cancelPromptRequest = () => {
+    promptRequestAbortRef.current?.abort();
+    promptRequestAbortRef.current = null;
+  };
+
+  const loadPromptData = async () => {
+    cancelPromptRequest();
+    const controller = new AbortController();
+    promptRequestAbortRef.current = controller;
+    const requestId = ++promptRequestIdRef.current;
     try {
       setPromptLoading(true);
       setPromptError(null);
       const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
-        signal
+        signal: controller.signal
       });
+      if (controller.signal.aborted || requestId !== promptRequestIdRef.current) return;
       setPromptData(data);
       setPromptAvailable(true);
     } catch (err) {
-      if (signal?.aborted) return;
+      if (controller.signal.aborted || requestId !== promptRequestIdRef.current) return;
       setPromptAvailable(false);
       setPromptData(null);
-      if (modalTool === 'prompt') {
+      if (modalToolRef.current === 'prompt') {
         setPromptError(err instanceof Error ? err.message : 'No prompt data found');
       }
     } finally {
-      if (!signal?.aborted) {
+      if (!controller.signal.aborted && requestId === promptRequestIdRef.current) {
         setPromptLoading(false);
+      }
+      if (promptRequestAbortRef.current === controller) {
+        promptRequestAbortRef.current = null;
       }
     }
   };
 
   useEffect(() => {
-    const controller = new AbortController();
+    cancelPromptRequest();
     setPromptAvailable(false);
     setPromptData(null);
     setPromptError(null);
-    loadPromptData(controller.signal);
-    return () => controller.abort();
+    void loadPromptData();
+    return () => cancelPromptRequest();
   }, [image.id]);
 
   useEffect(() => {
-    if (modalTool === 'prompt' && promptAvailable && !promptData && !promptLoading) {
-      loadPromptData();
+    if (modalTool === 'prompt' && !promptData && !promptLoading && !promptError) {
+      void loadPromptData();
     }
-  }, [modalTool, promptAvailable, promptData, promptLoading]);
+  }, [modalTool, promptData, promptLoading, promptError]);
 
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);

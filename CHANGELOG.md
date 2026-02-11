@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.16] - 2026-02-11
+
+### Fixed
+- Hardened `ImageModal` prompt metadata fetching by unifying preload and prompt-open retry through a shared abort/stale-safe request lifecycle in `src/client/components/ImageModal.tsx`, preventing stale responses from prior images and ensuring retry paths use the same cancellation safeguards.
+
+### Added
+- Added `src/client/components/ImageModal.test.tsx` coverage for prompt request cancellation across image changes and prompt-open retry behavior after silent preload failure.
+
+### Changed
+- Updated frontend cleanup planning notes in `docs/frontend-refactor-plan.md` to mark `ImageModal` prompt-fetch cancellation hardening as completed and keep focus on workflow-controller decomposition + gallery follow-up cleanup.
+- Bumped app version to `0.9.16` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.15] - 2026-02-11
 
 ### Added
