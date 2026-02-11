@@ -77,6 +77,7 @@ function buildMockGeneratingState(row) {
 }
 
 const TEXT_INPUT_TYPES = new Set(['text', 'negative', 'number', 'seed']);
+const AUTO_TAG_INPUT_TYPES = new Set(['text', 'negative']);
 
 function normalizeLookupKey(value) {
   return String(value || '').trim().toLowerCase();
@@ -190,6 +191,67 @@ function resolveTriggeredInputValues(workflowInputs, body, options = {}) {
     }
   }
   return inputValuesMap;
+}
+
+function normalizeAutoTagInputRefs(inputRefs) {
+  if (!Array.isArray(inputRefs)) return [];
+  const seen = new Set();
+  const normalized = [];
+  for (const entry of inputRefs) {
+    if (typeof entry !== 'string') continue;
+    const value = entry.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
+function parseAutoTagInputRefs(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return normalizeAutoTagInputRefs(rawValue);
+  }
+  if (typeof rawValue !== 'string') return [];
+  try {
+    const parsed = JSON.parse(rawValue);
+    return normalizeAutoTagInputRefs(parsed);
+  } catch {
+    return [];
+  }
+}
+
+function workflowAutoTagInputRef(input) {
+  if (!input || typeof input !== 'object') return '';
+  const nodeId = typeof input.node_id === 'string' ? input.node_id.trim() : '';
+  const inputKey = typeof input.input_key === 'string' ? input.input_key.trim() : '';
+  if (!nodeId || !inputKey) return '';
+  return `${nodeId}:${inputKey}`;
+}
+
+function sanitizeAutoTagInputRefsForWorkflow(workflowInputs, inputRefs) {
+  const allowedRefs = new Set();
+  for (const input of workflowInputs) {
+    if (!AUTO_TAG_INPUT_TYPES.has(input.input_type)) continue;
+    const ref = workflowAutoTagInputRef(input);
+    if (ref) allowedRefs.add(ref);
+  }
+  if (allowedRefs.size === 0) return [];
+  return normalizeAutoTagInputRefs(inputRefs).filter((ref) => allowedRefs.has(ref));
+}
+
+function mapWorkflowRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    apiJson: JSON.parse(row.api_json),
+    autoTagEnabled: Boolean(row.auto_tag_enabled),
+    autoTagInputRefs: parseAutoTagInputRefs(row.auto_tag_input_refs),
+    folderId: row.folder_id,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }
 
 function applyTextInputsToPrompt(promptJson, workflowInputs, inputValuesMap) {
@@ -365,16 +427,7 @@ app.get('/api/workflows', async (_req, res) => {
   try {
     const workflows = [];
     for (const row of statements.selectWorkflows.iterate()) {
-      workflows.push({
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        apiJson: JSON.parse(row.api_json),
-        folderId: row.folder_id,
-        sortOrder: row.sort_order,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      });
+      workflows.push(mapWorkflowRow(row));
     }
     res.json({ workflows });
   } catch (err) {
@@ -390,16 +443,7 @@ app.get('/api/workflows/:id', async (req, res) => {
     if (!row) {
       return res.status(404).send('Workflow not found');
     }
-    const workflow = {
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      apiJson: JSON.parse(row.api_json),
-      folderId: row.folder_id,
-      sortOrder: row.sort_order,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at
-    };
+    const workflow = mapWorkflowRow(row);
     const inputs = [];
     for (const inputRow of statements.selectWorkflowInputs.iterate(workflowId)) {
       inputs.push({
@@ -532,6 +576,45 @@ app.put('/api/workflows/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update workflow');
+  }
+});
+
+app.put('/api/workflows/:id/auto-tag', async (req, res) => {
+  try {
+    const workflowId = Number(req.params.id);
+    const existing = statements.selectWorkflowById.get(workflowId);
+    if (!existing) {
+      return res.status(404).send('Workflow not found');
+    }
+
+    const workflowInputs = [];
+    for (const row of statements.selectWorkflowInputs.iterate(workflowId)) {
+      workflowInputs.push(row);
+    }
+
+    const body = req.body || {};
+    const existingRefs = parseAutoTagInputRefs(existing.auto_tag_input_refs);
+    const requestedRefs =
+      body.inputRefs === undefined ? existingRefs : normalizeAutoTagInputRefs(body.inputRefs);
+    const sanitizedRefs = sanitizeAutoTagInputRefsForWorkflow(workflowInputs, requestedRefs);
+
+    const nextEnabled =
+      typeof body.enabled === 'boolean' ? body.enabled : Boolean(existing.auto_tag_enabled);
+    const now = Date.now();
+    statements.updateWorkflowAutoTag.run(
+      nextEnabled ? 1 : 0,
+      JSON.stringify(sanitizedRefs),
+      now,
+      workflowId
+    );
+
+    res.json({
+      ok: true,
+      autoTagEnabled: nextEnabled,
+      autoTagInputRefs: sanitizedRefs
+    });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to update auto-tag settings');
   }
 });
 

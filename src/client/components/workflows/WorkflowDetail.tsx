@@ -39,6 +39,9 @@ export default function WorkflowDetail({
   const { availableTags, refreshTags } = useTags();
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
+  const [autoTagEnabled, setAutoTagEnabled] = useState(false);
+  const [autoTagInputRefs, setAutoTagInputRefs] = useState<Set<string>>(new Set());
+  const [autoTagSaving, setAutoTagSaving] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
   const [exportApiOpen, setExportApiOpen] = useState(false);
@@ -62,6 +65,19 @@ export default function WorkflowDetail({
 
   workflowIdRef.current = workflow.id;
 
+  const autoTagEligibleInputs = useMemo(
+    () => inputs.filter((input) => input.inputType === 'text' || input.inputType === 'negative'),
+    [inputs]
+  );
+
+  const defaultAutoTagRefs = useMemo(
+    () =>
+      autoTagEligibleInputs
+        .filter((input) => input.inputType !== 'negative')
+        .map((input) => `${input.nodeId}:${input.inputKey}`),
+    [autoTagEligibleInputs]
+  );
+
   useEffect(() => {
     return () => {
       pendingJobRefetchTimeoutsRef.current.forEach((timeoutId) => {
@@ -69,6 +85,12 @@ export default function WorkflowDetail({
       });
       pendingJobRefetchTimeoutsRef.current.clear();
     };
+  }, [workflow.id]);
+
+  useEffect(() => {
+    setAutoTagEnabled(Boolean(workflow.autoTagEnabled));
+    setAutoTagInputRefs(new Set(workflow.autoTagInputRefs || []));
+    setAutoTagSaving(false);
   }, [workflow.id]);
 
   const mergeJobUpdate = useCallback((job: Job) => {
@@ -131,6 +153,8 @@ export default function WorkflowDetail({
       );
       if (workflowIdRef.current !== workflowId) return;
       setInputs(response.inputs);
+      setAutoTagEnabled(Boolean(response.workflow.autoTagEnabled));
+      setAutoTagInputRefs(new Set(response.workflow.autoTagInputRefs || []));
       // Initialize input values with defaults
       const defaults: Record<number, string> = {};
       for (const input of response.inputs) {
@@ -349,6 +373,86 @@ export default function WorkflowDetail({
       setInputTool(null);
     }
   }, [selectedInputPath]);
+
+  const buildOrderedAutoTagRefs = useCallback(
+    (refs: Set<string>) => {
+      const rank = new Map(
+        autoTagEligibleInputs.map((input, index) => [`${input.nodeId}:${input.inputKey}`, index])
+      );
+      return [...refs].sort((a, b) => {
+        const rankA = rank.get(a);
+        const rankB = rank.get(b);
+        if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+        if (rankA !== undefined) return -1;
+        if (rankB !== undefined) return 1;
+        return a.localeCompare(b);
+      });
+    },
+    [autoTagEligibleInputs]
+  );
+
+  const persistAutoTagSettings = useCallback(
+    async (enabled: boolean, refs: Set<string>) => {
+      setAutoTagSaving(true);
+      try {
+        const orderedRefs = buildOrderedAutoTagRefs(refs);
+        const response = await api<{ autoTagEnabled: boolean; autoTagInputRefs: string[] }>(
+          `/api/workflows/${workflow.id}/auto-tag`,
+          {
+            method: 'PUT',
+            body: JSON.stringify({
+              enabled,
+              inputRefs: orderedRefs
+            })
+          }
+        );
+        setAutoTagEnabled(Boolean(response.autoTagEnabled));
+        setAutoTagInputRefs(new Set(response.autoTagInputRefs || []));
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save auto-tag settings');
+      } finally {
+        setAutoTagSaving(false);
+      }
+    },
+    [buildOrderedAutoTagRefs, workflow.id]
+  );
+
+  const handleToggleAutoTagEnabled = useCallback(() => {
+    const nextEnabled = !autoTagEnabled;
+    let nextRefs = new Set(autoTagInputRefs);
+    if (nextEnabled && nextRefs.size === 0) {
+      const fallbackRefs =
+        defaultAutoTagRefs.length > 0
+          ? defaultAutoTagRefs
+          : autoTagEligibleInputs.map((input) => `${input.nodeId}:${input.inputKey}`);
+      nextRefs = new Set(fallbackRefs);
+    }
+    setAutoTagEnabled(nextEnabled);
+    setAutoTagInputRefs(nextRefs);
+    void persistAutoTagSettings(nextEnabled, nextRefs);
+  }, [
+    autoTagEnabled,
+    autoTagInputRefs,
+    autoTagEligibleInputs,
+    defaultAutoTagRefs,
+    persistAutoTagSettings
+  ]);
+
+  const handleToggleAutoTagInput = useCallback(
+    (input: WorkflowInput) => {
+      const ref = `${input.nodeId}:${input.inputKey}`;
+      const nextRefs = new Set(autoTagInputRefs);
+      if (nextRefs.has(ref)) {
+        nextRefs.delete(ref);
+      } else {
+        nextRefs.add(ref);
+      }
+      setAutoTagInputRefs(nextRefs);
+      void persistAutoTagSettings(autoTagEnabled, nextRefs);
+    },
+    [autoTagEnabled, autoTagInputRefs, persistAutoTagSettings]
+  );
 
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
@@ -743,6 +847,74 @@ export default function WorkflowDetail({
         </section>
       ) : (
         <section className="space-y-4">
+          <div className="space-y-3 rounded-md border border-border/70 bg-muted/20 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Auto-Tag On Generate</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Automatically applies tags to each generated image after it is saved, using the
+                  selected text inputs below.
+                </p>
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  Best results require comma-separated prompts (for example: "portrait, cinematic
+                  lighting, dramatic").
+                </p>
+              </div>
+              <label className="flex shrink-0 items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={autoTagEnabled}
+                  onChange={handleToggleAutoTagEnabled}
+                  disabled={autoTagSaving || autoTagEligibleInputs.length === 0}
+                  className="accent-primary"
+                />
+                Enabled
+              </label>
+            </div>
+
+            {autoTagEligibleInputs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No text inputs are configured for this workflow yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Use these inputs for auto-tag extraction
+                </div>
+                <div className="max-h-36 overflow-y-auto rounded-md border border-border/70 bg-background/50 p-2">
+                  <div className="space-y-2">
+                    {autoTagEligibleInputs.map((input) => {
+                      const ref = `${input.nodeId}:${input.inputKey}`;
+                      const displayLabel = input.label?.trim() || input.inputKey;
+                      const showSystemLabel = displayLabel !== input.inputKey;
+                      return (
+                        <label key={input.id} className="flex items-center gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={autoTagInputRefs.has(ref)}
+                            onChange={() => handleToggleAutoTagInput(input)}
+                            disabled={autoTagSaving}
+                            className="accent-primary"
+                          />
+                          <span className="font-medium">{displayLabel}</span>
+                          {showSystemLabel && (
+                            <span className="text-muted-foreground">{input.inputKey}</span>
+                          )}
+                          <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
+                            {input.inputType}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+            {autoTagSaving && (
+              <p className="text-xs text-muted-foreground">Saving auto-tag settings...</p>
+            )}
+          </div>
+
           <h3 className="text-sm font-semibold">Inputs</h3>
           {inputs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No inputs configured for this workflow.</p>

@@ -13,7 +13,7 @@ type GalleryProps = {
   columns: number;
   multiSelect: boolean;
   selectedIds: Set<string>;
-  onSelectImage: (id: string) => void;
+  onSelectImage: (id: string, options?: { shiftKey?: boolean }) => void;
   onToggleFavorite: (image: ImageItem) => void;
   onToggleHidden: (image: ImageItem) => void;
 };

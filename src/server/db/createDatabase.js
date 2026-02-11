@@ -32,6 +32,8 @@ export function createDatabase(dbPath) {
       name TEXT NOT NULL,
       description TEXT,
       api_json TEXT NOT NULL,
+      auto_tag_enabled INTEGER NOT NULL DEFAULT 0,
+      auto_tag_input_refs TEXT NOT NULL DEFAULT '[]',
       folder_id INTEGER REFERENCES workflow_folders(id) ON DELETE SET NULL,
       sort_order INTEGER DEFAULT 0,
       created_at INTEGER NOT NULL,
@@ -89,6 +91,8 @@ export function createDatabase(dbPath) {
     'INTEGER REFERENCES workflow_folders(id) ON DELETE SET NULL'
   );
   ensureWorkflowColumn(database, 'sort_order', 'INTEGER DEFAULT 0');
+  ensureWorkflowColumn(database, 'auto_tag_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureWorkflowColumn(database, "auto_tag_input_refs", "TEXT NOT NULL DEFAULT '[]'");
 
   const statements = prepareStatements(database);
   const runTransaction = createTransactionRunner(database);
@@ -187,22 +191,25 @@ function prepareStatements(database) {
     deleteWorkflowFolder: database.prepare('DELETE FROM workflow_folders WHERE id = ?'),
     // Workflow statements
     selectWorkflows: database.prepare(
-      'SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows ORDER BY (folder_id IS NOT NULL), folder_id ASC, sort_order ASC, name ASC'
+      'SELECT id, name, description, api_json, auto_tag_enabled, auto_tag_input_refs, folder_id, sort_order, created_at, updated_at FROM workflows ORDER BY (folder_id IS NOT NULL), folder_id ASC, sort_order ASC, name ASC'
     ),
     selectWorkflowById: database.prepare(
-      'SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE id = ?'
+      'SELECT id, name, description, api_json, auto_tag_enabled, auto_tag_input_refs, folder_id, sort_order, created_at, updated_at FROM workflows WHERE id = ?'
     ),
     selectWorkflowsByFolder: database.prepare(
-      'SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id = ? ORDER BY sort_order ASC, name ASC'
+      'SELECT id, name, description, api_json, auto_tag_enabled, auto_tag_input_refs, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id = ? ORDER BY sort_order ASC, name ASC'
     ),
     selectWorkflowsWithoutFolder: database.prepare(
-      'SELECT id, name, description, api_json, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id IS NULL ORDER BY sort_order ASC, name ASC'
+      'SELECT id, name, description, api_json, auto_tag_enabled, auto_tag_input_refs, folder_id, sort_order, created_at, updated_at FROM workflows WHERE folder_id IS NULL ORDER BY sort_order ASC, name ASC'
     ),
     insertWorkflow: database.prepare(
       'INSERT INTO workflows (name, description, api_json, folder_id, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ),
     updateWorkflow: database.prepare(
       'UPDATE workflows SET name = ?, description = ?, api_json = ?, updated_at = ? WHERE id = ?'
+    ),
+    updateWorkflowAutoTag: database.prepare(
+      'UPDATE workflows SET auto_tag_enabled = ?, auto_tag_input_refs = ?, updated_at = ? WHERE id = ?'
     ),
     updateWorkflowFolder: database.prepare(
       'UPDATE workflows SET folder_id = ?, updated_at = ? WHERE id = ?'

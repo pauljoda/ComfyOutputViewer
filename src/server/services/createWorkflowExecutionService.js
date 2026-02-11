@@ -16,6 +16,72 @@ export function createWorkflowExecutionService({
   clearJobTransient,
   getBroadcastJobUpdate
 }) {
+  const AUTO_TAG_INPUT_TYPES = new Set(['text', 'negative']);
+
+  function parsePromptTags(text) {
+    if (!text || typeof text !== 'string') return [];
+    const seen = new Set();
+    const tags = [];
+    for (const segment of text.split(',')) {
+      const cleaned = segment
+        .replace(/[[\](){}]/g, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (!cleaned || seen.has(cleaned)) continue;
+      seen.add(cleaned);
+      tags.push(cleaned);
+    }
+    return tags;
+  }
+
+  function parseAutoTagInputRefs(rawValue) {
+    if (typeof rawValue !== 'string') return [];
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (!Array.isArray(parsed)) return [];
+      const seen = new Set();
+      const refs = [];
+      for (const entry of parsed) {
+        if (typeof entry !== 'string') continue;
+        const value = entry.trim();
+        if (!value || seen.has(value)) continue;
+        seen.add(value);
+        refs.push(value);
+      }
+      return refs;
+    } catch {
+      return [];
+    }
+  }
+
+  function workflowInputRef(input) {
+    if (!input || typeof input !== 'object') return '';
+    const nodeId = typeof input.node_id === 'string' ? input.node_id.trim() : '';
+    const inputKey = typeof input.input_key === 'string' ? input.input_key.trim() : '';
+    if (!nodeId || !inputKey) return '';
+    return `${nodeId}:${inputKey}`;
+  }
+
+  function collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedRefsSet) {
+    if (!(selectedRefsSet instanceof Set) || selectedRefsSet.size === 0) return [];
+    const tags = [];
+    const seen = new Set();
+    for (const input of workflowInputs) {
+      if (!AUTO_TAG_INPUT_TYPES.has(input.input_type)) continue;
+      const ref = workflowInputRef(input);
+      if (!ref || !selectedRefsSet.has(ref)) continue;
+      const value = inputValuesMap.get(input.id);
+      if (typeof value !== 'string' || !value.trim()) continue;
+      for (const tag of parsePromptTags(value)) {
+        if (seen.has(tag)) continue;
+        seen.add(tag);
+        tags.push(tag);
+      }
+    }
+    return tags;
+  }
+
   async function fetchPromptHistory(promptId, { allowFallback = false } = {}) {
     const api = await getComfyApiReady();
     try {
@@ -88,6 +154,15 @@ export function createWorkflowExecutionService({
     }
     let recorded = 0;
     const thumbnailResult = { scanned: 0, copied: 0, thumbnails: 0 };
+    const workflowRow = statements.selectWorkflowById?.get?.(workflowId);
+    const autoTagEnabled = Boolean(workflowRow?.auto_tag_enabled);
+    const selectedAutoTagRefs = autoTagEnabled
+      ? new Set(parseAutoTagInputRefs(workflowRow?.auto_tag_input_refs))
+      : null;
+    const autoTags =
+      autoTagEnabled && selectedAutoTagRefs
+        ? collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedAutoTagRefs)
+        : [];
 
     for (const imgInfo of imageOutputs) {
       if (!imgInfo || !imgInfo.filename) continue;
@@ -183,6 +258,11 @@ export function createWorkflowExecutionService({
         }
         const promptData = { workflowId, inputs, inputJson };
         statements.insertImagePrompt.run(imagePath, jobId, JSON.stringify(promptData), now);
+        if (autoTags.length > 0 && statements.insertTag?.run) {
+          for (const tag of autoTags) {
+            statements.insertTag.run(imagePath, tag);
+          }
+        }
 
         recorded += 1;
         existingOutputs.add(imagePath);

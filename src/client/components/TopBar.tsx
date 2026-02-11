@@ -56,6 +56,7 @@ type TopBarProps = {
   onBulkDelete: () => void;
   onBulkTag: (tag: string) => void;
   onAutoTag: () => void;
+  onAutoTagView: () => void;
   onColumnsChange: (value: number) => void;
   onTileFitChange: (value: TileFit) => void;
   onSortModeChange: (value: SortMode) => void;
@@ -103,6 +104,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onBulkDelete,
       onBulkTag,
       onAutoTag,
+      onAutoTagView,
       onColumnsChange,
       onTileFitChange,
       onSortModeChange,
@@ -297,6 +299,15 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                 <Wand2 className="mr-1 h-3.5 w-3.5" />
                 Auto Tag
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAutoTagView}
+                disabled={imageCount === 0}
+              >
+                <Wand2 className="mr-1 h-3.5 w-3.5" />
+                Auto Tag View
+              </Button>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -333,21 +344,23 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
               </Button>
             </div>
             {bulkTagSuggestions.length > 0 && selectedCount > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {bulkTagSuggestions.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => {
-                      onBulkTag(tag);
-                      setBulkTagInput('');
-                    }}
-                    title="Tag selected"
-                    className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
-                  >
-                    {tag}
-                  </button>
-                ))}
+              <div className="max-h-28 overflow-y-auto rounded-md border border-border/70 bg-muted/20 p-1.5">
+                <div className="flex flex-wrap gap-1">
+                  {bulkTagSuggestions.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        onBulkTag(tag);
+                        setBulkTagInput('');
+                      }}
+                      title="Tag selected"
+                      className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             <datalist id="bulk-tag-suggestions">
@@ -490,22 +503,24 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                       </Button>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-1">
-                    {selectedTags.length === 0 && (
-                      <span className="text-xs text-muted-foreground">No tags selected.</span>
-                    )}
-                    {selectedTags.map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => onRemoveFilterTag(tag)}
-                        title="Remove tag"
-                        className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
-                      >
-                        {tag}
-                        <span aria-hidden="true">x</span>
-                      </button>
-                    ))}
+                  <div className="max-h-24 overflow-y-auto rounded-md border border-border/70 bg-muted/20 p-1.5">
+                    <div className="flex flex-wrap gap-1">
+                      {selectedTags.length === 0 && (
+                        <span className="text-xs text-muted-foreground">No tags selected.</span>
+                      )}
+                      {selectedTags.map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => onRemoveFilterTag(tag)}
+                          title="Remove tag"
+                          className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground hover:opacity-80"
+                        >
+                          {tag}
+                          <span aria-hidden="true">x</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
@@ -541,21 +556,23 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
                     </Button>
                   </div>
                   {filterSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {filterSuggestions.map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => {
-                            onAddFilterTag(tag);
-                            setTagInput('');
-                          }}
-                          title="Add tag"
-                          className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
-                        >
-                          {tag}
-                        </button>
-                      ))}
+                    <div className="max-h-28 overflow-y-auto rounded-md border border-border/70 bg-muted/20 p-1.5">
+                      <div className="flex flex-wrap gap-1">
+                        {filterSuggestions.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              onAddFilterTag(tag);
+                              setTagInput('');
+                            }}
+                            title="Add tag"
+                            className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground hover:bg-secondary/80"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                   <datalist id="tag-filter-suggestions">

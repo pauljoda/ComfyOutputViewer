@@ -54,7 +54,7 @@ describe('Gallery', () => {
     const cards = screen.getAllByRole('img');
     expect(cards).toHaveLength(2);
     fireEvent.click(cards[0].closest('[data-image-card="true"]')!);
-    expect(onSelectImage).toHaveBeenCalledWith('a');
+    expect(onSelectImage).toHaveBeenCalledWith('a', { shiftKey: false });
   });
 
   it('progressively renders large galleries in batches', () => {

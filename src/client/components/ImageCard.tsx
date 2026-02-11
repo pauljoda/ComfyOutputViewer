@@ -12,7 +12,7 @@ type ImageCardProps = {
   tileFit: TileFit;
   selected: boolean;
   multiSelect: boolean;
-  onSelectImage: (id: string) => void;
+  onSelectImage: (id: string, options?: { shiftKey?: boolean }) => void;
   onToggleFavorite: (image: ImageItem) => void;
   onToggleHidden: (image: ImageItem) => void;
   onImageLoad: (id: string, element: HTMLImageElement) => void;
@@ -49,15 +49,18 @@ function ImageCard({
     } as CSSProperties;
   }, [ratio, renderIndex, tileFit, tileSize]);
 
-  const handleSelect = useCallback(() => {
-    onSelectImage(image.id);
-  }, [image.id, onSelectImage]);
+  const handleSelect = useCallback(
+    (shiftKey = false) => {
+      onSelectImage(image.id, { shiftKey });
+    },
+    [image.id, onSelectImage]
+  );
 
   const handleCardKeyDown = useCallback(
     (event: KeyboardEvent<HTMLElement>) => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
-      handleSelect();
+      handleSelect(event.shiftKey);
     },
     [handleSelect]
   );
@@ -94,7 +97,7 @@ function ImageCard({
       role="button"
       tabIndex={0}
       aria-label={image.name}
-      onClick={handleSelect}
+      onClick={(event) => handleSelect(event.shiftKey)}
       onKeyDown={handleCardKeyDown}
       style={style}
     >

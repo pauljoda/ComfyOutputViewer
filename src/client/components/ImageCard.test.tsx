@@ -43,7 +43,7 @@ describe('ImageCard', () => {
 
     expect(onToggleFavorite).toHaveBeenCalledWith(image);
     expect(onToggleHidden).toHaveBeenCalledWith(image);
-    expect(onSelectImage).toHaveBeenCalledWith('img-1');
+    expect(onSelectImage).toHaveBeenCalledWith('img-1', { shiftKey: false });
   });
 
   it('falls back to original image when thumbnail fails', () => {

@@ -64,6 +64,7 @@ API endpoints:
 - `POST /api/workflows` -> create workflow with inputs
 - `GET /api/workflows/:id` -> get workflow with inputs and jobs
 - `PUT /api/workflows/:id` -> update workflow
+- `PUT /api/workflows/:id/auto-tag` -> update per-workflow auto-tag settings (`enabled`, selected text input refs)
 - `DELETE /api/workflows/:id` -> delete workflow
 - `POST /api/workflows/:id/run` -> execute workflow against ComfyUI
 - `GET /api/workflows/:id/trigger-schema` -> get external API schema for a workflow
@@ -88,6 +89,7 @@ Component modules live in `src/client/components`, with shared hooks/utilities i
 Key UI features:
 - App navigation with Gallery and Workflows tabs.
 - Top toolbar with icon buttons and a single active tool popover.
+- Multi-select supports shift-click range selection and includes both selected-only auto-tag and current-view auto-tag actions.
 - Drawer navigation for tag filters sorted by image count, plus an untagged view.
 - Image grid:
   - "Cover" mode: fixed square tiles with object-fit cover.
@@ -156,6 +158,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added workflow-scoped generate-time auto-tagging + gallery selection/tag-picker refinements (v0.9.9): added shift-click range selection in gallery multi-select (from current anchor or from view start when none), constrained gallery filter and multi-select tag chip pickers to fixed-height scrollable containers, added an `Auto Tag View` bulk action that auto-tags the entire current filtered view, added persistent workflow auto-tag settings (`PUT /api/workflows/:id/auto-tag`) with per-text-input selection + workflow-page explanatory/warning copy, extended workflow API payloads to return auto-tag settings, and applied automatic tag parsing during workflow output metadata save so UI/API/MCP generations honor the same workflow setting.
 - Prepared release/documentation + cross-platform install update (v0.9.8): rewrote README with modern GitHub-facing structure and expanded operational detail, added dedicated `docs/INSTALL.md`, added install scripts for Linux/macOS/Windows (`scripts/install-unix.sh`, `scripts/install-linux.sh`, `scripts/install-macos.sh`, `scripts/install-windows.ps1`, `scripts/install-windows.cmd`), switched `npm run start` to a cross-platform Node launcher (`scripts/start-production.mjs`), reused a shared runtime layout helper in flake install phase (`scripts/install-runtime-layout.sh`), removed a duplicate Vite `allowedHosts` key warning in `vite.config.ts`, refreshed `flake.nix` `npmDepsHash`, and added an explicit `LICENSE` file.
 - Added bulk auto-tag from metadata feature (v0.9.7): added "Auto Tag" button in multi-select toolbar that fetches prompt metadata for selected images, parses comma-separated prompt text into individual tags (stripping brackets, trimming, lowercasing), and presents a review modal with thumbnail rows and editable tag lists before bulk-applying. Added `POST /api/prompts/bulk` batch endpoint, `src/client/utils/promptTags.ts` parsing utility, and `src/client/components/AutoTagModal.tsx` review modal component.
 - Refined gallery tag filter controls and removed duplicate theme control (v0.9.6): changed left drawer tag selection to single-select behavior (clicking a tag selects only that tag; clicking it again clears), kept intentional multi-tag combinations in the filter tool panel, and removed theme selection from gallery filters because theme is already controlled in the global header.

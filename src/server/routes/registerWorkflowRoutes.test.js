@@ -32,6 +32,8 @@ function createBaseDeps(overrides = {}) {
         '10': { inputs: { prompt: 'old', seed: 1 } },
         '20': { inputs: { image: 'x.png' } }
       }),
+      auto_tag_enabled: 0,
+      auto_tag_input_refs: '[]',
       folder_id: null,
       sort_order: 0,
       created_at: 1,
@@ -71,6 +73,7 @@ function createBaseDeps(overrides = {}) {
     insertWorkflow: makeRun(() => ({ lastInsertRowid: 1 })),
     insertWorkflowInput: makeRun(),
     updateWorkflow: makeRun(),
+    updateWorkflowAutoTag: makeRun(),
     deleteWorkflowInputs: makeRun(),
     deleteJobInputsByWorkflowId: makeRun(),
     deleteWorkflow: makeRun(),
@@ -255,6 +258,29 @@ describe('registerWorkflowRoutes', () => {
     expect(response.body.fields[0].label).toBe('Prompt');
     expect(response.body.fields[0].type).toBe('text');
     expect(response.body.example).toHaveProperty('Prompt');
+  });
+
+  it('updates workflow auto-tag settings and filters unsupported refs', async () => {
+    const app = express();
+    app.use(express.json());
+    const { deps } = createBaseDeps();
+    registerWorkflowRoutes(app, deps);
+
+    const response = await request(app).put('/api/workflows/1/auto-tag').send({
+      enabled: true,
+      inputRefs: ['10:prompt', '20:image', '10:prompt', '']
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ok).toBe(true);
+    expect(response.body.autoTagEnabled).toBe(true);
+    expect(response.body.autoTagInputRefs).toEqual(['10:prompt']);
+    expect(deps.statements.updateWorkflowAutoTag.run).toHaveBeenCalledWith(
+      1,
+      JSON.stringify(['10:prompt']),
+      expect.any(Number),
+      1
+    );
   });
 
   it('trigger-schema returns 404 for missing workflow', async () => {

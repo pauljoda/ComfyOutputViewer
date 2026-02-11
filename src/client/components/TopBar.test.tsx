@@ -33,6 +33,8 @@ function createProps(overrides = {}) {
     onBulkRating: vi.fn(),
     onBulkDelete: vi.fn(),
     onBulkTag: vi.fn(),
+    onAutoTag: vi.fn(),
+    onAutoTagView: vi.fn(),
     onColumnsChange: vi.fn(),
     onTileFitChange: vi.fn(),
     onSortModeChange: vi.fn(),
@@ -74,11 +76,15 @@ describe('TopBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /^favorite$/i }));
     fireEvent.click(screen.getByRole('button', { name: /^hide$/i }));
     fireEvent.click(screen.getByRole('button', { name: /remove/i }));
+    fireEvent.click(screen.getByRole('button', { name: /auto tag$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /auto tag view/i }));
     fireEvent.click(screen.getByRole('button', { name: /tag all/i }));
 
     expect(props.onBulkFavorite).toHaveBeenCalled();
     expect(props.onBulkHidden).toHaveBeenCalled();
     expect(props.onBulkDelete).toHaveBeenCalled();
+    expect(props.onAutoTag).toHaveBeenCalled();
+    expect(props.onAutoTagView).toHaveBeenCalled();
   });
 
   it('shows filter suggestions and dismisses popover on outside pointer', () => {

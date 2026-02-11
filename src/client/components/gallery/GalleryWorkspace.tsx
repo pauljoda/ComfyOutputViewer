@@ -32,6 +32,7 @@ import {
   setTags
 } from '../../lib/imagesApi';
 import { clamp, filterImages, sortImages } from '../../utils/images';
+import { toggleSelectionWithRange } from '../../utils/selection';
 import { normalizeTagInput, normalizeTags } from '../../utils/tags';
 import {
   booleanSerializer,
@@ -105,6 +106,7 @@ export default function GalleryWorkspace() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [multiSelect, setMultiSelect] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [modalTool, setModalTool] = useState<ModalTool>(null);
@@ -132,7 +134,7 @@ export default function GalleryWorkspace() {
   );
 
   // Auto-tag state
-  const [showAutoTag, setShowAutoTag] = useState(false);
+  const [autoTagScope, setAutoTagScope] = useState<'selected' | 'view' | null>(null);
 
   // Slideshow state
   const [showSlideshowSettings, setShowSlideshowSettings] = useState(false);
@@ -233,8 +235,16 @@ export default function GalleryWorkspace() {
   useEffect(() => {
     if (!multiSelect) {
       setSelectedIds([]);
+      setSelectionAnchorId(null);
     }
   }, [multiSelect]);
+
+  useEffect(() => {
+    if (!selectionAnchorId) return;
+    if (!filteredImages.some((image) => image.id === selectionAnchorId)) {
+      setSelectionAnchorId(null);
+    }
+  }, [filteredImages, selectionAnchorId]);
 
   const handleToggleFavorite = useCallback(async (image: ImageItem) => {
     const nextValue = !image.favorite;
@@ -352,14 +362,27 @@ export default function GalleryWorkspace() {
     });
   };
 
-  const handleToggleSelectedId = useCallback((imageId: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(imageId) ? prev.filter((id) => id !== imageId) : [...prev, imageId]
-    );
-  }, []);
+  const handleToggleSelectedId = useCallback(
+    (imageId: string, options?: { shiftKey?: boolean }) => {
+      const orderedIds = filteredImages.map((image) => image.id);
+      setSelectedIds((prev) => {
+        const next = toggleSelectionWithRange({
+          orderedIds,
+          selectedIds: prev,
+          clickedId: imageId,
+          anchorId: selectionAnchorId,
+          shiftKey: options?.shiftKey
+        });
+        setSelectionAnchorId(next.anchorId);
+        return next.selectedIds;
+      });
+    },
+    [filteredImages, selectionAnchorId]
+  );
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds([]);
+    setSelectionAnchorId(null);
   }, []);
 
   const handleUpdateTags = useCallback(async (imageId: string, nextTags: string[]) => {
@@ -456,6 +479,7 @@ export default function GalleryWorkspace() {
     const paths = [...selectedIds];
     const selection = new Set(paths);
     setSelectedIds([]);
+    setSelectionAnchorId(null);
     setData((prev) => ({
       ...prev,
       images: prev.images.filter((item) => !selection.has(item.id))
@@ -495,11 +519,16 @@ export default function GalleryWorkspace() {
 
   const handleOpenAutoTag = useCallback(() => {
     if (!selectedCount) return;
-    setShowAutoTag(true);
+    setAutoTagScope('selected');
   }, [selectedCount]);
 
+  const handleOpenAutoTagView = useCallback(() => {
+    if (!filteredImages.length) return;
+    setAutoTagScope('view');
+  }, [filteredImages.length]);
+
   const handleAutoTagApply = useCallback(async (updates: Array<{ path: string; tags: string[] }>) => {
-    setShowAutoTag(false);
+    setAutoTagScope(null);
     if (updates.length === 0) return;
     const normalized = updates.map((u) => ({ path: u.path, tags: normalizeTags(u.tags) }));
     const updateMap = new Map(normalized.map((entry) => [entry.path, entry.tags]));
@@ -618,13 +647,16 @@ export default function GalleryWorkspace() {
   const galleryTileFit: TileFit =
     selectedTags.length > 0 || showUntagged ? 'cover' : tileFit;
 
-  const handleSelectImage = useCallback((imageId: string) => {
-    if (multiSelect) {
-      handleToggleSelectedId(imageId);
-    } else {
-      setSelectedId(imageId);
-    }
-  }, [handleToggleSelectedId, multiSelect]);
+  const handleSelectImageWithOptions = useCallback(
+    (imageId: string, options?: { shiftKey?: boolean }) => {
+      if (multiSelect) {
+        handleToggleSelectedId(imageId, options);
+      } else {
+        setSelectedId(imageId);
+      }
+    },
+    [handleToggleSelectedId, multiSelect]
+  );
 
   return (
     <div
@@ -666,6 +698,7 @@ export default function GalleryWorkspace() {
         onBulkDelete={handleBulkDelete}
         onBulkTag={handleBulkTag}
         onAutoTag={handleOpenAutoTag}
+        onAutoTagView={handleOpenAutoTagView}
         onColumnsChange={setColumns}
         onTileFitChange={setTileFit}
         onSortModeChange={setSortMode}
@@ -715,7 +748,7 @@ export default function GalleryWorkspace() {
         columns={effectiveColumns}
         multiSelect={multiSelect}
         selectedIds={selectedIdSet}
-        onSelectImage={handleSelectImage}
+        onSelectImage={handleSelectImageWithOptions}
         onToggleFavorite={handleToggleFavorite}
         onToggleHidden={handleToggleHidden}
       />
@@ -747,12 +780,16 @@ export default function GalleryWorkspace() {
         />
       )}
 
-      {showAutoTag && (
+      {autoTagScope && (
         <AutoTagModal
-          images={data.images.filter((img) => selectedIdSet.has(img.id))}
+          images={
+            autoTagScope === 'selected'
+              ? data.images.filter((img) => selectedIdSet.has(img.id))
+              : filteredImages
+          }
           availableTags={availableTags}
           onApply={handleAutoTagApply}
-          onClose={() => setShowAutoTag(false)}
+          onClose={() => setAutoTagScope(null)}
         />
       )}
 

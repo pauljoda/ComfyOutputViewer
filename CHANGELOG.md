@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.9] - 2026-02-11
+
+### Added
+- Added shift-click range selection in gallery multi-select mode: shift-click now selects all images between the current anchor selection and the clicked image (or from the start of the current filtered view when no anchor exists).
+- Added a new multi-select toolbar action, `Auto Tag View`, to auto-tag every image in the current filtered view without manually selecting each image.
+- Added persistent workflow auto-tag settings with a new endpoint: `PUT /api/workflows/:id/auto-tag` (enable/disable plus selected text-input refs).
+- Added workflow-page auto-tag configuration UI with per-input selection and explanatory copy, including a warning that comma-separated prompts are required for reliable tag parsing.
+- Added server-side generation auto-tagging on output save, applying workflow-selected text fields to generated images so UI runs, API triggers, and MCP-triggered runs share the same behavior.
+
+### Changed
+- Extended workflow API payloads (`GET /api/workflows`, `GET /api/workflows/:id`) to include `autoTagEnabled` and `autoTagInputRefs`.
+- Added workflow DB fields (`auto_tag_enabled`, `auto_tag_input_refs`) with migration-safe initialization for existing databases.
+
+### Fixed
+- Constrained top-bar tag chip areas in gallery filters and multi-select tools to fixed-height, scrollable containers so large tag lists no longer expand to fill the viewport.
+
 ## [0.9.8] - 2026-02-11
 
 ### Added
