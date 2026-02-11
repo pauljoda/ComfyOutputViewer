@@ -1,149 +1,97 @@
 # Comfy Output Viewer
 
-A powerful, self-hosted gallery and workflow management tool for ComfyUI. Organize your AI-generated images with ratings, tags, and favorites. Run workflows directly from the browser with full parameter control.
+<p align="left">
+  <a href="https://nodejs.org/"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-5FA04E?logo=node.js&logoColor=white"></a>
+  <a href="./flake.nix"><img alt="Nix Flake" src="https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white"></a>
+  <a href="./CHANGELOG.md"><img alt="Changelog" src="https://img.shields.io/badge/Changelog-Keep%20a%20Changelog-F08D49"></a>
+  <a href="./LICENSE"><img alt="License MIT" src="https://img.shields.io/badge/License-MIT-2EA043"></a>
+</p>
 
-Built with React + TypeScript frontend and Node.js/Express backend with SQLite storage.
+A local-first gallery and workflow runner for ComfyUI outputs.
 
-![screenshot1](screenshots/screenshot1.png)
+- Browse, rate, tag, favorite, hide, and bulk-manage large image libraries.
+- Import ComfyUI API JSON workflows and run them from the browser.
+- Track jobs with live status/progress and attach outputs back into the gallery.
+- Expose workflows through HTTP trigger and MCP tools for AI agents.
 
-![screenshot2](screenshots/screenshot2.png)
+<p>
+  <img src="screenshots/screenshot1.png" alt="Gallery view" width="49%" />
+  <img src="screenshots/screenshot2.png" alt="Workflow view" width="49%" />
+</p>
 
-## Features
+## Table of Contents
+
+- [Highlights](#highlights)
+- [Architecture](#architecture)
+- [Install](#install)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [API Reference](#api-reference)
+- [Development](#development)
+- [Testing](#testing)
+- [Release Workflow](#release-workflow)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+## Highlights
 
 ### Gallery
 
-- **Image Management** — Syncs images from your ComfyUI output folder into a separate data directory for independent organization. Source folder remains read-only.
-- **Ratings & Favorites** — Rate images on a 5-star scale and mark favorites for quick filtering.
-- **Tagging System** — Create custom tags for flexible organization. Filter by tags or view untagged images.
-- **Hide & Delete** — Hide images to filter them out by default (reversible), or delete them entirely. Deleted images are blacklisted to prevent re-import on future syncs.
-- **Sorting & Filtering** — Sort by date created, modified, name, size, or rating. Filter by favorites, ratings, tags, or hidden status.
-- **Grid Customization** — Adjustable column count (1-12 or auto) with cover or contain fit modes.
-- **Detail View** — Full-resolution image viewer with zoom/pan support. Swipe navigation on mobile, keyboard navigation on desktop.
-- **Download** — Download images directly to your device.
-- **Multi-Select** — Bulk operations for favorites, ratings, tags, hide, and delete.
+- Sync from a read-only ComfyUI output source into an independent managed data directory.
+- Tag system with drawer navigation, single-select drawer behavior, and multi-tag filter tools.
+- Favorites, hidden state, ratings (0-5), and bulk actions.
+- Bulk auto-tag from prompt metadata with review-and-edit modal before apply.
+- Fast thumbnail browsing with detail modal zoom/pan and mobile-friendly navigation.
+- Slideshow mode based on current filters/sort.
 
-### Slideshow
+### Workflows
 
-- **Filtered Slideshows** — Turn any gallery view into a slideshow, respecting current filters and sort order.
-- **Playback Modes** — Fixed interval, random interval range, or manual navigation.
-- **Shuffle** — Play in order or randomized.
-- **Progress Indicator** — Optional progress bar showing time until next slide.
-- **Pause Control** — Click or tap anywhere to pause/resume.
-- **Smooth Transitions** — Fade transitions with intelligent preloading.
+- Import API-format ComfyUI workflow JSON and select editable inputs.
+- Run workflows with text/number/seed/image inputs.
+- Job history with queued/running/completed/error/cancelled states.
+- Output previews linked to synced gallery images.
+- Workflow organization with folders and reorder controls.
 
-### Workflow Import & Execution
+### Integrations
 
-- **Direct Execution** — Run ComfyUI workflows directly from the browser.
-- **Easy Import** — Export workflows as API format from ComfyUI and import the JSON.
-- **Parameter Overrides** — Select any node value to expose as an editable field in the UI. Add custom labels without affecting the workflow sent to ComfyUI.
-- **Job Monitoring** — Track generation progress in real-time via WebSocket connection.
-- **Auto-Import Results** — Generated images are automatically synced and linked to their workflow inputs.
-- **Prompt Viewing** — View the exact prompt and settings that created any image generated in-app.
-- **Workflow Prefill** — Load a workflow with values pre-filled from a previously generated image.
-- **Multiple Workflows** — Import and manage as many workflows as you need.
+- External workflow trigger API (`/api/workflows/:id/trigger`) with trigger schema endpoint.
+- MCP server support at `/mcp` (Streamable HTTP) plus legacy SSE endpoints.
+- MCP tools: `list_workflows`, `run_workflow`, `get_job_status`.
 
-### Theming
+## Architecture
 
-- **Light, Dark, and System** — Three theme modes with automatic system preference detection.
-- **Modern Design** — Glassmorphism panels, orange/violet accent palette, Inter font, and smooth micro-interactions throughout.
+- **Frontend**: React 18 + TypeScript + Vite (`src/client`)
+- **Backend**: Express + ws (`src/server`)
+- **Metadata**: SQLite via Node built-in `node:sqlite`
+- **Image pipeline**: sync/mirror, thumbnails (`sharp` when available), and blacklist-aware delete
 
----
+Key files:
 
-## Requirements
+- `src/server/index.js`: app bootstrap + route wiring
+- `src/server/routes/*`: API route modules
+- `src/server/services/*`: image/comfy runtime/queue/workflow execution services
+- `src/server/db/*`: schema + metadata repository
+- `src/client/pages/GalleryPage.tsx`
+- `src/client/pages/WorkflowsPage.tsx`
 
-- Node.js 20+
-- npm (or another Node package manager)
-- ComfyUI instance (for workflow execution features)
+## Install
 
----
+Detailed platform docs: [`docs/INSTALL.md`](docs/INSTALL.md)
 
-## Quick Start
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. (Optional) Create a `.env` file based on `.env.example`.
-
-3. Run the development servers:
-   ```bash
-   npm run dev
-   ```
-   - Frontend: http://localhost:8008
-   - API server: http://localhost:8009
-
-4. Click **Sync** to import images from your ComfyUI output folder.
-
-### Mock Sandbox Development Mode
-
-Use this mode when you want a reproducible local dataset for demos, screenshots, and UI testing while still talking to your real ComfyUI API endpoint.
+### Option 1: Nix (flake)
 
 ```bash
-npm run dev:mock
+nix run .#
 ```
 
-What it does:
-- Seeds `.mock-dev/source` and `.mock-dev/data` with example images from Picsum.
-- Seeds example metadata (tags, favorites, hidden flags, ratings, prompt summaries).
-- Seeds example workflows in a `Mock Examples` folder.
-- Seeds example workflow jobs in mixed states (`completed`, `running`, `queued`, `pending`, `error`, `cancelled`) so workflow cards are populated for screenshots.
-- Starts the app with:
-  - `MOCK_DEV_MODE=1` (enables stable mock live job payloads)
-  - `COMFY_OUTPUT_DIR=.mock-dev/source`
-  - `DATA_DIR=.mock-dev/data`
-  - `COMFY_API_URL` unchanged (still uses your normal real ComfyUI endpoint).
-
----
-
-## Configuration
-
-Configure via environment variables or a `.env` file:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `COMFY_OUTPUT_DIR` | `/var/lib/comfyui/output` | Source folder to sync images from (read-only) |
-| `DATA_DIR` | `~/comfy_viewer/data` | Working directory for images, thumbnails, and database |
-| `SERVER_PORT` | `8009` (dev) / `8008` (prod) | HTTP server port |
-| `COMFY_API_URL` | `http://127.0.0.1:8188` | ComfyUI API endpoint for workflow execution |
-| `SYNC_INTERVAL_MS` | `0` (disabled) | Auto-sync interval in milliseconds |
-| `THUMB_MAX` | `512` | Maximum thumbnail dimension in pixels |
-| `THUMB_QUALITY` | `72` | JPEG quality for thumbnails (0-100) |
-| `MOCK_DEV_ROOT` | `.mock-dev` | Root directory used by `npm run mock:seed` for seeded source/data sandbox content |
-
----
-
-## Production
-
-Build and run for production:
-
-```bash
-npm run build
-npm run start
-```
-
-Serves the API and static UI on http://localhost:8008.
-
----
-
-## Nix / NixOS
-
-This repo includes a Nix flake with a package and NixOS module.
-
-### Build or Run Locally
+Or build binary:
 
 ```bash
 nix build .#
 ./result/bin/comfy-output-viewer
 ```
 
-```bash
-nix run .#
-```
-
-### NixOS Module
-
-Example `configuration.nix` using the overlay and module:
+NixOS module usage:
 
 ```nix
 {
@@ -156,70 +104,171 @@ Example `configuration.nix` using the overlay and module:
     outputDir = "/var/lib/comfyui/output";
     dataDir = "/var/lib/comfy-output-viewer";
     port = 8008;
-    # syncIntervalMs = 60000;
-    # thumbMax = 512;
-    # thumbQuality = 72;
   };
 }
 ```
 
-### Module Options
+### Option 2: Linux/macOS script
 
-| Option | Description |
-|--------|-------------|
-| `enable` | Start the server on boot |
-| `openFirewall` | Open the configured port in the firewall |
-| `outputDir` | Source directory for ComfyUI outputs |
-| `dataDir` | Writable data directory for images, thumbnails, and database |
-| `port` | HTTP port (default 8008) |
-| `syncIntervalMs` | Auto-sync interval in ms (`null` disables) |
-| `thumbMax` | Maximum thumbnail dimension |
-| `thumbQuality` | Thumbnail JPEG quality |
-| `user`, `group`, `createUser` | Control the system user/group for the service |
-| `extraEnvironment` | Extra environment variables for the service |
+Linux:
 
----
+```bash
+./scripts/install-linux.sh
+```
 
-## How It Works
+macOS:
 
-1. **Sync** copies images from your ComfyUI output folder into the app's data directory. The source folder is never modified.
-2. **Thumbnails** are generated on sync for fast gallery browsing.
-3. **Metadata** (ratings, tags, favorites, hidden status) is stored in a local SQLite database.
-4. **Blacklist** prevents deleted images from being re-imported on subsequent syncs.
-5. **Workflows** are stored with their API JSON and configurable input definitions.
-6. **Jobs** connect to ComfyUI via WebSocket for real-time progress updates.
+```bash
+./scripts/install-macos.sh
+```
 
----
+Shared Unix installer (both):
 
-## Tech Stack
+```bash
+./scripts/install-unix.sh
+```
 
-- **Frontend**: React 18, TypeScript, Vite, React Router
-- **Backend**: Node.js, Express, WebSocket
-- **Database**: SQLite
-- **Image Processing**: Sharp
-- **Theming**: CSS custom properties with light/dark/system modes
+### Option 3: Windows script
 
----
+PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-windows.ps1
+```
+
+Or cmd wrapper:
+
+```bat
+scripts\install-windows.cmd
+```
+
+### Option 4: Manual Node install
+
+```bash
+npm install
+npm run build
+npm run start
+```
+
+## Quick Start
+
+1. Create `.env` (optional):
+
+```bash
+cp .env.example .env
+```
+
+2. Set at least:
+- `COMFY_OUTPUT_DIR` to your ComfyUI output folder.
+- `DATA_DIR` to a writable folder for mirrored data and SQLite.
+
+3. Start server/UI:
+
+```bash
+npm run start
+```
+
+4. Open `http://localhost:8008` and click **Sync**.
+
+### Mock Sandbox Mode
+
+For deterministic demos/screenshots with seeded image/workflow/job states:
+
+```bash
+npm run dev:mock
+```
+
+This seeds `.mock-dev/source` + `.mock-dev/data` and runs with `MOCK_DEV_MODE=1`.
+
+## Configuration
+
+Configure via environment variables or `.env`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `COMFY_OUTPUT_DIR` | `/var/lib/comfyui/output` | Source directory to scan (read-only by app design). |
+| `OUTPUT_DIR` | n/a | Legacy alias for `COMFY_OUTPUT_DIR`. |
+| `DATA_DIR` | `~/comfy_viewer/data` | App-managed mirror, thumbnails, sqlite db, and workflow files. |
+| `COMFY_API_URL` | `http://127.0.0.1:8188` | ComfyUI API base URL. |
+| `COMFY_CLIENT_ID` | auto-generated | Optional ComfyUI websocket client id override. |
+| `SERVER_PORT` | `8008` in prod / `8009` in dev | Preferred server port variable. |
+| `PORT` | fallback | Legacy port fallback. |
+| `SYNC_INTERVAL_MS` | `0` | Auto-sync interval in ms (`0` disables). |
+| `THUMB_MAX` | `512` | Max thumbnail dimension. |
+| `THUMB_QUALITY` | `72` | JPEG thumbnail quality (0-100). |
+| `MAX_INPUT_UPLOAD_BYTES` | `52428800` | Max workflow image upload payload size. |
+| `QUEUE_REMAINING_OVERRIDE_TTL_MS` | `10000` | Queue override cache TTL. |
+| `MOCK_DEV_ROOT` | `.mock-dev` | Seed root used by `npm run mock:seed`. |
+| `MOCK_DEV_MODE` | `0` | Enables stable mock job payload behavior for demos. |
+
+## API Reference
+
+### Image + metadata endpoints
+
+- `GET /api/images`
+- `POST /api/favorite`
+- `POST /api/hidden`
+- `POST /api/tags`
+- `POST /api/delete`
+- `POST /api/delete/bulk`
+- `POST /api/prompts/bulk`
+- `POST /api/sync`
+- `GET /api/images/:path/prompt`
+
+### Workflow + jobs endpoints
+
+- `GET /api/workflows`
+- `POST /api/workflows`
+- `GET /api/workflows/:id`
+- `PUT /api/workflows/:id`
+- `DELETE /api/workflows/:id`
+- `POST /api/workflows/:id/run`
+- `GET /api/workflows/:id/trigger-schema`
+- `POST /api/workflows/:id/trigger`
+- `GET /api/jobs/:id`
+- `POST /api/jobs/:id/cancel`
+
+### MCP endpoints
+
+- `POST /mcp`
+- `GET /mcp`
+- `DELETE /mcp`
+- `GET /mcp/sse` (legacy)
+- `POST /mcp/messages` (legacy)
 
 ## Development
 
 ```bash
-npm run dev      # Start dev servers (Vite + Express)
-npm run dev:mock # Seed mock sandbox data and start dev servers in sandbox mode
-npm run mock:seed # Seed/refresh mock sandbox data only
-npm run build    # Build production bundle
-npm run preview  # Preview production build
-npm run start    # Run production server
+npm run dev
+```
+
+Useful scripts:
+
+```bash
+npm run mock:seed
+npm run dev:mock
+npm run build
+npm run preview
+npm run start
+```
+
+Install helper scripts:
+
+```bash
+npm run install:unix
+npm run install:linux
+npm run install:macos
+npm run install:windows
 ```
 
 ## Testing
 
 ```bash
-npm run test            # Full suite (server + client)
-npm run test:all        # Alias for full suite
-npm run test:server     # Server tests only (Node environment)
-npm run test:client     # Client tests only (jsdom environment)
-npm run test:coverage   # Coverage for both suites
+npm run test
+npm run test:all
+npm run test:server
+npm run test:client
+npm run test:coverage
 ```
 
 Watch mode:
@@ -229,11 +278,30 @@ npm run test:server:watch
 npm run test:client:watch
 ```
 
-Test setup highlights:
-- Server tests: route integration and service/state unit coverage under `src/server/**/*.test.{js,ts}`.
-- Client tests: component/hook/util coverage under `src/client/**/*.test.{ts,tsx}` with Testing Library and jsdom.
+## Release Workflow
 
----
+1. Update `package.json` version (semver).
+2. Update `CHANGELOG.md` entry for the same version.
+3. If `package-lock.json` changed, refresh Nix npm hash:
+
+```bash
+./scripts/update-npm-deps-hash.sh
+```
+
+4. Verify:
+
+```bash
+npm run build
+npm run test
+nix build .#comfy-output-viewer --no-link
+```
+
+## Troubleshooting
+
+- If startup fails with missing source dir, verify `COMFY_OUTPUT_DIR` exists and permissions allow read access.
+- If thumbnails are slow, ensure `sharp` can load native deps (notably `libvips` on Linux).
+- If Comfy job updates stall, verify `COMFY_API_URL` and websocket accessibility.
+- If deleted images reappear, verify deletion used app APIs so hashes enter blacklist metadata.
 
 ## License
 

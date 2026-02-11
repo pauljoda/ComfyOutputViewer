@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.8] - 2026-02-11
+
+### Added
+- Cross-platform install scripts for non-Nix setups, including Unix (`scripts/install-unix.sh`), Linux wrapper (`scripts/install-linux.sh`), macOS wrapper (`scripts/install-macos.sh`), and Windows installers (`scripts/install-windows.ps1`, `scripts/install-windows.cmd`).
+- New dedicated install documentation in `docs/INSTALL.md` covering Nix, Linux, macOS, and Windows.
+- Added `LICENSE` (MIT) file for explicit repository licensing.
+
+### Changed
+- Reworked production start command to be cross-platform by replacing shell-only env assignment with `scripts/start-production.mjs`.
+- Refreshed `README.md` with a modern GitHub-facing layout (badges, improved structure, install matrix, API/MCP coverage, release workflow, troubleshooting).
+- Updated Nix package install phase to call shared helper script `scripts/install-runtime-layout.sh` for runtime layout/wrapper creation.
+- Refreshed `flake.nix` `npmDepsHash` after the `package-lock.json` release-version update.
+
+### Fixed
+- Removed duplicate `server.allowedHosts` declaration in `vite.config.ts` to clear Vite duplicate-key build warnings.
+
 ## [0.9.7] - 2026-02-11
 
 ### Added

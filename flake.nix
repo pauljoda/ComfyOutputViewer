@@ -28,10 +28,10 @@
               in
               !(base == "node_modules" || base == "dist" || base == ".cache" || base == ".git");
           };
-          npmDepsHash = "sha256-A9m0A42iN7bhvv5CFzxo+s0BKGR8DR8YtxZYuXwXqK0=";
+          npmDepsHash = "sha256-HLL5zJoMgEcVMd/HYNvVI9l7W5I1sQXGhuQQau1GtHE=";
           npmBuildScript = "build";
           # Required for building sharp from source
-          nativeBuildInputs = with pkgs; [ makeWrapper pkg-config python3 ];
+          nativeBuildInputs = with pkgs; [ pkg-config python3 ];
           buildInputs = with pkgs; [
             vips       # Image processing library for sharp
             glib       # Required by vips
@@ -43,12 +43,7 @@
           installPhase = ''
             runHook preInstall
             appDir=$out/lib/comfy-output-viewer
-            mkdir -p "$appDir"
-            cp -r dist src package.json node_modules "$appDir/"
-            makeWrapper ${nodejs}/bin/node $out/bin/comfy-output-viewer \
-              --add-flags "$appDir/src/server/index.js" \
-              --set NODE_PATH "$appDir/node_modules" \
-              --chdir "$appDir"
+            bash ${./scripts/install-runtime-layout.sh} "$appDir" "${nodejs}/bin/node" "$out/bin/comfy-output-viewer" "${pkgs.runtimeShell}"
             runHook postInstall
           '';
           meta = with lib; {
