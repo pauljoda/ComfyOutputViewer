@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.11] - 2026-02-11
+
+### Changed
+- Updated generated auto-tag normalization to strip leading/trailing non-alphanumeric characters (punctuation/symbols) from parsed tags while preserving interior symbols.
+- Kept interior punctuation intact for valid phrases (for example, `dr. person` remains `dr. person`).
+- Applied the same edge-trimming behavior to both bulk Auto Tag parsing and generation-time workflow auto-tagging for consistent results.
+
+### Added
+- Added regression coverage for edge punctuation/symbol trimming in prompt-tag parsing and generation-time auto-tag application.
+- Added frontend architecture audit documentation in `docs/frontend-architecture-audit.md`, including per-page component relationship trees, shared component mapping, unreachable component inventory, and labeled layout sketches for Gallery and Workflows pages.
+
 ## [0.9.10] - 2026-02-11
 
 ### Added
