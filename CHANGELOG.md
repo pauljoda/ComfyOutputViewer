@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.28] - 2026-02-11
+
+### Changed
+- Continued `TopBar` decomposition by extracting bulk-action and tool-popover sections from `src/client/components/TopBar.tsx` into `src/client/components/topbar/TopBarBulkActions.tsx` and `src/client/components/topbar/TopBarToolPopover.tsx`.
+- Reduced `TopBar` to a slimmer composition shell while preserving behavior and existing prop/handler contracts.
+- Updated frontend architecture/refactor docs to reflect the new `TopBar` layering and shift the immediate next target to `ImageModal`.
+- Bumped app version to `0.9.28` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.27] - 2026-02-11
 
 ### Changed

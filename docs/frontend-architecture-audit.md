@@ -50,7 +50,13 @@ GalleryPage
    │  ├─ TopBar
    │  │  ├─ ui/button
    │  │  ├─ ui/badge
-   │  │  └─ RatingStars
+   │  │  ├─ topbar/TopBarBulkActions
+   │  │  │  ├─ ui/button
+   │  │  │  ├─ ui/badge
+   │  │  │  └─ RatingStars
+   │  │  └─ topbar/TopBarToolPopover
+   │  │     ├─ ui/button
+   │  │     └─ RatingStars
    │  └─ TagDrawer
    │     ├─ ui/button
    │     └─ ui/badge
@@ -178,6 +184,8 @@ Legend:
 | `src/client/components/workflows/SystemStatsPanel.tsx` | workflows domain | W |
 | `src/client/components/workflows/ExportApiModal.tsx` | workflows domain | W |
 | `src/client/components/TopBar.tsx` | gallery domain | G |
+| `src/client/components/topbar/TopBarBulkActions.tsx` | gallery domain | G |
+| `src/client/components/topbar/TopBarToolPopover.tsx` | gallery domain | G |
 | `src/client/components/TagDrawer.tsx` | gallery domain | G |
 | `src/client/components/Gallery.tsx` | gallery domain | G |
 | `src/client/components/gallery/GalleryFiltersController.tsx` | gallery domain | G |
@@ -230,15 +238,15 @@ Context-level common dependency:
   - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` (~288 lines)
   - `src/client/components/ImageModal.tsx` (~898 lines)
   - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~700 lines)
-  - `src/client/components/TopBar.tsx` (~615 lines)
+- `TopBar` has been split into a composition shell plus focused sections (`TopBarBulkActions`, `TopBarToolPopover`), reducing immediate risk there.
 - `WorkflowDetail` is now a thin shell, and auto-tag/jobs/run/output-modal/metadata/output-cache/input-state/prompt-preview concerns are extracted; remaining controller complexity is mostly composition/wiring.
 - Domain logic and network effects are still concentrated in a few large files (especially workspace components, `ImageModal`, and the workflow controller hook).
 
 ### Suggested refactor targets (highest impact first)
 1. Split `ImageModal` internals: `ImageModalChrome`, `ImageModalPromptPanel`, `useImageModalGestures`, `useImagePromptData`.
-2. Reduce `TopBar` by extracting tool panels: `ViewToolPanel`, `FilterToolPanel`, `BulkActionsBar`.
-3. Keep `useWorkflowDetailController` as the current orchestration boundary unless new complexity hotspots emerge.
-4. Keep `GalleryWorkspace` as the current composition boundary unless new complexity hotspots emerge.
+2. Keep `useWorkflowDetailController` as the current orchestration boundary unless new complexity hotspots emerge.
+3. Keep `GalleryWorkspace` as the current composition boundary unless new complexity hotspots emerge.
+4. Decide whether additional `TopBar` micro-splits are necessary after the new section extraction.
 5. Maintain strict reachability checks for `ui/*` primitives to keep shared surface minimal.
 
 ## 7) Questions For Next Pass

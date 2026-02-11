@@ -18,6 +18,7 @@ Progress snapshot:
 - Completed: extracted output image cache/fallback/loading concerns into `workflows/workflow-detail/useWorkflowOutputCache.ts`.
 - Completed: extracted workflow input synchronization concerns into `workflows/workflow-detail/useWorkflowInputState.ts`.
 - Completed: extracted prompt-preview derivation into `workflows/workflow-detail/useWorkflowPromptPreview.ts`.
+- Completed: extracted `TopBar` bulk-actions and tool-popover sections into `src/client/components/topbar/TopBarBulkActions.tsx` and `src/client/components/topbar/TopBarToolPopover.tsx`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
 
 ## 1) Deep Review Findings
@@ -44,9 +45,9 @@ Progress snapshot:
 - Status: Fixed (`event.target.value = ''` reset after capture).
 
 ### Remaining review backlog (pending)
-1. `TopBar` and `ImageModal` remain the primary complexity hotspots for ongoing frontend organization cleanup.
-- Files: `src/client/components/TopBar.tsx`, `src/client/components/ImageModal.tsx`
-- Plan: continue composition splits by extracting tool-panel sections from `TopBar` and interaction/prompt sub-hooks from `ImageModal` while preserving behavior.
+1. `ImageModal` remains the primary complexity hotspot for ongoing frontend organization cleanup.
+- File: `src/client/components/ImageModal.tsx`
+- Plan: continue composition splits by extracting prompt and interaction surfaces into focused modules/hooks while preserving behavior.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -315,6 +316,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Shift phase-2 cleanup focus to `TopBar` and `ImageModal` after completing `GalleryFiltersController` + `GalleryActionsController`.
-2. Evaluate whether to extract `TopBar` tool panels or `ImageModal` prompt/gesture hooks first based on the lowest-risk boundary.
+1. Continue phase-2 cleanup by splitting `ImageModal` prompt and interaction internals into focused modules/hooks.
+2. Decide whether any additional `TopBar` micro-splits are needed now that tool-popover and bulk-actions sections are extracted.
 3. Keep `GalleryWorkspace` as a stable composition boundary unless new complexity hotspots emerge.
