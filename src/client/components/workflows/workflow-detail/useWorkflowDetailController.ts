@@ -5,6 +5,7 @@ import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import { useWorkflowJobs } from './useWorkflowJobs';
+import { useWorkflowOutputModalState } from './useWorkflowOutputModalState';
 import { useWorkflowRunPipeline } from './useWorkflowRunPipeline';
 import type {
   SystemStatsResponse,
@@ -89,11 +90,6 @@ export function useWorkflowDetailController({
   const [exportApiOpen, setExportApiOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [outputCache, setOutputCache] = useState<Record<string, ImageItem>>({});
-  const [outputPaths, setOutputPaths] = useState<string[]>([]);
-  const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
-  const [outputTool, setOutputTool] = useState<ModalTool>(null);
-  const [selectedInputPath, setSelectedInputPath] = useState<string | null>(null);
-  const [inputTool, setInputTool] = useState<ModalTool>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const isInputDirtyRef = useRef(false);
   const previousWorkflowIdRef = useRef<number | null>(null);
@@ -191,11 +187,6 @@ export function useWorkflowDetailController({
       setRunning(false);
       setError(null);
       setOutputCache({});
-      setOutputPaths([]);
-      setSelectedOutputPath(null);
-      setOutputTool(null);
-      setSelectedInputPath(null);
-      setInputTool(null);
       isInputDirtyRef.current = false;
       prefillAppliedRef.current = null;
       void loadWorkflowDetails(workflow.id);
@@ -295,6 +286,35 @@ export function useWorkflowDetailController({
     },
     [loadOutputImage]
   );
+  const outputModalState = useWorkflowOutputModalState({
+    workflowId: workflow.id,
+    jobs,
+    outputCache,
+    buildFallbackImage,
+    loadOutputImage,
+    loadOutputImages
+  });
+  const {
+    outputPaths,
+    selectedOutputIndex,
+    selectedOutputImage,
+    selectedInputImage,
+    outputTool,
+    inputTool,
+    handleOpenOutput,
+    handleOpenInputPreview,
+    closeOutputModal,
+    closeInputModal,
+    removeOutputPath,
+    goToPrevOutput,
+    goToNextOutput,
+    toggleOutputTagsTool,
+    toggleOutputRatingTool,
+    toggleOutputPromptTool,
+    toggleInputTagsTool,
+    toggleInputRatingTool,
+    toggleInputPromptTool
+  } = outputModalState;
 
   const refreshOutputImage = useCallback(
     async (imagePath: string) => {
@@ -322,100 +342,12 @@ export function useWorkflowDetailController({
     [buildFallbackImage]
   );
 
-  useEffect(() => {
-    if (selectedOutputPath) {
-      setOutputTool(null);
-    }
-  }, [selectedOutputPath]);
-
-  useEffect(() => {
-    if (selectedInputPath) {
-      setInputTool(null);
-    }
-  }, [selectedInputPath]);
-
   const handleInputChange = useCallback((inputId: number, value: string) => {
     isInputDirtyRef.current = true;
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   }, []);
 
   const handleRun = runPipeline.handleRun;
-
-  const handleOpenOutput = useCallback(
-    async (job: Job, output: JobOutput) => {
-      const visibleOutputs = job.outputs?.filter((item) => item.exists !== false) ?? [];
-      const paths: string[] = [];
-      const seen = new Set<string>();
-      visibleOutputs.forEach((item) => {
-        if (!seen.has(item.imagePath)) {
-          seen.add(item.imagePath);
-          paths.push(item.imagePath);
-        }
-      });
-      if (paths.length === 0) {
-        return;
-      }
-      const allPaths = jobs
-        .flatMap((entry) => entry.outputs?.filter((item) => item.exists !== false) ?? [])
-        .reduce<string[]>((acc, entry) => {
-          if (!acc.includes(entry.imagePath)) {
-            acc.push(entry.imagePath);
-          }
-          return acc;
-        }, []);
-      setOutputPaths(allPaths.length > 0 ? allPaths : paths);
-      setSelectedOutputPath(output.imagePath);
-      setSelectedInputPath(null);
-      setOutputTool(null);
-      await loadOutputImages(allPaths.length > 0 ? allPaths : paths);
-    },
-    [jobs, loadOutputImages]
-  );
-
-  const handleOpenInputPreview = useCallback(
-    async (imagePath: string) => {
-      if (!imagePath) return;
-      setSelectedOutputPath(null);
-      setSelectedInputPath(imagePath);
-      setInputTool(null);
-      await loadOutputImage(imagePath);
-    },
-    [loadOutputImage]
-  );
-
-  const selectedOutputIndex = selectedOutputPath
-    ? outputPaths.findIndex((path) => {
-        if (path === selectedOutputPath) return true;
-        const decode = (value: string) => {
-          try {
-            return decodeURIComponent(value);
-          } catch {
-            return value;
-          }
-        };
-        return decode(path) === decode(selectedOutputPath);
-      })
-    : -1;
-
-  const selectedOutputImage = selectedOutputPath
-    ? outputCache[selectedOutputPath] ?? buildFallbackImage(selectedOutputPath)
-    : null;
-
-  const selectedInputImage = selectedInputPath
-    ? outputCache[selectedInputPath] ?? buildFallbackImage(selectedInputPath)
-    : null;
-
-  useEffect(() => {
-    if (selectedOutputPath) {
-      loadOutputImage(selectedOutputPath);
-    }
-  }, [selectedOutputPath, loadOutputImage]);
-
-  useEffect(() => {
-    if (selectedInputPath) {
-      loadOutputImage(selectedInputPath);
-    }
-  }, [selectedInputPath, loadOutputImage]);
 
   const handleOutputFavorite = useCallback(async () => {
     if (!selectedOutputImage) return;
@@ -526,11 +458,11 @@ export function useWorkflowDetailController({
         delete next[selectedInputImage.id];
         return next;
       });
-      setSelectedInputPath(null);
+      closeInputModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete image');
     }
-  }, [selectedInputImage]);
+  }, [closeInputModal, selectedInputImage]);
 
   const handleOutputDelete = useCallback(async () => {
     if (!selectedOutputImage) return;
@@ -549,12 +481,12 @@ export function useWorkflowDetailController({
         delete next[selectedOutputImage.id];
         return next;
       });
-      setOutputPaths((prev) => prev.filter((path) => path !== selectedOutputImage.id));
-      setSelectedOutputPath(null);
+      removeOutputPath(selectedOutputImage.id);
+      closeOutputModal();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete image');
     }
-  }, [selectedOutputImage]);
+  }, [closeOutputModal, removeOutputPath, selectedOutputImage, setJobs]);
 
   const promptPreview = useMemo(() => {
     try {
@@ -577,58 +509,6 @@ export function useWorkflowDetailController({
       return `Failed to build prompt JSON: ${err instanceof Error ? err.message : 'Unknown error'}`;
     }
   }, [inputs, inputValues, workflow.apiJson]);
-
-  const closeOutputModal = useCallback(() => {
-    setSelectedOutputPath(null);
-    setOutputTool(null);
-  }, []);
-
-  const closeInputModal = useCallback(() => {
-    setSelectedInputPath(null);
-    setInputTool(null);
-  }, []);
-
-  const goToPrevOutput = useCallback(() => {
-    if (outputPaths.length === 0) return;
-    if (selectedOutputIndex <= 0) {
-      setSelectedOutputPath(outputPaths[outputPaths.length - 1]);
-      return;
-    }
-    setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
-  }, [outputPaths, selectedOutputIndex]);
-
-  const goToNextOutput = useCallback(() => {
-    if (outputPaths.length === 0) return;
-    if (selectedOutputIndex === -1 || selectedOutputIndex >= outputPaths.length - 1) {
-      setSelectedOutputPath(outputPaths[0]);
-      return;
-    }
-    setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
-  }, [outputPaths, selectedOutputIndex]);
-
-  const toggleOutputTagsTool = useCallback(() => {
-    setOutputTool((current) => (current === 'tags' ? null : 'tags'));
-  }, []);
-
-  const toggleOutputRatingTool = useCallback(() => {
-    setOutputTool((current) => (current === 'rating' ? null : 'rating'));
-  }, []);
-
-  const toggleOutputPromptTool = useCallback(() => {
-    setOutputTool((current) => (current === 'prompt' ? null : 'prompt'));
-  }, []);
-
-  const toggleInputTagsTool = useCallback(() => {
-    setInputTool((current) => (current === 'tags' ? null : 'tags'));
-  }, []);
-
-  const toggleInputRatingTool = useCallback(() => {
-    setInputTool((current) => (current === 'rating' ? null : 'rating'));
-  }, []);
-
-  const toggleInputPromptTool = useCallback(() => {
-    setInputTool((current) => (current === 'prompt' ? null : 'prompt'));
-  }, []);
 
   return {
     inputs,

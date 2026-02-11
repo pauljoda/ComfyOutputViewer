@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.21] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting output-modal orchestration from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts` (output/input preview selection, open flows, modal navigation, and tool-toggle state).
+- Reduced `useWorkflowDetailController` complexity further while preserving existing behavior and `WorkflowDetail` hook contracts.
+- Updated frontend architecture/refactor docs to reflect the new output-modal hook layer and remaining metadata-mutation split target.
+- Bumped app version to `0.9.21` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.20] - 2026-02-11
 
 ### Changed

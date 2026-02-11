@@ -11,6 +11,7 @@ Progress snapshot:
 - Completed: started phase-2 `useWorkflowDetailController` decomposition by extracting auto-tag state/persistence/handlers into `workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
 - Completed: extracted workflow jobs stream/polling/cancel/recheck/system-stats concerns into `workflows/workflow-detail/useWorkflowJobs.ts`.
 - Completed: extracted workflow run pipeline (image-input upload bridge + run submission flow) into `workflows/workflow-detail/useWorkflowRunPipeline.ts`.
+- Completed: extracted output-modal state/navigation/open flows into `workflows/workflow-detail/useWorkflowOutputModalState.ts`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
 
 ## 1) Deep Review Findings
@@ -39,7 +40,7 @@ Progress snapshot:
 ### Remaining review backlog (pending)
 1. `useWorkflowDetailController` is now the primary complexity hotspot and should be split into focused hooks/modules.
 - File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
-- Plan: continue splitting remaining concern cluster (output modal state + metadata mutation handlers) into dedicated hooks in phase 2.
+- Plan: continue splitting remaining concern cluster (metadata mutation handlers for selected output/input images) into dedicated hooks in phase 2.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -67,10 +68,11 @@ Progress snapshot:
 
 Current size:
 - `src/client/components/workflows/WorkflowDetail.tsx`: ~141 LOC (orchestrator/composition shell)
-- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~690 LOC (controller/state/effects, reduced after auto-tag + jobs + run extraction)
+- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~570 LOC (controller/state/effects, reduced after auto-tag + jobs + run + output-modal extraction)
 - `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`: ~168 LOC (auto-tag state/persistence/handlers)
 - `src/client/components/workflows/workflow-detail/useWorkflowJobs.ts`: ~260 LOC (jobs stream/polling/cancel/recheck/system stats)
 - `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`: ~115 LOC (image-input upload bridge + run submission flow)
+- `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`: ~232 LOC (output modal state + open flows + navigation/tool toggles)
 
 ### Target file split
 - `src/client/components/workflows/WorkflowDetail.tsx`
@@ -84,6 +86,7 @@ Current size:
 - `src/client/components/workflows/workflow-detail/useWorkflowAutoTagSettings.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowJobs.ts`
 - `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`
+- `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`
 
 ### Proposed prop contracts (phase 1)
 
@@ -297,6 +300,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Continue splitting `useWorkflowDetailController` into smaller hooks/modules (output modal state + metadata mutation handlers) after completing auto-tag + jobs + run extraction.
+1. Continue splitting `useWorkflowDetailController` into smaller hooks/modules (metadata mutation handlers for selected output/input images) after completing auto-tag + jobs + run + output-modal extraction.
 2. Continue `GalleryWorkspace` follow-up cleanup around filter/action composition surfaces (modal composition extraction completed via `GalleryModalController`).
 3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.
