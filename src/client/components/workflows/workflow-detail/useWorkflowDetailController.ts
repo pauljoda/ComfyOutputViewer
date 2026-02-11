@@ -103,6 +103,8 @@ export function useWorkflowDetailController({
   const [systemStatsError, setSystemStatsError] = useState<string | null>(null);
   const [systemStatsUpdatedAt, setSystemStatsUpdatedAt] = useState<number | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
+  const isInputDirtyRef = useRef(false);
+  const previousWorkflowIdRef = useRef<number | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
   const recheckAttemptsRef = useRef<Set<number>>(new Set());
   const pendingJobRefetchTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -200,7 +202,7 @@ export function useWorkflowDetailController({
   }, []);
 
   const loadWorkflowDetails = useCallback(
-    async (targetWorkflowId?: number) => {
+    async (targetWorkflowId?: number, options: { preserveInputValues?: boolean } = {}) => {
       const workflowId = targetWorkflowId ?? workflowIdRef.current;
       try {
         const response = await api<{ workflow: Workflow; inputs: WorkflowInput[] }>(
@@ -215,7 +217,21 @@ export function useWorkflowDetailController({
         for (const input of response.inputs) {
           defaults[input.id] = input.defaultValue || '';
         }
-        setInputValues(defaults);
+        setInputValues((prev) => {
+          if (!options.preserveInputValues || !isInputDirtyRef.current) {
+            isInputDirtyRef.current = false;
+            return defaults;
+          }
+          const merged: Record<number, string> = {};
+          for (const input of response.inputs) {
+            if (Object.prototype.hasOwnProperty.call(prev, input.id)) {
+              merged[input.id] = prev[input.id] ?? '';
+            } else {
+              merged[input.id] = defaults[input.id] ?? '';
+            }
+          }
+          return merged;
+        });
         setError(null);
       } catch (err) {
         if (workflowIdRef.current !== workflowId) return;
@@ -237,21 +253,32 @@ export function useWorkflowDetailController({
   }, []);
 
   useEffect(() => {
-    setInputs([]);
-    setInputValues({});
-    setJobs([]);
-    setRunning(false);
-    setError(null);
-    setOutputCache({});
-    setOutputPaths([]);
-    setSelectedOutputPath(null);
-    setOutputTool(null);
-    setSelectedInputPath(null);
-    setInputTool(null);
-    recheckAttemptsRef.current = new Set();
-    prefillAppliedRef.current = null;
-    loadWorkflowDetails(workflow.id);
-    loadJobs(workflow.id);
+    const workflowChanged = previousWorkflowIdRef.current !== workflow.id;
+    previousWorkflowIdRef.current = workflow.id;
+
+    if (workflowChanged) {
+      setInputs([]);
+      setInputValues({});
+      setJobs([]);
+      setRunning(false);
+      setError(null);
+      setOutputCache({});
+      setOutputPaths([]);
+      setSelectedOutputPath(null);
+      setOutputTool(null);
+      setSelectedInputPath(null);
+      setInputTool(null);
+      isInputDirtyRef.current = false;
+      recheckAttemptsRef.current = new Set();
+      prefillAppliedRef.current = null;
+      void loadWorkflowDetails(workflow.id);
+      void loadJobs(workflow.id);
+      return;
+    }
+
+    // Keep in-progress edits when workflow metadata updates for the same workflow id.
+    void loadWorkflowDetails(workflow.id, { preserveInputValues: true });
+    void loadJobs(workflow.id);
   }, [workflow.id, workflow.updatedAt, loadJobs, loadWorkflowDetails]);
 
   useEffect(() => {
@@ -295,7 +322,11 @@ export function useWorkflowDetailController({
         next[input.id] = entry.value ?? '';
         changed = true;
       }
-      return changed ? next : prev;
+      if (!changed) {
+        return prev;
+      }
+      isInputDirtyRef.current = true;
+      return next;
     });
     prefillAppliedRef.current = prefillKey;
     onPrefillApplied?.();
@@ -532,6 +563,7 @@ export function useWorkflowDetailController({
   }, [autoTagEnabled, autoTagInputRefs, autoTagMaxWords, persistAutoTagSettings]);
 
   const handleInputChange = useCallback((inputId: number, value: string) => {
+    isInputDirtyRef.current = true;
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   }, []);
 

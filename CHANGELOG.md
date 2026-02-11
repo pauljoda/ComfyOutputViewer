@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.15] - 2026-02-11
+
+### Added
+- Added workflow controller regression coverage in `src/client/components/workflows/workflow-detail/useWorkflowDetailController.test.tsx` for `workflow.updatedAt` refresh behavior (preserve dirty input edits, apply new defaults when not dirty).
+
+### Fixed
+- Fixed `WorkflowDetail` input reset churn by making same-workflow metadata refreshes dirty-aware in `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`, so in-progress edits are no longer wiped when `workflow.updatedAt` changes.
+
+### Changed
+- Updated frontend refactor planning docs to mark the dirty-reset backlog item as resolved and focus remaining phase-2 work on `ImageModal` fetch cancellation hardening and controller-hook decomposition.
+- Bumped app version to `0.9.15` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.14] - 2026-02-11
 
 ### Changed

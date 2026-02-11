@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: address workflow input reset churn (`workflow.updatedAt`) and modal prompt-fetch cancellation unification.
+- Continue frontend phase-2 hardening after phase-1 modularization: complete `ImageModal` prompt-fetch cancellation unification and split `useWorkflowDetailController` into focused sub-hooks/modules.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Fixed workflow input reset churn on metadata refresh (v0.9.15): made same-workflow `workflow.updatedAt` reloads dirty-aware in `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` so in-progress input edits are preserved instead of being reset to defaults.
+- Added workflow controller regression tests (v0.9.15): created `src/client/components/workflows/workflow-detail/useWorkflowDetailController.test.tsx` covering dirty-input preservation and non-dirty default refresh behavior.
+- Bumped package/app version to `0.9.15` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Completed workflow detail phase-1 modularization (v0.9.14): extracted `WorkflowDetail` controller/state/effect/network orchestration into `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` and reduced `src/client/components/workflows/WorkflowDetail.tsx` to composition/render wiring.
 - Updated frontend cleanup docs for current architecture state (v0.9.14): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to capture the new hook-centric layering and next backlog targets.
 - Bumped package/app version to `0.9.14` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

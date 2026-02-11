@@ -32,18 +32,23 @@ Progress snapshot:
 - File: `src/client/components/workflows/WorkflowEditorPanel.tsx:145`
 - Status: Fixed (`event.target.value = ''` reset after capture).
 
-### Remaining review backlog (not changed yet)
-1. `WorkflowDetail` input state reset is keyed on `workflow.updatedAt`; this can wipe unsaved form edits during metadata churn.
-- File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
-- Plan: move to dirty-aware reset strategy in phase 2.
-
-2. `ImageModal` prompt fetch path still has room for cancellation hardening in secondary prompt-open fetch path.
+### Remaining review backlog (pending)
+1. `ImageModal` prompt fetch path still has room for cancellation hardening in secondary prompt-open fetch path.
 - File: `src/client/components/ImageModal.tsx`
 - Plan: unify request lifecycle with `AbortController` ref in phase 2.
 
-3. `ImageModal` click-to-close behavior needs explicit product decision because current close behavior is bound tightly to gesture/zoom wrapper semantics.
+2. `useWorkflowDetailController` is now the primary complexity hotspot and should be split into focused hooks/modules.
+- File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
+- Plan: split auto-tag, job stream/polling, and output modal state into dedicated hooks in phase 2.
+
+### Recently closed backlog items
+1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
+- File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
+- Status: Fixed with dirty-aware input preservation across same-workflow metadata refreshes.
+
+2. Stage-click dismiss behavior decision for `ImageModal`.
 - File: `src/client/components/ImageModal.tsx`
-- Plan: settle behavior contract before patching.
+- Status: Fixed; blank stage clicks now dismiss while preserving existing close paths.
 
 ## 2) Cleanup Started In This Pass
 
@@ -282,6 +287,7 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Patch remaining backlog issues (`workflow.updatedAt` dirty-aware reset strategy + modal fetch cancellation hardening).
-2. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
-3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.
+1. Patch remaining `ImageModal` prompt-fetch cancellation hardening.
+2. Split `useWorkflowDetailController` into smaller hooks/modules (auto-tag, jobs, output modal state).
+3. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
+4. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.
