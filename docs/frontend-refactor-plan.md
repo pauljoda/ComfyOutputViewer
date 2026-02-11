@@ -19,6 +19,7 @@ Progress snapshot:
 - Completed: extracted workflow input synchronization concerns into `workflows/workflow-detail/useWorkflowInputState.ts`.
 - Completed: extracted prompt-preview derivation into `workflows/workflow-detail/useWorkflowPromptPreview.ts`.
 - Completed: extracted `TopBar` bulk-actions and tool-popover sections into `src/client/components/topbar/TopBarBulkActions.tsx` and `src/client/components/topbar/TopBarToolPopover.tsx`.
+- Completed: extracted `ImageModal` prompt data lifecycle + prompt overlay rendering into `src/client/components/image-modal/useImagePromptData.ts` and `src/client/components/image-modal/ImagePromptOverlay.tsx`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
 
 ## 1) Deep Review Findings
@@ -47,7 +48,7 @@ Progress snapshot:
 ### Remaining review backlog (pending)
 1. `ImageModal` remains the primary complexity hotspot for ongoing frontend organization cleanup.
 - File: `src/client/components/ImageModal.tsx`
-- Plan: continue composition splits by extracting prompt and interaction surfaces into focused modules/hooks while preserving behavior.
+- Plan: continue composition splits by extracting remaining interaction surfaces (gesture/pointer logic and chrome sections) into focused modules/hooks while preserving behavior.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -316,6 +317,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Continue phase-2 cleanup by splitting `ImageModal` prompt and interaction internals into focused modules/hooks.
+1. Continue phase-2 cleanup by splitting remaining `ImageModal` interaction internals (gesture/pointer/zoom wiring) into focused modules/hooks.
 2. Decide whether any additional `TopBar` micro-splits are needed now that tool-popover and bulk-actions sections are extracted.
 3. Keep `GalleryWorkspace` as a stable composition boundary unless new complexity hotspots emerge.

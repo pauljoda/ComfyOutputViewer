@@ -11,39 +11,8 @@ import { Button } from './ui/button';
 import type { ImageItem, ModalTool } from '../types';
 import RatingStars from './RatingStars';
 import { normalizeTagInput } from '../utils/tags';
-import { api } from '../lib/api';
-
-type PromptInput = {
-  inputId?: number;
-  label: string;
-  systemLabel?: string;
-  inputType?: string;
-  value: unknown;
-};
-
-type PromptPayload = {
-  workflowId?: number;
-  workflowInputs?: PromptInput[];
-  inputs?: PromptInput[];
-  inputJson?: Record<string, unknown>;
-};
-
-type PromptJobInput = {
-  inputId: number;
-  value: string;
-  label?: string;
-  inputType?: string;
-  inputKey?: string;
-};
-
-type PromptData = {
-  imagePath: string;
-  jobId: number | null;
-  workflowId?: number | null;
-  promptData: PromptPayload;
-  jobInputs?: PromptJobInput[];
-  createdAt: number;
-};
+import ImagePromptOverlay from './image-modal/ImagePromptOverlay';
+import { useImagePromptData } from './image-modal/useImagePromptData';
 
 const DEFAULT_MIN_SCALE = 0.1;
 const FIT_WIDTH_RATIO = 0.96;
@@ -90,66 +59,18 @@ export default function ImageModal({
 }: ImageModalProps) {
   const navigate = useNavigate();
   const [tagInput, setTagInput] = useState('');
-  const [promptData, setPromptData] = useState<PromptData | null>(null);
-  const [promptLoading, setPromptLoading] = useState(false);
-  const [promptError, setPromptError] = useState<string | null>(null);
-  const [promptAvailable, setPromptAvailable] = useState(false);
-  const promptRequestAbortRef = useRef<AbortController | null>(null);
-  const promptRequestIdRef = useRef(0);
-  const modalToolRef = useRef(modalTool);
-
-  modalToolRef.current = modalTool;
-
-  const cancelPromptRequest = () => {
-    promptRequestAbortRef.current?.abort();
-    promptRequestAbortRef.current = null;
-  };
-
-  const loadPromptData = async () => {
-    cancelPromptRequest();
-    const controller = new AbortController();
-    promptRequestAbortRef.current = controller;
-    const requestId = ++promptRequestIdRef.current;
-    try {
-      setPromptLoading(true);
-      setPromptError(null);
-      const data = await api<PromptData>(`/api/images/${encodeURIComponent(image.id)}/prompt`, {
-        signal: controller.signal
-      });
-      if (controller.signal.aborted || requestId !== promptRequestIdRef.current) return;
-      setPromptData(data);
-      setPromptAvailable(true);
-    } catch (err) {
-      if (controller.signal.aborted || requestId !== promptRequestIdRef.current) return;
-      setPromptAvailable(false);
-      setPromptData(null);
-      if (modalToolRef.current === 'prompt') {
-        setPromptError(err instanceof Error ? err.message : 'No prompt data found');
-      }
-    } finally {
-      if (!controller.signal.aborted && requestId === promptRequestIdRef.current) {
-        setPromptLoading(false);
-      }
-      if (promptRequestAbortRef.current === controller) {
-        promptRequestAbortRef.current = null;
-      }
-    }
-  };
-
-  useEffect(() => {
-    cancelPromptRequest();
-    setPromptAvailable(false);
-    setPromptData(null);
-    setPromptError(null);
-    void loadPromptData();
-    return () => cancelPromptRequest();
-  }, [image.id]);
-
-  useEffect(() => {
-    if (modalTool === 'prompt' && !promptData && !promptLoading && !promptError) {
-      void loadPromptData();
-    }
-  }, [modalTool, promptData, promptLoading, promptError]);
+  const {
+    promptData,
+    promptLoading,
+    promptError,
+    promptAvailable,
+    promptJson,
+    promptWorkflowId,
+    promptPrefillEntries
+  } = useImagePromptData({
+    imageId: image.id,
+    modalTool
+  });
 
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -180,7 +101,6 @@ export default function ImageModal({
   const handleToggleTags = () => onToggleTags();
   const handleToggleRating = () => onToggleRating();
   const handleTogglePrompt = () => onTogglePrompt();
-  const handlePromptOverlayClick = () => onTogglePrompt();
 
   const handleLoadWorkflow = () => {
     if (!promptWorkflowId) return;
@@ -327,83 +247,6 @@ export default function ImageModal({
         .sort((a, b) => a.localeCompare(b)),
     [imageTags, safeAvailableTags, tagQuery]
   );
-
-  const promptInputs = useMemo<PromptInput[]>(() => {
-    if (!promptData) return [];
-    if (Array.isArray(promptData.promptData?.inputs)) {
-      return promptData.promptData.inputs;
-    }
-    if (Array.isArray(promptData.promptData?.workflowInputs)) {
-      return promptData.promptData.workflowInputs;
-    }
-    if (Array.isArray(promptData.jobInputs) && promptData.jobInputs.length > 0) {
-      return promptData.jobInputs.map((input) => ({
-        inputId: input.inputId,
-        label: input.label || `Input ${input.inputId}`,
-        systemLabel: input.inputKey,
-        inputType: input.inputType,
-        value: input.value
-      }));
-    }
-    return [];
-  }, [promptData]);
-
-  const promptJson = useMemo(() => {
-    if (!promptData?.promptData) return null;
-    if (promptData.promptData.inputJson) {
-      return promptData.promptData.inputJson;
-    }
-    if (promptInputs.length === 0) return null;
-    const next = {} as Record<string, unknown>;
-    promptInputs.forEach((input) => {
-      const key = input.label || input.systemLabel || 'input';
-      next[key] = input.value;
-    });
-    return next;
-  }, [promptData, promptInputs]);
-
-  const promptWorkflowId =
-    promptData?.promptData?.workflowId ?? promptData?.workflowId ?? null;
-
-  const promptPrefillEntries = useMemo(() => {
-    if (!promptData) return [];
-    const entries: Array<{
-      inputId?: number;
-      label?: string;
-      systemLabel?: string;
-      value: string;
-    }> = [];
-    const jobInputs = promptData.jobInputs ?? [];
-    const jobInputByLabel = new Map(
-      jobInputs.filter((input) => input.label).map((input) => [String(input.label), input])
-    );
-    const jobInputByKey = new Map(
-      jobInputs.filter((input) => input.inputKey).map((input) => [String(input.inputKey), input])
-    );
-    const promptSource =
-      promptData.promptData?.inputs && promptData.promptData.inputs.length > 0
-        ? promptData.promptData.inputs
-        : promptData.promptData?.workflowInputs || [];
-    if (promptSource.length > 0) {
-      promptSource.forEach((input) => {
-        const byLabel = input.label ? jobInputByLabel.get(String(input.label)) : undefined;
-        const byKey = input.systemLabel ? jobInputByKey.get(String(input.systemLabel)) : undefined;
-        const inputId = input.inputId ?? byLabel?.inputId ?? byKey?.inputId;
-        const value = input.value === null || input.value === undefined ? '' : String(input.value);
-        entries.push({ inputId, label: input.label, systemLabel: input.systemLabel, value });
-      });
-    } else if (jobInputs.length > 0) {
-      jobInputs.forEach((input) => {
-        entries.push({
-          inputId: input.inputId,
-          label: input.label,
-          systemLabel: input.inputKey,
-          value: input.value === null || input.value === undefined ? '' : String(input.value)
-        });
-      });
-    }
-    return entries;
-  }, [promptData]);
 
   useEffect(() => {
     setTagInput('');
@@ -772,56 +615,16 @@ export default function ImageModal({
             </div>
           )}
 
-          {/* Prompt overlay */}
           {modalTool === 'prompt' && promptAvailable && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4" onClick={handlePromptOverlayClick}>
-              <div
-                className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border bg-background text-foreground"
-                role="dialog"
-                aria-label="Prompt metadata"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="flex items-center justify-between border-b p-4">
-                  <div>
-                    <div className="text-sm font-semibold">Generation prompt</div>
-                    {promptData && (
-                      <div className="text-xs text-muted-foreground">
-                        Generated {new Date(promptData.createdAt).toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {promptWorkflowId ? (
-                      <Button size="sm" onClick={handleLoadWorkflow}>
-                        Load Workflow
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Workflow not saved</span>
-                    )}
-                    <button
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
-                      type="button"
-                      onClick={handleTogglePrompt}
-                      aria-label="Close prompt"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-4">
-                  {promptLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-                  {promptError && <p className="text-sm text-destructive">{promptError}</p>}
-                  {promptJson && (
-                    <pre className="whitespace-pre-wrap break-all rounded-md bg-muted p-3 text-xs">
-                      {JSON.stringify(promptJson, null, 2)}
-                    </pre>
-                  )}
-                  {!promptJson && promptData && (
-                    <p className="text-sm text-muted-foreground">No input data recorded.</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ImagePromptOverlay
+              promptData={promptData}
+              promptLoading={promptLoading}
+              promptError={promptError}
+              promptJson={promptJson}
+              promptWorkflowId={promptWorkflowId}
+              onLoadWorkflow={handleLoadWorkflow}
+              onClosePrompt={handleTogglePrompt}
+            />
           )}
 
           {/* Image body */}

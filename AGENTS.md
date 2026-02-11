@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued `ImageModal` decomposition (v0.9.29): extracted prompt data lifecycle/derivation concerns from `src/client/components/ImageModal.tsx` into `src/client/components/image-modal/useImagePromptData.ts`, and extracted prompt overlay rendering into `src/client/components/image-modal/ImagePromptOverlay.tsx`, reducing `ImageModal` complexity while preserving behavior.
+- Updated frontend architecture/refactor docs after `ImageModal` prompt extraction (v0.9.29): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new image-modal layering and remaining interaction-focused split targets.
+- Bumped package/app version to `0.9.29` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued `TopBar` decomposition (v0.9.28): extracted bulk-action and tool-popover sections from `src/client/components/TopBar.tsx` into `src/client/components/topbar/TopBarBulkActions.tsx` and `src/client/components/topbar/TopBarToolPopover.tsx`, reducing `TopBar` to a slimmer composition shell while preserving behavior.
 - Updated frontend architecture/refactor docs after `TopBar` section extraction (v0.9.28): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new `TopBar` layering and shift immediate next-step focus to `ImageModal`.
 - Bumped package/app version to `0.9.28` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

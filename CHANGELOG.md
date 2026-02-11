@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.29] - 2026-02-11
+
+### Changed
+- Continued `ImageModal` decomposition by extracting prompt data lifecycle/derivation concerns from `src/client/components/ImageModal.tsx` into `src/client/components/image-modal/useImagePromptData.ts`.
+- Extracted prompt overlay rendering from `src/client/components/ImageModal.tsx` into `src/client/components/image-modal/ImagePromptOverlay.tsx`.
+- Reduced `ImageModal` complexity while preserving behavior and existing modal/toolbar contracts.
+- Updated frontend architecture/refactor docs to reflect the new image-modal layering and remaining interaction-focused split targets.
+- Bumped app version to `0.9.29` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.28] - 2026-02-11
 
 ### Changed
