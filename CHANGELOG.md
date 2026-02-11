@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.7] - 2026-02-11
+
+### Added
+- Bulk auto-tag from metadata: select images in multi-select mode and click "Auto Tag" to parse comma-separated prompt text into individual tags with a review modal.
+- Auto-tag review modal shows each image as a row with a fit-to-content thumbnail and an editable tag list where users can add/remove tags before applying.
+- New tags parsed from metadata are highlighted in the review UI to distinguish them from existing tags.
+- Batch prompt API endpoint (`POST /api/prompts/bulk`) for efficient bulk metadata fetching.
+- Prompt tag parsing utility that splits on commas, trims whitespace, strips bracket characters (`[]`, `()`, `{}`), lowercases, and deduplicates.
+
 ## [0.9.6] - 2026-02-10
 
 ### Fixed

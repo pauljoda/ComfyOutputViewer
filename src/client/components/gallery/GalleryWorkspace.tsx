@@ -4,6 +4,7 @@ import TagDrawer from '../TagDrawer';
 import Gallery from '../Gallery';
 import ImageModal from '../ImageModal';
 import TopBar from '../TopBar';
+import AutoTagModal from '../AutoTagModal';
 import SlideshowSettingsModal from '../SlideshowSettingsModal';
 import SlideshowView from '../SlideshowView';
 import {
@@ -129,6 +130,9 @@ export default function GalleryWorkspace() {
     DEFAULT_SORT,
     sortSerializer
   );
+
+  // Auto-tag state
+  const [showAutoTag, setShowAutoTag] = useState(false);
 
   // Slideshow state
   const [showSlideshowSettings, setShowSlideshowSettings] = useState(false);
@@ -489,6 +493,32 @@ export default function GalleryWorkspace() {
     }
   }, [data.images, handleApiFailure, selectedCount, selectedIdSet]);
 
+  const handleOpenAutoTag = useCallback(() => {
+    if (!selectedCount) return;
+    setShowAutoTag(true);
+  }, [selectedCount]);
+
+  const handleAutoTagApply = useCallback(async (updates: Array<{ path: string; tags: string[] }>) => {
+    setShowAutoTag(false);
+    if (updates.length === 0) return;
+    const normalized = updates.map((u) => ({ path: u.path, tags: normalizeTags(u.tags) }));
+    const updateMap = new Map(normalized.map((entry) => [entry.path, entry.tags]));
+    setData((prev) => ({
+      ...prev,
+      images: prev.images.map((item) => {
+        const nextTags = updateMap.get(item.id);
+        if (!nextTags) return item;
+        return { ...item, tags: nextTags };
+      })
+    }));
+    try {
+      await bulkTags(normalized);
+      setStatus(`Auto-tagged ${normalized.length} image${normalized.length !== 1 ? 's' : ''}.`);
+    } catch (err) {
+      await handleApiFailure(err, 'Failed to apply auto-tags');
+    }
+  }, [handleApiFailure]);
+
   const handleSync = async () => {
     try {
       setStatus('Syncing from source...');
@@ -635,6 +665,7 @@ export default function GalleryWorkspace() {
         onBulkRating={handleBulkRating}
         onBulkDelete={handleBulkDelete}
         onBulkTag={handleBulkTag}
+        onAutoTag={handleOpenAutoTag}
         onColumnsChange={setColumns}
         onTileFitChange={setTileFit}
         onSortModeChange={setSortMode}
@@ -713,6 +744,15 @@ export default function GalleryWorkspace() {
           onClose={() => setSelectedId(null)}
           onPrev={movePrev}
           onNext={moveNext}
+        />
+      )}
+
+      {showAutoTag && (
+        <AutoTagModal
+          images={data.images.filter((img) => selectedIdSet.has(img.id))}
+          availableTags={availableTags}
+          onApply={handleAutoTagApply}
+          onClose={() => setShowAutoTag(false)}
         />
       )}
 

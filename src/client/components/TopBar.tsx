@@ -10,7 +10,8 @@ import {
   EyeOff,
   Star,
   Trash2,
-  Tag
+  Tag,
+  Wand2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -54,6 +55,7 @@ type TopBarProps = {
   onBulkRating: (rating: number) => void;
   onBulkDelete: () => void;
   onBulkTag: (tag: string) => void;
+  onAutoTag: () => void;
   onColumnsChange: (value: number) => void;
   onTileFitChange: (value: TileFit) => void;
   onSortModeChange: (value: SortMode) => void;
@@ -100,6 +102,7 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
       onBulkRating,
       onBulkDelete,
       onBulkTag,
+      onAutoTag,
       onColumnsChange,
       onTileFitChange,
       onSortModeChange,
@@ -284,6 +287,15 @@ const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
               >
                 <Trash2 className="mr-1 h-3.5 w-3.5" />
                 Remove
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAutoTag}
+                disabled={selectedCount === 0}
+              >
+                <Wand2 className="mr-1 h-3.5 w-3.5" />
+                Auto Tag
               </Button>
             </div>
             <div className="flex items-center gap-2">

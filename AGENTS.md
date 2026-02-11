@@ -58,6 +58,7 @@ API endpoints:
 - `POST /api/tags` -> `{ path, tags }`
 - `POST /api/delete` -> `{ path }`
 - `POST /api/delete/bulk` -> `{ paths }`
+- `POST /api/prompts/bulk` -> `{ paths }` returns `{ prompts: { [path]: promptData } }`
 - `POST /api/sync` -> `{ scanned, copied, thumbnails? }`
 - `GET /api/workflows` -> list all workflows
 - `POST /api/workflows` -> create workflow with inputs
@@ -154,6 +155,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added bulk auto-tag from metadata feature (v0.9.7): added "Auto Tag" button in multi-select toolbar that fetches prompt metadata for selected images, parses comma-separated prompt text into individual tags (stripping brackets, trimming, lowercasing), and presents a review modal with thumbnail rows and editable tag lists before bulk-applying. Added `POST /api/prompts/bulk` batch endpoint, `src/client/utils/promptTags.ts` parsing utility, and `src/client/components/AutoTagModal.tsx` review modal component.
 - Refined gallery tag filter controls and removed duplicate theme control (v0.9.6): changed left drawer tag selection to single-select behavior (clicking a tag selects only that tag; clicking it again clears), kept intentional multi-tag combinations in the filter tool panel, and removed theme selection from gallery filters because theme is already controlled in the global header.
 - Completed a broad gallery/workflows UX reliability and polish pass (v0.9.5): fixed tag-filtered gallery card fill behavior to match full-gallery rendering, converted image-modal tag/rating tool panes to floating overlays so zoom stage size no longer shifts, improved workflow output modal prev/next navigation robustness, persisted/restored last-opened workflow selection (without forcing first-workflow auto-open on missing selections), improved workflow sidebar collapse layout behavior, hardened drag/drop reorder handling and added mobile-friendly up/down reorder controls, moved slideshow close into the bottom controls so it no longer covers imagery, improved Export API copy-to-clipboard fallback behavior, and refined tag/rating filter UX for high-tag-count libraries (search/sort plus cleaner rating range controls).
 - Added Open WebUI MCP import + prompt-template UX to Export API modal (v0.9.4): replaced the old Open WebUI Python tool export tab with an MCP-focused panel that provides ready-to-import `/mcp` JSON, a one-click JSON download button, and a copyable workflow-specific system prompt template that includes workflow ID context and the `run_workflow` JSON payload shape.

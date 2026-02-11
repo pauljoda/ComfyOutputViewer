@@ -170,6 +170,51 @@ app.post('/api/delete/bulk', async (req, res) => {
   }
 });
 
+app.post('/api/prompts/bulk', async (req, res) => {
+  try {
+    const { paths } = req.body || {};
+    if (!Array.isArray(paths) || paths.length === 0) {
+      return res.status(400).send('Missing paths');
+    }
+    if (paths.length > 1000) {
+      return res.status(400).send('Too many paths (max 1000)');
+    }
+    const prompts = {};
+    for (const imagePath of paths) {
+      if (typeof imagePath !== 'string' || !imagePath) continue;
+      const row = statements.selectImagePrompt.get(imagePath);
+      if (!row) continue;
+      try {
+        const promptData = JSON.parse(row.prompt_data);
+        const jobInputs = [];
+        if (row.job_id) {
+          for (const inputRow of statements.selectJobInputs.iterate(row.job_id)) {
+            jobInputs.push({
+              inputId: inputRow.input_id,
+              value: inputRow.value,
+              label: inputRow.label,
+              inputType: inputRow.input_type,
+              inputKey: inputRow.input_key
+            });
+          }
+        }
+        prompts[imagePath] = {
+          imagePath: row.image_path,
+          jobId: row.job_id,
+          promptData,
+          jobInputs,
+          createdAt: row.created_at
+        };
+      } catch {
+        // skip entries with invalid JSON
+      }
+    }
+    res.json({ prompts });
+  } catch (err) {
+    res.status(500).send(err instanceof Error ? err.message : 'Failed to fetch prompts');
+  }
+});
+
 app.post('/api/sync', async (_req, res) => {
   try {
     const result = await syncSourceToData();
