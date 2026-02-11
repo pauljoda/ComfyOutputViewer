@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, X, Plus, Wand2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Loader2, X, Plus, Wand2, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import type { ImageItem } from '../types';
@@ -185,6 +185,23 @@ export default function AutoTagModal({
     return count;
   }, [entries]);
 
+  // Set of all globally known tags for detecting brand-new tags
+  const globalTagSet = useMemo(() => new Set(availableTags), [availableTags]);
+
+  // Count tags that will be created as new global tags
+  const newGlobalTagCount = useMemo(() => {
+    const allNewTags = new Set<string>();
+    for (const entry of entries) {
+      const originalSet = new Set(entry.image.tags);
+      for (const tag of entry.tags) {
+        if (!originalSet.has(tag) && !globalTagSet.has(tag)) {
+          allNewTags.add(tag);
+        }
+      }
+    }
+    return allNewTags.size;
+  }, [entries, globalTagSet]);
+
   const getSuggestions = (imageId: string) => {
     const entry = entries.find((e) => e.image.id === imageId);
     if (!entry) return [];
@@ -220,9 +237,12 @@ export default function AutoTagModal({
                   : step === 'select-inputs'
                     ? `${imagesWithPromptCount} of ${images.length} image${images.length !== 1 ? 's' : ''} have prompt data`
                     : entries.length > 0
-                      ? `${entries.length} image${entries.length !== 1 ? 's' : ''} with tags, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add` +
+                      ? `${entries.length} image${entries.length !== 1 ? 's' : ''}, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add` +
+                        (newGlobalTagCount > 0
+                          ? `, ${newGlobalTagCount} new global tag${newGlobalTagCount !== 1 ? 's' : ''} will be created`
+                          : '') +
                         (imagesWithPromptCount > entries.length
-                          ? ` (${imagesWithPromptCount - entries.length} skipped — no matching tags)`
+                          ? ` (${imagesWithPromptCount - entries.length} skipped)`
                           : '')
                       : 'No parseable tags found for the selected inputs'}
               </div>
@@ -296,6 +316,20 @@ export default function AutoTagModal({
           {/* Step 2: Review tags per image */}
           {!loading && step === 'review-tags' && entries.length > 0 && (
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-secondary" />
+                  Existing
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
+                  Adding to image
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full border border-dashed border-amber-500 bg-amber-500/10" />
+                  New global tag
+                </span>
+              </div>
               {entries.map((entry) => {
                 const originalSet = new Set(entry.image.tags);
                 const suggestions = getSuggestions(entry.image.id);
@@ -321,49 +355,75 @@ export default function AutoTagModal({
                       <div className="flex flex-wrap gap-1">
                         {entry.tags.map((tag) => {
                           const isNew = !originalSet.has(tag);
+                          const isNewGlobal = isNew && !globalTagSet.has(tag);
                           return (
                             <button
                               key={tag}
                               type="button"
                               onClick={() => handleRemoveTag(entry.image.id, tag)}
-                              title="Remove tag"
+                              title={
+                                isNewGlobal
+                                  ? 'New global tag — will be created. Click to remove.'
+                                  : isNew
+                                    ? 'Will be added to this image. Click to remove.'
+                                    : 'Already on this image. Click to remove.'
+                              }
                               className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs hover:opacity-80 ${
-                                isNew
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-secondary text-secondary-foreground'
+                                isNewGlobal
+                                  ? 'border border-dashed border-amber-500 bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                                  : isNew
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary text-secondary-foreground'
                               }`}
                             >
+                              {isNewGlobal && (
+                                <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                              )}
                               {tag}
                               <span aria-hidden="true">&times;</span>
                             </button>
                           );
                         })}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={tagInputs[entry.image.id] || ''}
-                          onChange={(e) =>
-                            setTagInputs((prev) => ({ ...prev, [entry.image.id]: e.target.value }))
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddTag(entry.image.id);
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={tagInputs[entry.image.id] || ''}
+                            onChange={(e) =>
+                              setTagInputs((prev) => ({ ...prev, [entry.image.id]: e.target.value }))
                             }
-                          }}
-                          placeholder="Add tag..."
-                          className="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0"
-                          onClick={() => handleAddTag(entry.image.id)}
-                          disabled={!tagInputs[entry.image.id]?.trim()}
-                          title="Add tag"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddTag(entry.image.id);
+                              }
+                            }}
+                            placeholder="Add tag..."
+                            className="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleAddTag(entry.image.id)}
+                            disabled={!tagInputs[entry.image.id]?.trim()}
+                            title="Add tag"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        {(() => {
+                          const normalized = normalizeTagInput(tagInputs[entry.image.id] || '');
+                          if (normalized && !globalTagSet.has(normalized) && !entry.tags.includes(normalized)) {
+                            return (
+                              <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                <span>&quot;{normalized}&quot; will create a new global tag</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       {suggestions.length > 0 && tagInputs[entry.image.id]?.trim() && (
                         <div className="flex flex-wrap gap-1">
