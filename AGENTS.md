@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: continue splitting `useWorkflowDetailController` (remaining metadata mutation concerns), and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
+- Continue frontend phase-2 hardening after phase-1 modularization: finalize `useWorkflowDetailController` orchestration boundaries after sub-hook extractions and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued workflow controller decomposition (v0.9.22): extracted output/input metadata mutation concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowMetadataMutations.ts`, isolating optimistic metadata mutation and delete flows while preserving behavior.
+- Updated frontend architecture/refactor docs for metadata-hook extraction progress (v0.9.22): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and remaining orchestration decisions.
+- Bumped package/app version to `0.9.22` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued workflow controller decomposition (v0.9.21): extracted output modal orchestration from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowOutputModalState.ts`, isolating output/input preview selection, open flows, modal navigation, and tool-toggle state while preserving behavior.
 - Updated frontend architecture/refactor docs for output-modal extraction progress (v0.9.21): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and remaining metadata-mutation split target.
 - Bumped package/app version to `0.9.21` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

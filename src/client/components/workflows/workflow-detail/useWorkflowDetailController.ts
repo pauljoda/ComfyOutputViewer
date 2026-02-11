@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../../lib/api';
-import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../../../lib/imagesApi';
 import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import { useWorkflowJobs } from './useWorkflowJobs';
+import { useWorkflowMetadataMutations } from './useWorkflowMetadataMutations';
 import { useWorkflowOutputModalState } from './useWorkflowOutputModalState';
 import { useWorkflowRunPipeline } from './useWorkflowRunPipeline';
 import type {
@@ -315,32 +315,31 @@ export function useWorkflowDetailController({
     toggleInputRatingTool,
     toggleInputPromptTool
   } = outputModalState;
-
-  const refreshOutputImage = useCallback(
-    async (imagePath: string) => {
-      await loadOutputImage(imagePath, { force: true });
-    },
-    [loadOutputImage]
-  );
-
-  const handleOutputUpdateFailure = useCallback(
-    async (imagePath: string, err: unknown, fallback: string) => {
-      const message = err instanceof Error ? err.message : fallback;
-      await refreshOutputImage(imagePath);
-      setError(message);
-    },
-    [refreshOutputImage]
-  );
-
-  const updateOutputCache = useCallback(
-    (imagePath: string, updater: (image: ImageItem) => ImageItem) => {
-      setOutputCache((prev) => {
-        const current = prev[imagePath] ?? buildFallbackImage(imagePath);
-        return { ...prev, [imagePath]: updater(current) };
-      });
-    },
-    [buildFallbackImage]
-  );
+  const metadataMutations = useWorkflowMetadataMutations({
+    selectedOutputImage,
+    selectedInputImage,
+    buildFallbackImage,
+    loadOutputImage,
+    setOutputCache,
+    setJobs,
+    closeOutputModal,
+    closeInputModal,
+    removeOutputPath,
+    refreshTags,
+    setError
+  });
+  const {
+    handleOutputTags,
+    handleOutputFavorite,
+    handleOutputHidden,
+    handleOutputRating,
+    handleOutputDelete,
+    handleInputTags,
+    handleInputFavorite,
+    handleInputHidden,
+    handleInputRating,
+    handleInputDelete
+  } = metadataMutations;
 
   const handleInputChange = useCallback((inputId: number, value: string) => {
     isInputDirtyRef.current = true;
@@ -348,145 +347,6 @@ export function useWorkflowDetailController({
   }, []);
 
   const handleRun = runPipeline.handleRun;
-
-  const handleOutputFavorite = useCallback(async () => {
-    if (!selectedOutputImage) return;
-    const nextValue = !selectedOutputImage.favorite;
-    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, favorite: nextValue }));
-    try {
-      await setFavorite(selectedOutputImage.id, nextValue);
-    } catch (err) {
-      await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update favorite');
-    }
-  }, [handleOutputUpdateFailure, selectedOutputImage, updateOutputCache]);
-
-  const handleOutputHidden = useCallback(async () => {
-    if (!selectedOutputImage) return;
-    const nextValue = !selectedOutputImage.hidden;
-    updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, hidden: nextValue }));
-    try {
-      await setHidden(selectedOutputImage.id, nextValue);
-    } catch (err) {
-      await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update hidden state');
-    }
-  }, [handleOutputUpdateFailure, selectedOutputImage, updateOutputCache]);
-
-  const handleOutputRating = useCallback(
-    async (rating: number) => {
-      if (!selectedOutputImage) return;
-      updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, rating }));
-      try {
-        await setRating(selectedOutputImage.id, rating);
-      } catch (err) {
-        await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update rating');
-      }
-    },
-    [handleOutputUpdateFailure, selectedOutputImage, updateOutputCache]
-  );
-
-  const handleOutputTags = useCallback(
-    async (tags: string[]) => {
-      if (!selectedOutputImage) return;
-      updateOutputCache(selectedOutputImage.id, (current) => ({ ...current, tags }));
-      try {
-        await setTags(selectedOutputImage.id, tags);
-        refreshTags();
-      } catch (err) {
-        await handleOutputUpdateFailure(selectedOutputImage.id, err, 'Failed to update tags');
-      }
-    },
-    [handleOutputUpdateFailure, refreshTags, selectedOutputImage, updateOutputCache]
-  );
-
-  const handleInputFavorite = useCallback(async () => {
-    if (!selectedInputImage) return;
-    const nextValue = !selectedInputImage.favorite;
-    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, favorite: nextValue }));
-    try {
-      await setFavorite(selectedInputImage.id, nextValue);
-    } catch (err) {
-      await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update favorite');
-    }
-  }, [handleOutputUpdateFailure, selectedInputImage, updateOutputCache]);
-
-  const handleInputHidden = useCallback(async () => {
-    if (!selectedInputImage) return;
-    const nextValue = !selectedInputImage.hidden;
-    updateOutputCache(selectedInputImage.id, (current) => ({ ...current, hidden: nextValue }));
-    try {
-      await setHidden(selectedInputImage.id, nextValue);
-    } catch (err) {
-      await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update hidden state');
-    }
-  }, [handleOutputUpdateFailure, selectedInputImage, updateOutputCache]);
-
-  const handleInputRating = useCallback(
-    async (rating: number) => {
-      if (!selectedInputImage) return;
-      updateOutputCache(selectedInputImage.id, (current) => ({ ...current, rating }));
-      try {
-        await setRating(selectedInputImage.id, rating);
-      } catch (err) {
-        await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update rating');
-      }
-    },
-    [handleOutputUpdateFailure, selectedInputImage, updateOutputCache]
-  );
-
-  const handleInputTags = useCallback(
-    async (tags: string[]) => {
-      if (!selectedInputImage) return;
-      updateOutputCache(selectedInputImage.id, (current) => ({ ...current, tags }));
-      try {
-        await setTags(selectedInputImage.id, tags);
-        refreshTags();
-      } catch (err) {
-        await handleOutputUpdateFailure(selectedInputImage.id, err, 'Failed to update tags');
-      }
-    },
-    [handleOutputUpdateFailure, refreshTags, selectedInputImage, updateOutputCache]
-  );
-
-  const handleInputDelete = useCallback(async () => {
-    if (!selectedInputImage) return;
-    const confirmed = window.confirm('Remove this image from the library?');
-    if (!confirmed) return;
-    try {
-      await deleteImage(selectedInputImage.id);
-      setOutputCache((prev) => {
-        const next = { ...prev };
-        delete next[selectedInputImage.id];
-        return next;
-      });
-      closeInputModal();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete image');
-    }
-  }, [closeInputModal, selectedInputImage]);
-
-  const handleOutputDelete = useCallback(async () => {
-    if (!selectedOutputImage) return;
-    const confirmed = window.confirm('Remove this image from the library?');
-    if (!confirmed) return;
-    try {
-      await deleteImage(selectedOutputImage.id);
-      setJobs((prev) =>
-        prev.map((job) => ({
-          ...job,
-          outputs: job.outputs?.filter((output) => output.imagePath !== selectedOutputImage.id)
-        }))
-      );
-      setOutputCache((prev) => {
-        const next = { ...prev };
-        delete next[selectedOutputImage.id];
-        return next;
-      });
-      removeOutputPath(selectedOutputImage.id);
-      closeOutputModal();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete image');
-    }
-  }, [closeOutputModal, removeOutputPath, selectedOutputImage, setJobs]);
 
   const promptPreview = useMemo(() => {
     try {
