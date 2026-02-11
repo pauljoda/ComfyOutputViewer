@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue phase-1 workflows modularization after initial UI extraction by separating `WorkflowDetail` controller/state concerns into dedicated hooks/modules.
+- Continue frontend phase-2 hardening after phase-1 modularization: address workflow input reset churn (`workflow.updatedAt`) and modal prompt-fetch cancellation unification.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Completed workflow detail phase-1 modularization (v0.9.14): extracted `WorkflowDetail` controller/state/effect/network orchestration into `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` and reduced `src/client/components/workflows/WorkflowDetail.tsx` to composition/render wiring.
+- Updated frontend cleanup docs for current architecture state (v0.9.14): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to capture the new hook-centric layering and next backlog targets.
+- Bumped package/app version to `0.9.14` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued frontend modular cleanup (v0.9.13): extracted `WorkflowDetail` UI sections into `src/client/components/workflows/workflow-detail/` (`WorkflowHeader`, `AutoTagSettingsPanel`, `WorkflowInputsSection`, `WorkflowJobsSection`, `WorkflowOutputModalController`) while preserving existing behavior and test coverage.
 - Removed dead UI primitive surface (v0.9.13): deleted unreferenced `src/client/components/ui/*` files (`card`, `dropdown-menu`, `input`, `label`, `scroll-area`, `select`, `separator`, `sheet`, `slider`, `switch`, `toggle`) after reachability verification from `src/client/main.tsx`.
 - Bumped package/app version to `0.9.13` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

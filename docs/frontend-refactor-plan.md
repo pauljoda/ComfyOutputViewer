@@ -6,8 +6,8 @@ Scope: Deep review findings + concrete split plan for `WorkflowDetail` and `Gall
 Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
 - Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
+- Completed: extracted remaining `WorkflowDetail` controller/state concerns into `workflows/workflow-detail/useWorkflowDetailController.ts`.
 - Completed: removed previously unused `ui/*` primitives after reachability verification.
-- Pending: split remaining `WorkflowDetail` controller/state concerns into dedicated hooks/modules.
 
 ## 1) Deep Review Findings
 
@@ -34,7 +34,7 @@ Progress snapshot:
 
 ### Remaining review backlog (not changed yet)
 1. `WorkflowDetail` input state reset is keyed on `workflow.updatedAt`; this can wipe unsaved form edits during metadata churn.
-- File: `src/client/components/workflows/WorkflowDetail.tsx`
+- File: `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
 - Plan: move to dirty-aware reset strategy in phase 2.
 
 2. `ImageModal` prompt fetch path still has room for cancellation hardening in secondary prompt-open fetch path.
@@ -54,20 +54,21 @@ Progress snapshot:
   - Deleted `src/client/components/StatusBar.tsx`
   - Deleted `src/client/components/StatusBar.test.tsx`
 
-## 3) Concrete Split Plan: `WorkflowDetail`
+## 3) Concrete Split Plan: `WorkflowDetail` (Completed)
 
-Current size: ~1164 LOC (`src/client/components/workflows/WorkflowDetail.tsx`).
+Current size:
+- `src/client/components/workflows/WorkflowDetail.tsx`: ~141 LOC (orchestrator/composition shell)
+- `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`: ~1012 LOC (controller/state/effects)
 
 ### Target file split
 - `src/client/components/workflows/WorkflowDetail.tsx`
   - Orchestrator only: route-level wiring + shared state handoff.
 - `src/client/components/workflows/workflow-detail/WorkflowHeader.tsx`
 - `src/client/components/workflows/workflow-detail/AutoTagSettingsPanel.tsx`
-- `src/client/components/workflows/workflow-detail/WorkflowInputsForm.tsx`
+- `src/client/components/workflows/workflow-detail/WorkflowInputsSection.tsx`
 - `src/client/components/workflows/workflow-detail/WorkflowJobsSection.tsx`
 - `src/client/components/workflows/workflow-detail/WorkflowOutputModalController.tsx`
 - `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`
-- `src/client/components/workflows/workflow-detail/types.ts`
 
 ### Proposed prop contracts (phase 1)
 
@@ -98,8 +99,8 @@ export type AutoTagSettingsPanelProps = {
 ```
 
 ```ts
-// WorkflowInputsForm.tsx
-export type WorkflowInputsFormProps = {
+// WorkflowInputsSection.tsx
+export type WorkflowInputsSectionProps = {
   inputs: WorkflowInput[];
   values: Record<number, string>;
   running: boolean;
@@ -157,9 +158,9 @@ export type WorkflowOutputModalControllerProps = {
 ```
 
 ### Acceptance criteria
-- No behavior changes.
-- `WorkflowDetail` reduced to <300 LOC orchestrator.
-- `test:client` remains green.
+- Completed: no behavior changes in this extraction pass.
+- Completed: `WorkflowDetail` reduced to <300 LOC orchestrator.
+- Completed: `test:client` remains green after split.
 
 ## 4) Concrete Split Plan: `GalleryWorkspace`
 
@@ -263,11 +264,12 @@ WorkflowsWorkspace
 │  └─ sessionStorage(prefill)
 └─ detail surface
    └─ WorkflowDetail
-      ├─ api('/api/workflows/:id') + '/jobs' + '/comfy/stats'
-      ├─ WebSocket '/ws' job updates + polling fallback
-      ├─ image metadata mutations via lib/imagesApi
-      ├─ run pipeline + optional image upload bridge
-      └─ modal projections (ImageModal, ExportApiModal)
+      └─ useWorkflowDetailController
+         ├─ api('/api/workflows/:id') + '/jobs' + '/comfy/stats'
+         ├─ WebSocket '/ws' job updates + polling fallback
+         ├─ image metadata mutations via lib/imagesApi
+         ├─ run pipeline + optional image upload bridge
+         └─ modal projections (ImageModal, ExportApiModal)
 ```
 
 ## 6) Unused UI Component Cleanup
@@ -280,7 +282,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Complete phase-1 split of `GalleryWorkspace` (controller extraction first).
-2. Complete phase-1 split of `WorkflowDetail` (inputs/jobs/modal controllers).
-3. Patch remaining backlog issues (`workflow.updatedAt` reset strategy + modal fetch cancellation).
-4. Remove unused `ui/*` primitives if still unreferenced after split work.
+1. Patch remaining backlog issues (`workflow.updatedAt` dirty-aware reset strategy + modal fetch cancellation hardening).
+2. Continue `GalleryWorkspace` follow-up cleanup around filter/action/modal composition surfaces now that controller extraction is in place.
+3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.14] - 2026-02-11
+
+### Changed
+- Completed the `WorkflowDetail` phase-1 modularization by extracting controller/state/effects/network logic into `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts`, leaving `src/client/components/workflows/WorkflowDetail.tsx` as a thin composition shell.
+- Updated frontend architecture/refactor planning docs to reflect the new hook-based layering and current remaining backlog focus.
+- Bumped app version to `0.9.14` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.13] - 2026-02-11
 
 ### Changed
