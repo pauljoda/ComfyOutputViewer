@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: continue splitting `useWorkflowDetailController` (output modal/run pipeline), and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
+- Continue frontend phase-2 hardening after phase-1 modularization: continue splitting `useWorkflowDetailController` (output modal + metadata mutation concerns), and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued workflow controller decomposition (v0.9.20): extracted workflow run pipeline concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts`, isolating local image upload + run submission/job fetch flow while preserving behavior.
+- Updated frontend architecture/refactor docs for run-pipeline extraction progress (v0.9.20): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and remaining `useWorkflowDetailController` split targets.
+- Bumped package/app version to `0.9.20` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued workflow controller decomposition (v0.9.19): extracted jobs/system-stats/job-stream concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowJobs.ts` (websocket updates, polling fallback, cancel/recheck handling, and stats refresh) while preserving behavior.
 - Updated frontend architecture/refactor docs for the new jobs hook layering (v0.9.19): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to track remaining `useWorkflowDetailController` split targets.
 - Bumped package/app version to `0.9.19` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

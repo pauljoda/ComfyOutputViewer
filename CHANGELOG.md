@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.20] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting the workflow run pipeline from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowRunPipeline.ts` (local image-input upload bridge + run submission/job fetch flow).
+- Reduced `useWorkflowDetailController` complexity while preserving behavior and public hook contract used by `WorkflowDetail`.
+- Updated frontend architecture/refactor docs to reflect the new run-pipeline hook layer and remaining controller split targets.
+- Bumped app version to `0.9.20` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.19] - 2026-02-11
 
 ### Changed

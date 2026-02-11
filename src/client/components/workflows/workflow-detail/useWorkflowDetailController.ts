@@ -5,8 +5,8 @@ import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
 import { useWorkflowJobs } from './useWorkflowJobs';
+import { useWorkflowRunPipeline } from './useWorkflowRunPipeline';
 import type {
-  ImageUploadValue,
   SystemStatsResponse,
   WorkflowPrefill,
   WorkflowPrefillEntry
@@ -97,7 +97,6 @@ export function useWorkflowDetailController({
   const prefillAppliedRef = useRef<string | null>(null);
   const isInputDirtyRef = useRef(false);
   const previousWorkflowIdRef = useRef<number | null>(null);
-  const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
   const workflowIdRef = useRef(workflow.id);
 
   workflowIdRef.current = workflow.id;
@@ -125,6 +124,15 @@ export function useWorkflowDetailController({
     handleCancelJob,
     handleRecheckJobOutputs
   } = workflowJobs;
+  const runPipeline = useWorkflowRunPipeline({
+    workflowId: workflow.id,
+    inputs,
+    inputValues,
+    setRunning,
+    onError: setError,
+    mergeJobUpdate,
+    loadJobs
+  });
 
   useEffect(() => {
     autoTag.applyAutoTagSettings({
@@ -331,80 +339,7 @@ export function useWorkflowDetailController({
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
   }, []);
 
-  const resolveImageInputValue = useCallback(async (rawValue: string) => {
-    if (!rawValue) return '';
-    if (!rawValue.startsWith('local:')) return rawValue;
-    const imagePath = rawValue.slice('local:'.length);
-    if (!imagePath) return '';
-    const cached = imageUploadCacheRef.current.get(imagePath);
-    if (cached) return cached;
-    const sourceUrl = buildImageUrl(imagePath);
-    const imageResponse = await fetch(sourceUrl);
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to load selected image: ${imagePath}`);
-    }
-    const blob = await imageResponse.blob();
-    const filename = imagePath.split('/').pop() || 'input.png';
-    const formData = new FormData();
-    formData.append('image', new File([blob], filename, { type: blob.type || 'image/png' }));
-    const uploadResponse = await fetch('/api/comfy/upload', {
-      method: 'POST',
-      body: formData
-    });
-    if (!uploadResponse.ok) {
-      const text = await uploadResponse.text();
-      throw new Error(text || 'Failed to upload image to ComfyUI');
-    }
-    const uploadResult = await uploadResponse.json();
-    const uploadName = typeof uploadResult.name === 'string' ? uploadResult.name : '';
-    const uploadSubfolder =
-      typeof uploadResult.subfolder === 'string' ? uploadResult.subfolder : '';
-    const uploadType = typeof uploadResult.type === 'string' ? uploadResult.type : '';
-    if (!uploadName) {
-      throw new Error('ComfyUI upload did not return a filename.');
-    }
-    const uploadValue: ImageUploadValue = {
-      filename: uploadName,
-      subfolder: uploadSubfolder || undefined,
-      type: uploadType || undefined
-    };
-    imageUploadCacheRef.current.set(imagePath, uploadValue);
-    return uploadValue;
-  }, []);
-
-  const handleRun = useCallback(async () => {
-    try {
-      setRunning(true);
-      setError(null);
-      const inputData = await Promise.all(
-        inputs.map(async (input) => {
-          const rawValue = inputValues[input.id] || '';
-          const value =
-            input.inputType === 'image' ? await resolveImageInputValue(rawValue) : rawValue;
-          return { inputId: input.id, value };
-        })
-      );
-      const result = await api<{ ok: boolean; jobId: number }>(`/api/workflows/${workflow.id}/run`, {
-        method: 'POST',
-        body: JSON.stringify({ inputs: inputData })
-      });
-      if (result?.jobId) {
-        try {
-          const response = await api<{ job: Job }>(`/api/jobs/${result.jobId}`);
-          if (response?.job) {
-            mergeJobUpdate(response.job);
-          }
-        } catch (err) {
-          console.warn('Failed to load new job:', err);
-        }
-      }
-      await loadJobs(workflow.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to run workflow');
-    } finally {
-      setRunning(false);
-    }
-  }, [inputs, inputValues, loadJobs, mergeJobUpdate, resolveImageInputValue, workflow.id]);
+  const handleRun = runPipeline.handleRun;
 
   const handleOpenOutput = useCallback(
     async (job: Job, output: JobOutput) => {
