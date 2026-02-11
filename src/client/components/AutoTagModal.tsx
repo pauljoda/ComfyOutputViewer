@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, X, Plus, Wand2 } from 'lucide-react';
+import { Loader2, X, Plus, Wand2, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import type { ImageItem } from '../types';
 import { bulkPrompts, type BulkPromptEntry } from '../lib/imagesApi';
-import { extractTagsFromPrompt } from '../utils/promptTags';
+import {
+  discoverTextInputs,
+  extractTagsFromPrompt,
+  type DiscoveredInput,
+  type PromptData
+} from '../utils/promptTags';
 import { normalizeTagInput } from '../utils/tags';
 
 type AutoTagEntry = {
@@ -18,6 +24,8 @@ type AutoTagModalProps = {
   onClose: () => void;
 };
 
+type Step = 'select-inputs' | 'review-tags';
+
 export default function AutoTagModal({
   images,
   availableTags,
@@ -26,9 +34,18 @@ export default function AutoTagModal({
 }: AutoTagModalProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>('select-inputs');
+
+  // Step 1: discovered inputs
+  const [prompts, setPrompts] = useState<Record<string, BulkPromptEntry>>({});
+  const [discoveredInputs, setDiscoveredInputs] = useState<DiscoveredInput[]>([]);
+  const [selectedInputKeys, setSelectedInputKeys] = useState<Set<string>>(new Set());
+
+  // Step 2: tag review
   const [entries, setEntries] = useState<AutoTagEntry[]>([]);
   const [tagInputs, setTagInputs] = useState<Record<string, string>>({});
 
+  // Fetch prompt data on mount
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -39,28 +56,35 @@ export default function AutoTagModal({
         const response = await bulkPrompts(paths);
         if (cancelled) return;
 
-        const result: AutoTagEntry[] = [];
-        for (const img of images) {
-          const prompt = response.prompts[img.id] as BulkPromptEntry | undefined;
-          if (!prompt) continue;
-          const parsedTags = extractTagsFromPrompt(prompt);
-          if (parsedTags.length === 0) continue;
-          // Merge existing tags with parsed tags (no duplicates)
-          const existingSet = new Set(img.tags);
-          const merged = [...img.tags];
-          for (const tag of parsedTags) {
-            if (!existingSet.has(tag)) {
-              existingSet.add(tag);
-              merged.push(tag);
-            }
-          }
-          result.push({ image: img, tags: merged });
+        const promptMap = response.prompts;
+        setPrompts(promptMap);
+
+        // Discover all text inputs across prompts
+        const discovered = discoverTextInputs(
+          promptMap as unknown as Record<string, PromptData>
+        );
+
+        if (discovered.length === 0) {
+          setError('No text inputs found in the prompt metadata for the selected images.');
+          setLoading(false);
+          return;
         }
 
-        if (result.length === 0) {
-          setError('No prompt metadata with parseable tags found for the selected images.');
+        setDiscoveredInputs(discovered);
+
+        // Pre-select text-type inputs (not negative) by default
+        const preSelected = new Set(
+          discovered
+            .filter((d) => d.inputType !== 'negative')
+            .map((d) => d.key)
+        );
+        setSelectedInputKeys(preSelected);
+
+        // If there's only one text input, skip straight to review
+        if (discovered.length === 1) {
+          buildEntries(promptMap, preSelected);
+          setStep('review-tags');
         }
-        setEntries(result);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load prompt data');
@@ -72,6 +96,53 @@ export default function AutoTagModal({
     load();
     return () => { cancelled = true; };
   }, [images]);
+
+  const toggleInputKey = (key: string) => {
+    setSelectedInputKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const buildEntries = (
+    promptMap: Record<string, BulkPromptEntry>,
+    keys: Set<string>
+  ) => {
+    const result: AutoTagEntry[] = [];
+    for (const img of images) {
+      const prompt = promptMap[img.id] as unknown as PromptData | undefined;
+      if (!prompt) continue;
+      const parsedTags = extractTagsFromPrompt(prompt, keys);
+      if (parsedTags.length === 0) continue;
+      // Merge existing tags with parsed tags (no duplicates)
+      const existingSet = new Set(img.tags);
+      const merged = [...img.tags];
+      for (const tag of parsedTags) {
+        if (!existingSet.has(tag)) {
+          existingSet.add(tag);
+          merged.push(tag);
+        }
+      }
+      result.push({ image: img, tags: merged });
+    }
+    setEntries(result);
+    setTagInputs({});
+  };
+
+  const handleProceedToReview = () => {
+    if (selectedInputKeys.size === 0) return;
+    buildEntries(prompts, selectedInputKeys);
+    setStep('review-tags');
+  };
+
+  const handleBackToInputs = () => {
+    setStep('select-inputs');
+  };
 
   const handleRemoveTag = (imageId: string, tag: string) => {
     setEntries((prev) =>
@@ -116,7 +187,6 @@ export default function AutoTagModal({
     return count;
   }, [entries]);
 
-  // Build suggestion lists per image
   const getSuggestions = (imageId: string) => {
     const entry = entries.find((e) => e.image.id === imageId);
     if (!entry) return [];
@@ -125,6 +195,11 @@ export default function AutoTagModal({
       .filter((tag) => !entry.tags.includes(tag) && (!query || tag.includes(query)))
       .slice(0, 20);
   };
+
+  const imagesWithPromptCount = useMemo(
+    () => images.filter((img) => img.id in prompts).length,
+    [images, prompts]
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -144,9 +219,11 @@ export default function AutoTagModal({
               <div className="text-xs text-muted-foreground">
                 {loading
                   ? 'Loading prompt data...'
-                  : entries.length > 0
-                    ? `${entries.length} image${entries.length !== 1 ? 's' : ''} with metadata found, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add`
-                    : 'No results'}
+                  : step === 'select-inputs'
+                    ? `${imagesWithPromptCount} of ${images.length} image${images.length !== 1 ? 's' : ''} have prompt data`
+                    : entries.length > 0
+                      ? `${entries.length} image${entries.length !== 1 ? 's' : ''} with tags, ${totalTagChanges} new tag${totalTagChanges !== 1 ? 's' : ''} to add`
+                      : 'No parseable tags found for the selected inputs'}
               </div>
             </div>
           </div>
@@ -175,7 +252,48 @@ export default function AutoTagModal({
             </div>
           )}
 
-          {!loading && entries.length > 0 && (
+          {/* Step 1: Select which text inputs to parse */}
+          {!loading && !error && step === 'select-inputs' && discoveredInputs.length > 0 && (
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Select which prompt inputs to extract tags from:
+              </div>
+              {discoveredInputs.map((input) => (
+                <label
+                  key={input.key}
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    selectedInputKeys.has(input.key)
+                      ? 'border-primary/50 bg-primary/5'
+                      : 'border-border/70 bg-muted/20 opacity-60'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedInputKeys.has(input.key)}
+                    onChange={() => toggleInputKey(input.key)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{input.label}</span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {input.inputType}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground">
+                        {input.imageCount} image{input.imageCount !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground" title={input.preview}>
+                      {input.preview}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Step 2: Review tags per image */}
+          {!loading && step === 'review-tags' && entries.length > 0 && (
             <div className="space-y-3">
               {entries.map((entry) => {
                 const originalSet = new Set(entry.image.tags);
@@ -275,21 +393,48 @@ export default function AutoTagModal({
               })}
             </div>
           )}
+
+          {/* Step 2 but no entries matched */}
+          {!loading && step === 'review-tags' && entries.length === 0 && !error && (
+            <div className="rounded-md bg-muted/30 p-4 text-sm text-muted-foreground">
+              No parseable tags found from the selected inputs. Try going back and selecting different inputs.
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t px-4 py-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleApply}
-            disabled={loading || entries.length === 0}
-          >
-            <Wand2 className="mr-1 h-3.5 w-3.5" />
-            Apply Tags ({entries.length} image{entries.length !== 1 ? 's' : ''})
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            {step === 'review-tags' && discoveredInputs.length > 1 && (
+              <Button variant="ghost" size="sm" onClick={handleBackToInputs}>
+                <ChevronLeft className="mr-1 h-3.5 w-3.5" />
+                Back
+              </Button>
+            )}
+          </div>
+          {step === 'select-inputs' && (
+            <Button
+              size="sm"
+              onClick={handleProceedToReview}
+              disabled={selectedInputKeys.size === 0}
+            >
+              Next
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          )}
+          {step === 'review-tags' && (
+            <Button
+              size="sm"
+              onClick={handleApply}
+              disabled={entries.length === 0}
+            >
+              <Wand2 className="mr-1 h-3.5 w-3.5" />
+              Apply Tags ({entries.length} image{entries.length !== 1 ? 's' : ''})
+            </Button>
+          )}
         </div>
       </div>
     </div>
