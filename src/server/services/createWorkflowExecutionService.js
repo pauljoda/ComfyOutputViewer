@@ -35,6 +35,7 @@ export function createWorkflowExecutionService({
     for (const segment of text.split(',')) {
       const cleaned = segment
         .replace(/[[\](){}]/g, '')
+        .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
         .trim()
         .replace(/\s+/g, ' ')
         .toLowerCase();

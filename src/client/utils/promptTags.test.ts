@@ -15,6 +15,11 @@ describe('parsePromptTags', () => {
     const tags = parsePromptTags('person talks to person, person_talking');
     expect(tags).toEqual(['person talks to person', 'person_talking']);
   });
+
+  it('trims leading/trailing non-alphanumeric characters while preserving interior symbols', () => {
+    const tags = parsePromptTags('  !!!dr. person?!, ###person_talking###, !!portrait!!  ');
+    expect(tags).toEqual(['dr. person', 'person_talking', 'portrait']);
+  });
 });
 
 describe('extractTagsFromPrompt', () => {
