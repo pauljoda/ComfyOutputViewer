@@ -84,6 +84,7 @@ export type Workflow = {
   apiJson: Record<string, unknown>;
   autoTagEnabled?: boolean;
   autoTagInputRefs?: string[];
+  autoTagMaxWords?: number;
   folderId?: number | null;
   sortOrder: number;
   createdAt: number;

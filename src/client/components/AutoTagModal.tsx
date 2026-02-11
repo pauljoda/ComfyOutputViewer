@@ -40,6 +40,7 @@ export default function AutoTagModal({
   const [prompts, setPrompts] = useState<Record<string, BulkPromptEntry>>({});
   const [discoveredInputs, setDiscoveredInputs] = useState<DiscoveredInput[]>([]);
   const [selectedInputKeys, setSelectedInputKeys] = useState<Set<string>>(new Set());
+  const [maxTagWords, setMaxTagWords] = useState(2);
 
   // Step 2: tag review
   const [entries, setEntries] = useState<AutoTagEntry[]>([]);
@@ -78,11 +79,6 @@ export default function AutoTagModal({
         );
         setSelectedInputKeys(preSelected);
 
-        // If there's only one text input, skip straight to review
-        if (discovered.length === 1) {
-          buildEntries(promptMap, preSelected);
-          setStep('review-tags');
-        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load prompt data');
@@ -109,13 +105,14 @@ export default function AutoTagModal({
 
   const buildEntries = (
     promptMap: Record<string, BulkPromptEntry>,
-    keys: Set<string>
+    keys: Set<string>,
+    wordLimit: number
   ) => {
     const result: AutoTagEntry[] = [];
     for (const img of images) {
       const prompt = promptMap[img.id] as PromptLike | undefined;
       if (!prompt) continue;
-      const parsedTags = extractTagsFromPrompt(prompt, keys);
+      const parsedTags = extractTagsFromPrompt(prompt, keys, { maxWords: wordLimit });
       if (parsedTags.length === 0) continue;
       // Merge existing tags with parsed tags (no duplicates)
       const existingSet = new Set(img.tags);
@@ -134,7 +131,7 @@ export default function AutoTagModal({
 
   const handleProceedToReview = () => {
     if (selectedInputKeys.size === 0) return;
-    buildEntries(prompts, selectedInputKeys);
+    buildEntries(prompts, selectedInputKeys, maxTagWords);
     setStep('review-tags');
   };
 
@@ -278,6 +275,30 @@ export default function AutoTagModal({
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
                 Select which prompt inputs to extract tags from:
+              </div>
+              <div className="rounded-md border border-border/70 bg-muted/20 p-3">
+                <label className="flex items-center justify-between gap-3 text-sm">
+                  <span>Max words per tag</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={maxTagWords}
+                    onChange={(event) => {
+                      const next = Number.parseInt(event.target.value, 10);
+                      if (!Number.isFinite(next)) {
+                        setMaxTagWords(2);
+                        return;
+                      }
+                      setMaxTagWords(Math.max(1, next));
+                    }}
+                    className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm"
+                  />
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tags are split by commas, then counted by spaces. Example: &quot;person talks to
+                  person&quot; is 4 words, &quot;person_talking&quot; is 1 word.
+                </p>
               </div>
               {discoveredInputs.map((input) => (
                 <label

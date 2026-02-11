@@ -34,6 +34,7 @@ function createBaseDeps(overrides = {}) {
       }),
       auto_tag_enabled: 0,
       auto_tag_input_refs: '[]',
+      auto_tag_max_words: 2,
       folder_id: null,
       sort_order: 0,
       created_at: 1,
@@ -268,16 +269,19 @@ describe('registerWorkflowRoutes', () => {
 
     const response = await request(app).put('/api/workflows/1/auto-tag').send({
       enabled: true,
-      inputRefs: ['10:prompt', '20:image', '10:prompt', '']
+      inputRefs: ['10:prompt', '20:image', '10:prompt', ''],
+      maxWords: 3
     });
 
     expect(response.status).toBe(200);
     expect(response.body.ok).toBe(true);
     expect(response.body.autoTagEnabled).toBe(true);
     expect(response.body.autoTagInputRefs).toEqual(['10:prompt']);
+    expect(response.body.autoTagMaxWords).toBe(3);
     expect(deps.statements.updateWorkflowAutoTag.run).toHaveBeenCalledWith(
       1,
       JSON.stringify(['10:prompt']),
+      3,
       expect.any(Number),
       1
     );

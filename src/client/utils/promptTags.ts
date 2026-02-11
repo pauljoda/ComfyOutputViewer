@@ -6,8 +6,17 @@
  * - Lowercases
  * - Removes empty/duplicate entries
  */
-export function parsePromptTags(text: string): string[] {
+type ParsePromptOptions = {
+  maxWords?: number;
+};
+
+export function parsePromptTags(text: string, options: ParsePromptOptions = {}): string[] {
   if (!text || typeof text !== 'string') return [];
+  const maxWordsRaw =
+    typeof options.maxWords === 'number' && Number.isFinite(options.maxWords)
+      ? Math.floor(options.maxWords)
+      : Number.POSITIVE_INFINITY;
+  const maxWords = maxWordsRaw >= 1 ? maxWordsRaw : Number.POSITIVE_INFINITY;
   const seen = new Set<string>();
   const tags: string[] = [];
   for (const segment of text.split(',')) {
@@ -16,10 +25,11 @@ export function parsePromptTags(text: string): string[] {
       .trim()
       .replace(/\s+/g, ' ')
       .toLowerCase();
-    if (cleaned && !seen.has(cleaned)) {
-      seen.add(cleaned);
-      tags.push(cleaned);
-    }
+    if (!cleaned || seen.has(cleaned)) continue;
+    const wordCount = cleaned.split(/\s+/).length;
+    if (wordCount > maxWords) continue;
+    seen.add(cleaned);
+    tags.push(cleaned);
   }
   return tags;
 }
@@ -147,7 +157,8 @@ export function discoverTextInputs(
  */
 export function extractTagsFromPrompt(
   prompt: PromptLike,
-  selectedKeys: Set<string>
+  selectedKeys: Set<string>,
+  options: ParsePromptOptions = {}
 ): string[] {
   const inputs = resolvePromptInputs(prompt);
   const seen = new Set<string>();
@@ -157,7 +168,7 @@ export function extractTagsFromPrompt(
     if (!selectedKeys.has(inputGroupKey(input))) continue;
     const value = input.value;
     if (typeof value !== 'string' || !value.trim()) continue;
-    for (const tag of parsePromptTags(value)) {
+    for (const tag of parsePromptTags(value, options)) {
       if (!seen.has(tag)) {
         seen.add(tag);
         tags.push(tag);

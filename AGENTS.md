@@ -64,7 +64,7 @@ API endpoints:
 - `POST /api/workflows` -> create workflow with inputs
 - `GET /api/workflows/:id` -> get workflow with inputs and jobs
 - `PUT /api/workflows/:id` -> update workflow
-- `PUT /api/workflows/:id/auto-tag` -> update per-workflow auto-tag settings (`enabled`, selected text input refs)
+- `PUT /api/workflows/:id/auto-tag` -> update per-workflow auto-tag settings (`enabled`, selected text input refs, `maxWords`)
 - `DELETE /api/workflows/:id` -> delete workflow
 - `POST /api/workflows/:id/run` -> execute workflow against ComfyUI
 - `GET /api/workflows/:id/trigger-schema` -> get external API schema for a workflow
@@ -90,6 +90,7 @@ Key UI features:
 - App navigation with Gallery and Workflows tabs.
 - Top toolbar with icon buttons and a single active tool popover.
 - Multi-select supports shift-click range selection and includes both selected-only auto-tag and current-view auto-tag actions.
+- Auto-tag Step 1 includes a configurable max-words-per-tag parser limit (space-delimited word counting) to ignore long, poorly formatted prompt fragments.
 - Drawer navigation for tag filters sorted by image count, plus an untagged view.
 - Image grid:
   - "Cover" mode: fixed square tiles with object-fit cover.
@@ -158,6 +159,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added auto-tag max-word filtering controls + persistence (v0.9.10): added Step 1 `Max words per tag` control in `AutoTagModal` (default 2), filtered parsed tags by space-delimited word count so over-limit tags are ignored, added persistent per-workflow `maxWords` for generate-time auto-tag settings via `PUT /api/workflows/:id/auto-tag`, surfaced `autoTagMaxWords` in workflow API payloads/UI, and extended workflow-output auto-tag application to respect that limit when saving metadata.
 - Added workflow-scoped generate-time auto-tagging + gallery selection/tag-picker refinements (v0.9.9): added shift-click range selection in gallery multi-select (from current anchor or from view start when none), constrained gallery filter and multi-select tag chip pickers to fixed-height scrollable containers, added an `Auto Tag View` bulk action that auto-tags the entire current filtered view, added persistent workflow auto-tag settings (`PUT /api/workflows/:id/auto-tag`) with per-text-input selection + workflow-page explanatory/warning copy, extended workflow API payloads to return auto-tag settings, and applied automatic tag parsing during workflow output metadata save so UI/API/MCP generations honor the same workflow setting.
 - Prepared release/documentation + cross-platform install update (v0.9.8): rewrote README with modern GitHub-facing structure and expanded operational detail, added dedicated `docs/INSTALL.md`, added install scripts for Linux/macOS/Windows (`scripts/install-unix.sh`, `scripts/install-linux.sh`, `scripts/install-macos.sh`, `scripts/install-windows.ps1`, `scripts/install-windows.cmd`), switched `npm run start` to a cross-platform Node launcher (`scripts/start-production.mjs`), reused a shared runtime layout helper in flake install phase (`scripts/install-runtime-layout.sh`), removed a duplicate Vite `allowedHosts` key warning in `vite.config.ts`, refreshed `flake.nix` `npmDepsHash`, and added an explicit `LICENSE` file.
 - Added bulk auto-tag from metadata feature (v0.9.7): added "Auto Tag" button in multi-select toolbar that fetches prompt metadata for selected images, parses comma-separated prompt text into individual tags (stripping brackets, trimming, lowercasing), and presents a review modal with thumbnail rows and editable tag lists before bulk-applying. Added `POST /api/prompts/bulk` batch endpoint, `src/client/utils/promptTags.ts` parsing utility, and `src/client/components/AutoTagModal.tsx` review modal component.

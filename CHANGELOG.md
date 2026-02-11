@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.10] - 2026-02-11
+
+### Added
+- Added a Step 1 auto-tag parsing control for `Max words per tag` (default `2`) in `AutoTagModal`, so users can set a hard limit before generating review tags.
+- Added max-word persistence for workflow auto-tag-on-generate settings, exposed via `PUT /api/workflows/:id/auto-tag` (`maxWords`) and returned by workflow payloads as `autoTagMaxWords`.
+- Added client tests for prompt-tag word-limit behavior in `src/client/utils/promptTags.test.ts`.
+
+### Changed
+- Updated prompt tag parsing to ignore tags exceeding the selected word limit, where words are counted by spaces (so `person talks to person` is 4 words, `person_talking` is 1).
+- Updated generation-time auto-tagging to apply the workflow-configured max-word limit while saving output metadata.
+- Extended workflow DB schema with `auto_tag_max_words` (default `2`) including migration-safe column creation.
+
 ## [0.9.9] - 2026-02-11
 
 ### Added

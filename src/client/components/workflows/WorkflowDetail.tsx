@@ -41,6 +41,7 @@ export default function WorkflowDetail({
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
   const [autoTagEnabled, setAutoTagEnabled] = useState(false);
   const [autoTagInputRefs, setAutoTagInputRefs] = useState<Set<string>>(new Set());
+  const [autoTagMaxWords, setAutoTagMaxWords] = useState(2);
   const [autoTagSaving, setAutoTagSaving] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
@@ -78,6 +79,15 @@ export default function WorkflowDetail({
     [autoTagEligibleInputs]
   );
 
+  const normalizeAutoTagMaxWords = useCallback((value: unknown) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 2;
+    const rounded = Math.floor(parsed);
+    if (rounded < 1) return 1;
+    if (rounded > 20) return 20;
+    return rounded;
+  }, []);
+
   useEffect(() => {
     return () => {
       pendingJobRefetchTimeoutsRef.current.forEach((timeoutId) => {
@@ -90,8 +100,9 @@ export default function WorkflowDetail({
   useEffect(() => {
     setAutoTagEnabled(Boolean(workflow.autoTagEnabled));
     setAutoTagInputRefs(new Set(workflow.autoTagInputRefs || []));
+    setAutoTagMaxWords(normalizeAutoTagMaxWords(workflow.autoTagMaxWords));
     setAutoTagSaving(false);
-  }, [workflow.id]);
+  }, [workflow.id, normalizeAutoTagMaxWords]);
 
   const mergeJobUpdate = useCallback((job: Job) => {
     if (job.workflowId !== workflowIdRef.current) {
@@ -155,6 +166,7 @@ export default function WorkflowDetail({
       setInputs(response.inputs);
       setAutoTagEnabled(Boolean(response.workflow.autoTagEnabled));
       setAutoTagInputRefs(new Set(response.workflow.autoTagInputRefs || []));
+      setAutoTagMaxWords(normalizeAutoTagMaxWords(response.workflow.autoTagMaxWords));
       // Initialize input values with defaults
       const defaults: Record<number, string> = {};
       for (const input of response.inputs) {
@@ -166,7 +178,7 @@ export default function WorkflowDetail({
       if (workflowIdRef.current !== workflowId) return;
       setError(err instanceof Error ? err.message : 'Failed to load workflow details');
     }
-  }, []);
+  }, [normalizeAutoTagMaxWords]);
 
   const loadJobs = useCallback(async (targetWorkflowId?: number) => {
     const workflowId = targetWorkflowId ?? workflowIdRef.current;
@@ -392,22 +404,29 @@ export default function WorkflowDetail({
   );
 
   const persistAutoTagSettings = useCallback(
-    async (enabled: boolean, refs: Set<string>) => {
+    async (enabled: boolean, refs: Set<string>, maxWords: number) => {
       setAutoTagSaving(true);
       try {
         const orderedRefs = buildOrderedAutoTagRefs(refs);
-        const response = await api<{ autoTagEnabled: boolean; autoTagInputRefs: string[] }>(
+        const normalizedMaxWords = normalizeAutoTagMaxWords(maxWords);
+        const response = await api<{
+          autoTagEnabled: boolean;
+          autoTagInputRefs: string[];
+          autoTagMaxWords: number;
+        }>(
           `/api/workflows/${workflow.id}/auto-tag`,
           {
             method: 'PUT',
             body: JSON.stringify({
               enabled,
-              inputRefs: orderedRefs
+              inputRefs: orderedRefs,
+              maxWords: normalizedMaxWords
             })
           }
         );
         setAutoTagEnabled(Boolean(response.autoTagEnabled));
         setAutoTagInputRefs(new Set(response.autoTagInputRefs || []));
+        setAutoTagMaxWords(normalizeAutoTagMaxWords(response.autoTagMaxWords));
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to save auto-tag settings');
@@ -415,7 +434,7 @@ export default function WorkflowDetail({
         setAutoTagSaving(false);
       }
     },
-    [buildOrderedAutoTagRefs, workflow.id]
+    [buildOrderedAutoTagRefs, normalizeAutoTagMaxWords, workflow.id]
   );
 
   const handleToggleAutoTagEnabled = useCallback(() => {
@@ -430,11 +449,12 @@ export default function WorkflowDetail({
     }
     setAutoTagEnabled(nextEnabled);
     setAutoTagInputRefs(nextRefs);
-    void persistAutoTagSettings(nextEnabled, nextRefs);
+    void persistAutoTagSettings(nextEnabled, nextRefs, autoTagMaxWords);
   }, [
     autoTagEnabled,
     autoTagInputRefs,
     autoTagEligibleInputs,
+    autoTagMaxWords,
     defaultAutoTagRefs,
     persistAutoTagSettings
   ]);
@@ -449,10 +469,14 @@ export default function WorkflowDetail({
         nextRefs.add(ref);
       }
       setAutoTagInputRefs(nextRefs);
-      void persistAutoTagSettings(autoTagEnabled, nextRefs);
+      void persistAutoTagSettings(autoTagEnabled, nextRefs, autoTagMaxWords);
     },
-    [autoTagEnabled, autoTagInputRefs, persistAutoTagSettings]
+    [autoTagEnabled, autoTagInputRefs, autoTagMaxWords, persistAutoTagSettings]
   );
+
+  const handleAutoTagMaxWordsBlur = useCallback(() => {
+    void persistAutoTagSettings(autoTagEnabled, autoTagInputRefs, autoTagMaxWords);
+  }, [autoTagEnabled, autoTagInputRefs, autoTagMaxWords, persistAutoTagSettings]);
 
   const handleInputChange = (inputId: number, value: string) => {
     setInputValues((prev) => ({ ...prev, [inputId]: value }));
@@ -871,6 +895,22 @@ export default function WorkflowDetail({
                 Enabled
               </label>
             </div>
+            <label className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted-foreground">Max words per auto-tag</span>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                step={1}
+                value={autoTagMaxWords}
+                onChange={(event) =>
+                  setAutoTagMaxWords(normalizeAutoTagMaxWords(event.target.value))
+                }
+                onBlur={handleAutoTagMaxWordsBlur}
+                disabled={autoTagSaving}
+                className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm"
+              />
+            </label>
 
             {autoTagEligibleInputs.length === 0 ? (
               <p className="text-xs text-muted-foreground">

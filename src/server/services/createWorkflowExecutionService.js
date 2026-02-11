@@ -18,8 +18,18 @@ export function createWorkflowExecutionService({
 }) {
   const AUTO_TAG_INPUT_TYPES = new Set(['text', 'negative']);
 
-  function parsePromptTags(text) {
+  function normalizeAutoTagMaxWords(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 2;
+    const rounded = Math.floor(parsed);
+    if (rounded < 1) return 1;
+    if (rounded > 20) return 20;
+    return rounded;
+  }
+
+  function parsePromptTags(text, maxWords = 2) {
     if (!text || typeof text !== 'string') return [];
+    const wordLimit = normalizeAutoTagMaxWords(maxWords);
     const seen = new Set();
     const tags = [];
     for (const segment of text.split(',')) {
@@ -29,6 +39,8 @@ export function createWorkflowExecutionService({
         .replace(/\s+/g, ' ')
         .toLowerCase();
       if (!cleaned || seen.has(cleaned)) continue;
+      const wordCount = cleaned.split(/\s+/).length;
+      if (wordCount > wordLimit) continue;
       seen.add(cleaned);
       tags.push(cleaned);
     }
@@ -63,7 +75,7 @@ export function createWorkflowExecutionService({
     return `${nodeId}:${inputKey}`;
   }
 
-  function collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedRefsSet) {
+  function collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedRefsSet, maxWords = 2) {
     if (!(selectedRefsSet instanceof Set) || selectedRefsSet.size === 0) return [];
     const tags = [];
     const seen = new Set();
@@ -73,7 +85,7 @@ export function createWorkflowExecutionService({
       if (!ref || !selectedRefsSet.has(ref)) continue;
       const value = inputValuesMap.get(input.id);
       if (typeof value !== 'string' || !value.trim()) continue;
-      for (const tag of parsePromptTags(value)) {
+      for (const tag of parsePromptTags(value, maxWords)) {
         if (seen.has(tag)) continue;
         seen.add(tag);
         tags.push(tag);
@@ -156,12 +168,13 @@ export function createWorkflowExecutionService({
     const thumbnailResult = { scanned: 0, copied: 0, thumbnails: 0 };
     const workflowRow = statements.selectWorkflowById?.get?.(workflowId);
     const autoTagEnabled = Boolean(workflowRow?.auto_tag_enabled);
+    const autoTagMaxWords = normalizeAutoTagMaxWords(workflowRow?.auto_tag_max_words);
     const selectedAutoTagRefs = autoTagEnabled
       ? new Set(parseAutoTagInputRefs(workflowRow?.auto_tag_input_refs))
       : null;
     const autoTags =
       autoTagEnabled && selectedAutoTagRefs
-        ? collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedAutoTagRefs)
+        ? collectAutoTagsForJob(workflowInputs, inputValuesMap, selectedAutoTagRefs, autoTagMaxWords)
         : [];
 
     for (const imgInfo of imageOutputs) {

@@ -216,7 +216,8 @@ describe('createWorkflowExecutionService', () => {
       selectWorkflowById: makeGet(() => ({
         id: 2,
         auto_tag_enabled: 1,
-        auto_tag_input_refs: JSON.stringify(['10:prompt'])
+        auto_tag_input_refs: JSON.stringify(['10:prompt']),
+        auto_tag_max_words: 1
       })),
       selectJobByPromptId: makeGet(() => ({
         id: 11,
@@ -228,7 +229,7 @@ describe('createWorkflowExecutionService', () => {
         { id: 72, node_id: '10', input_key: 'negative', input_type: 'negative', label: 'Negative' }
       ]),
       selectJobInputs: makeIterable([
-        { input_id: 71, value: 'portrait, moody lighting, [cinematic]' },
+        { input_id: 71, value: 'portrait, moody lighting setup, [cinematic], person_talking' },
         { input_id: 72, value: 'bad anatomy, blurry' }
       ])
     });
@@ -250,8 +251,9 @@ describe('createWorkflowExecutionService', () => {
     await service.finalizeJobFromPrompt('prompt-11');
 
     expect(statements.insertTag.run).toHaveBeenCalledWith('render.png', 'portrait');
-    expect(statements.insertTag.run).toHaveBeenCalledWith('render.png', 'moody lighting');
     expect(statements.insertTag.run).toHaveBeenCalledWith('render.png', 'cinematic');
+    expect(statements.insertTag.run).toHaveBeenCalledWith('render.png', 'person_talking');
+    expect(statements.insertTag.run).not.toHaveBeenCalledWith('render.png', 'moody lighting setup');
     expect(statements.insertTag.run).not.toHaveBeenCalledWith('render.png', 'bad anatomy');
   });
 });

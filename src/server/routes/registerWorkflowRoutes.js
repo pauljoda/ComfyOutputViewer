@@ -239,6 +239,15 @@ function sanitizeAutoTagInputRefsForWorkflow(workflowInputs, inputRefs) {
   return normalizeAutoTagInputRefs(inputRefs).filter((ref) => allowedRefs.has(ref));
 }
 
+function normalizeAutoTagMaxWords(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 2;
+  const rounded = Math.floor(parsed);
+  if (rounded < 1) return 1;
+  if (rounded > 20) return 20;
+  return rounded;
+}
+
 function mapWorkflowRow(row) {
   return {
     id: row.id,
@@ -247,6 +256,7 @@ function mapWorkflowRow(row) {
     apiJson: JSON.parse(row.api_json),
     autoTagEnabled: Boolean(row.auto_tag_enabled),
     autoTagInputRefs: parseAutoTagInputRefs(row.auto_tag_input_refs),
+    autoTagMaxWords: normalizeAutoTagMaxWords(row.auto_tag_max_words),
     folderId: row.folder_id,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
@@ -600,10 +610,15 @@ app.put('/api/workflows/:id/auto-tag', async (req, res) => {
 
     const nextEnabled =
       typeof body.enabled === 'boolean' ? body.enabled : Boolean(existing.auto_tag_enabled);
+    const nextMaxWords =
+      body.maxWords === undefined
+        ? normalizeAutoTagMaxWords(existing.auto_tag_max_words)
+        : normalizeAutoTagMaxWords(body.maxWords);
     const now = Date.now();
     statements.updateWorkflowAutoTag.run(
       nextEnabled ? 1 : 0,
       JSON.stringify(sanitizedRefs),
+      nextMaxWords,
       now,
       workflowId
     );
@@ -611,7 +626,8 @@ app.put('/api/workflows/:id/auto-tag', async (req, res) => {
     res.json({
       ok: true,
       autoTagEnabled: nextEnabled,
-      autoTagInputRefs: sanitizedRefs
+      autoTagInputRefs: sanitizedRefs,
+      autoTagMaxWords: nextMaxWords
     });
   } catch (err) {
     res.status(500).send(err instanceof Error ? err.message : 'Failed to update auto-tag settings');
