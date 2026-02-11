@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.26] - 2026-02-11
+
+### Changed
+- Continued gallery workspace decomposition by extracting the filter/navigation composition surface (TopBar + active-tool backdrop + TagDrawer wiring) from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryFiltersController.tsx`.
+- Kept gallery behavior and existing handler contracts unchanged while further simplifying `GalleryWorkspace`.
+- Updated frontend architecture/refactor docs to reflect the new gallery layering and next-step focus (`GalleryActionsController`).
+- Bumped app version to `0.9.26` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.25] - 2026-02-11
 
 ### Changed

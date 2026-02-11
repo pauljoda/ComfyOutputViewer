@@ -1,8 +1,7 @@
 import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import Gallery from '../Gallery';
-import TagDrawer from '../TagDrawer';
-import TopBar from '../TopBar';
+import GalleryFiltersController from './GalleryFiltersController';
 import GalleryModalController from './GalleryModalController';
 import { useGalleryWorkspaceController } from './useGalleryWorkspaceController';
 
@@ -95,81 +94,80 @@ export default function GalleryWorkspace() {
       className="flex flex-col"
       style={{ '--top-bar-height': `${topBarHeight}px` } as React.CSSProperties}
     >
-      <TopBar
-        ref={topBarRef}
-        currentFilterLabel={currentFilterLabel}
+      <GalleryFiltersController
+        topBarRef={topBarRef}
+        topBarProps={{
+          currentFilterLabel,
+          activeTool,
+          multiSelect,
+          selectedCount,
+          effectiveColumns,
+          maxColumns,
+          tileFit,
+          sortMode,
+          favoritesOnly,
+          hideHidden,
+          minRating,
+          maxRating,
+          selectedTags,
+          availableTags,
+          showUntagged,
+          imageCount: filteredImages.length,
+          loading,
+          status,
+          error,
+          onOpenDrawer: () => {
+            setDrawerOpen(true);
+            setActiveTool(null);
+          },
+          onToggleTool: toggleTool,
+          onDismissTool: () => setActiveTool(null),
+          onToggleMultiSelect: handleToggleMultiSelect,
+          onClearSelection: handleClearSelection,
+          onBulkFavorite: handleBulkFavorite,
+          onBulkHidden: handleBulkHidden,
+          onBulkRating: handleBulkRating,
+          onBulkDelete: handleBulkDelete,
+          onBulkTag: handleBulkTag,
+          onAutoTag: handleOpenAutoTag,
+          onAutoTagView: handleOpenAutoTagView,
+          onColumnsChange: setColumns,
+          onTileFitChange: setTileFit,
+          onSortModeChange: setSortMode,
+          onFavoritesOnlyChange: setFavoritesOnly,
+          onHideHiddenChange: setHideHidden,
+          onMinRatingChange: handleMinRatingChange,
+          onMaxRatingChange: handleMaxRatingChange,
+          onAddFilterTag: handleAddSelectedTag,
+          onRemoveFilterTag: handleRemoveSelectedTag,
+          onClearFilterTags: handleClearSelectedTags,
+          onExitUntagged: handleSelectAllImages,
+          onOpenSlideshow: handleOpenSlideshow
+        }}
         activeTool={activeTool}
-        multiSelect={multiSelect}
-        selectedCount={selectedCount}
-        effectiveColumns={effectiveColumns}
-        maxColumns={maxColumns}
-        tileFit={tileFit}
-        sortMode={sortMode}
-        favoritesOnly={favoritesOnly}
-        hideHidden={hideHidden}
-        minRating={minRating}
-        maxRating={maxRating}
-        selectedTags={selectedTags}
-        availableTags={availableTags}
-        showUntagged={showUntagged}
-        imageCount={filteredImages.length}
-        loading={loading}
-        status={status}
-        error={error}
-        onOpenDrawer={() => {
-          setDrawerOpen(true);
-          setActiveTool(null);
+        setActiveTool={setActiveTool}
+        drawerOpen={drawerOpen}
+        setDrawerOpen={setDrawerOpen}
+        tagDrawerProps={{
+          tags: tagCounts,
+          selectedTags,
+          showUntagged,
+          totalCount: data.images.length,
+          untaggedCount,
+          onToggleTag: (tag) => {
+            handleToggleDrawerTag(tag);
+            setDrawerOpen(false);
+          },
+          onSelectAll: () => {
+            handleSelectAllImages();
+            setDrawerOpen(false);
+          },
+          onSelectUntagged: () => {
+            handleSelectUntagged();
+            setDrawerOpen(false);
+          },
+          onSync: handleSync
         }}
-        onToggleTool={toggleTool}
-        onDismissTool={() => setActiveTool(null)}
-        onToggleMultiSelect={handleToggleMultiSelect}
-        onClearSelection={handleClearSelection}
-        onBulkFavorite={handleBulkFavorite}
-        onBulkHidden={handleBulkHidden}
-        onBulkRating={handleBulkRating}
-        onBulkDelete={handleBulkDelete}
-        onBulkTag={handleBulkTag}
-        onAutoTag={handleOpenAutoTag}
-        onAutoTagView={handleOpenAutoTagView}
-        onColumnsChange={setColumns}
-        onTileFitChange={setTileFit}
-        onSortModeChange={setSortMode}
-        onFavoritesOnlyChange={setFavoritesOnly}
-        onHideHiddenChange={setHideHidden}
-        onMinRatingChange={handleMinRatingChange}
-        onMaxRatingChange={handleMaxRatingChange}
-        onAddFilterTag={handleAddSelectedTag}
-        onRemoveFilterTag={handleRemoveSelectedTag}
-        onClearFilterTags={handleClearSelectedTags}
-        onExitUntagged={handleSelectAllImages}
-        onOpenSlideshow={handleOpenSlideshow}
-      />
-
-      {activeTool && (
-        <div className="fixed inset-0 z-30 bg-black/20" aria-hidden="true" onClick={() => setActiveTool(null)} />
-      )}
-
-      <TagDrawer
-        open={drawerOpen}
-        tags={tagCounts}
-        selectedTags={selectedTags}
-        showUntagged={showUntagged}
-        totalCount={data.images.length}
-        untaggedCount={untaggedCount}
-        onToggleTag={(tag) => {
-          handleToggleDrawerTag(tag);
-          setDrawerOpen(false);
-        }}
-        onSelectAll={() => {
-          handleSelectAllImages();
-          setDrawerOpen(false);
-        }}
-        onSelectUntagged={() => {
-          handleSelectUntagged();
-          setDrawerOpen(false);
-        }}
-        onClose={() => setDrawerOpen(false)}
-        onSync={handleSync}
       />
 
       <Gallery

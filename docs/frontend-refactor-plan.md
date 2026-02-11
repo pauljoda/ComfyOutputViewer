@@ -6,6 +6,7 @@ Scope: Deep review findings + concrete split plan for `WorkflowDetail` and `Gall
 Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
 - Completed: extracted gallery modal composition surface into `src/client/components/gallery/GalleryModalController.tsx`.
+- Completed: extracted gallery filter/navigation composition surface into `src/client/components/gallery/GalleryFiltersController.tsx`.
 - Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
 - Completed: extracted remaining `WorkflowDetail` controller/state concerns into `workflows/workflow-detail/useWorkflowDetailController.ts`.
 - Completed: started phase-2 `useWorkflowDetailController` decomposition by extracting auto-tag state/persistence/handlers into `workflows/workflow-detail/useWorkflowAutoTagSettings.ts`.
@@ -44,7 +45,7 @@ Progress snapshot:
 ### Remaining review backlog (pending)
 1. `GalleryWorkspace` remains the primary complexity hotspot for ongoing frontend organization cleanup.
 - File: `src/client/components/gallery/GalleryWorkspace.tsx`
-- Plan: continue composition splits by extracting `GalleryFiltersController` and `GalleryActionsController` while preserving behavior.
+- Plan: continue composition splits by extracting `GalleryActionsController` while preserving behavior.
 
 ### Recently closed backlog items
 1. `WorkflowDetail` dirty input-reset issue on `workflow.updatedAt` refresh.
@@ -194,7 +195,7 @@ export type WorkflowOutputModalControllerProps = {
 
 ## 4) Concrete Split Plan: `GalleryWorkspace`
 
-Current size: ~813 LOC (`src/client/components/gallery/GalleryWorkspace.tsx`).
+Current size: ~217 LOC (`src/client/components/gallery/GalleryWorkspace.tsx`).
 
 ### Target file split
 - `src/client/components/gallery/GalleryWorkspace.tsx`
@@ -256,7 +257,7 @@ export type GalleryModalControllerProps = {
 
 ### Acceptance criteria
 - No rendering regressions in gallery toolbar, drawer, multi-select, and modal flows.
-- `GalleryWorkspace` reduced to <250 LOC composition layer.
+- `GalleryWorkspace` remains a composition layer with no behavior changes after each extraction.
 - Existing tests continue to pass.
 
 ## 5) Hook/Util Data-Flow Trees (Current)
@@ -277,7 +278,8 @@ GalleryWorkspace
 ├─ Cross-cutting context
 │  └─ TagsContext.updateFromImages -> availableTags/tagCounts
 └─ UI composition
-   ├─ TopBar + TagDrawer + Gallery
+   ├─ GalleryFiltersController (TopBar + TagDrawer + active-tool backdrop)
+   ├─ Gallery
    └─ Modal stack (ImageModal, AutoTagModal, slideshow modals)
 ```
 
@@ -312,6 +314,6 @@ Completed:
 
 ## 7) Execution Order (Recommended)
 
-1. Continue `GalleryWorkspace` follow-up cleanup around filter/action composition surfaces (modal composition extraction completed via `GalleryModalController`).
-2. Evaluate whether to extract `GalleryFiltersController` or `GalleryActionsController` first based on lowest-risk handler boundary.
+1. Continue `GalleryWorkspace` follow-up cleanup around action composition surfaces after completing modal + filters extraction.
+2. Extract `GalleryActionsController` as the next lowest-risk handler boundary.
 3. Evaluate next high-impact split target (`ImageModal` or `TopBar`) for phase-2 complexity reduction.

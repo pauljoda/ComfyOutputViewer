@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue frontend phase-2 hardening after phase-1 modularization: keep `useWorkflowDetailController` as a stable orchestration boundary after sub-hook extraction, and continue gallery follow-up composition splits (`GalleryFiltersController`, `GalleryActionsController`) after `GalleryModalController` extraction.
+- Continue frontend phase-2 hardening after phase-1 modularization: keep `useWorkflowDetailController` as a stable orchestration boundary after sub-hook extraction, and continue gallery follow-up composition splits with remaining `GalleryActionsController` extraction after `GalleryModalController` + `GalleryFiltersController`.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued gallery workspace decomposition (v0.9.26): extracted the filter/navigation composition surface (TopBar + active-tool backdrop + TagDrawer wiring) from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/GalleryFiltersController.tsx`, preserving behavior while further simplifying workspace composition.
+- Updated frontend architecture/refactor docs for gallery-filters extraction progress (v0.9.26): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new gallery layering and next-step focus (`GalleryActionsController`).
+- Bumped package/app version to `0.9.26` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Continued workflow controller decomposition (v0.9.25): extracted prompt-preview derivation from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowPromptPreview.ts`, reducing controller orchestration size while preserving behavior.
 - Updated frontend architecture/refactor docs for prompt-preview extraction progress (v0.9.25): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new hook layering and revised next-step focus.
 - Bumped package/app version to `0.9.25` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
