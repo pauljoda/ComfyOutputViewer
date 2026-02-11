@@ -32,3 +32,27 @@ export const bulkTags = (updates: BulkTagUpdate[]) =>
 
 export const bulkDelete = (paths: string[]) =>
   apiJson<DeleteResponse>('/api/delete/bulk', { body: { paths } });
+
+export type BulkPromptEntry = {
+  imagePath: string;
+  jobId: number | null;
+  promptData: {
+    inputs?: Array<{ inputId?: number; label?: string; inputType?: string; value: unknown }>;
+    workflowInputs?: Array<{ inputId?: number; label?: string; inputType?: string; value: unknown }>;
+  };
+  jobInputs?: Array<{
+    inputId: number;
+    value: string;
+    label?: string;
+    inputType?: string;
+    inputKey?: string;
+  }>;
+  createdAt: number;
+};
+
+export type BulkPromptsResponse = {
+  prompts: Record<string, BulkPromptEntry>;
+};
+
+export const bulkPrompts = (paths: string[]) =>
+  apiJson<BulkPromptsResponse>('/api/prompts/bulk', { body: { paths } });
