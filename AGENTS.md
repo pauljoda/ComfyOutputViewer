@@ -153,7 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
-- Continue phase-1 gallery modularization after controller extraction by splitting `GalleryWorkspace` render concerns into smaller focused modules.
+- Continue phase-1 workflows modularization after initial UI extraction by separating `WorkflowDetail` controller/state concerns into dedicated hooks/modules.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -162,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Continued frontend modular cleanup (v0.9.13): extracted `WorkflowDetail` UI sections into `src/client/components/workflows/workflow-detail/` (`WorkflowHeader`, `AutoTagSettingsPanel`, `WorkflowInputsSection`, `WorkflowJobsSection`, `WorkflowOutputModalController`) while preserving existing behavior and test coverage.
+- Removed dead UI primitive surface (v0.9.13): deleted unreferenced `src/client/components/ui/*` files (`card`, `dropdown-menu`, `input`, `label`, `scroll-area`, `select`, `separator`, `sheet`, `slider`, `switch`, `toggle`) after reachability verification from `src/client/main.tsx`.
+- Bumped package/app version to `0.9.13` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Began gallery phase-1 modularization (v0.9.12): extracted gallery state/effects/action orchestration from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/useGalleryWorkspaceController.ts`, leaving `GalleryWorkspace` as a composition-focused render layer.
 - Restored stage-click modal dismiss behavior (v0.9.12): updated `ImageModal` so clicking blank space outside the displayed image dismisses the modal while preserving existing dismissal paths (close button, keyboard, and gesture/navigation controls).
 - Bumped package/app version to `0.9.12` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.

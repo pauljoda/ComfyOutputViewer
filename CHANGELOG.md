@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.13] - 2026-02-11
+
+### Changed
+- Continued workflow detail modularization by extracting `WorkflowDetail` render sections into dedicated components under `src/client/components/workflows/workflow-detail/` (`WorkflowHeader`, `AutoTagSettingsPanel`, `WorkflowInputsSection`, `WorkflowJobsSection`, `WorkflowOutputModalController`), while keeping behavior and state flow stable.
+- Bumped app version to `0.9.13` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
+### Fixed
+- Removed confirmed dead `ui/*` primitives that were not reachable from `src/client/main.tsx` (`card`, `dropdown-menu`, `input`, `label`, `scroll-area`, `select`, `separator`, `sheet`, `slider`, `switch`, `toggle`) to reduce dead surface area and maintenance overhead.
+
 ## [0.9.12] - 2026-02-11
 
 ### Changed

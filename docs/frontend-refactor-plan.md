@@ -5,7 +5,9 @@ Scope: Deep review findings + concrete split plan for `WorkflowDetail` and `Gall
 
 Progress snapshot:
 - Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
-- Pending: split remaining gallery render concerns and execute `WorkflowDetail` phase-1 extraction.
+- Completed: extracted `WorkflowDetail` render sections into `workflows/workflow-detail/*` components.
+- Completed: removed previously unused `ui/*` primitives after reachability verification.
+- Pending: split remaining `WorkflowDetail` controller/state concerns into dedicated hooks/modules.
 
 ## 1) Deep Review Findings
 
@@ -268,25 +270,13 @@ WorkflowsWorkspace
       └─ modal projections (ImageModal, ExportApiModal)
 ```
 
-## 6) Unused UI Component Deprecation Plan
+## 6) Unused UI Component Cleanup
 
-Candidates from static reachability from `main.tsx`:
-- `src/client/components/ui/card.tsx`
-- `src/client/components/ui/dropdown-menu.tsx`
-- `src/client/components/ui/input.tsx`
-- `src/client/components/ui/label.tsx`
-- `src/client/components/ui/scroll-area.tsx`
-- `src/client/components/ui/select.tsx`
-- `src/client/components/ui/separator.tsx`
-- `src/client/components/ui/sheet.tsx`
-- `src/client/components/ui/slider.tsx`
-- `src/client/components/ui/switch.tsx`
-- `src/client/components/ui/toggle.tsx`
-
-Phased approach:
-1. Phase A (now): keep files but mark as deprecation candidates in architecture docs.
-2. Phase B: scan for non-static dynamic imports and planned near-term usage.
-3. Phase C: remove in one cleanup commit if no planned usage remains; update docs and regeneration guidance.
+Completed:
+1. Verified static reachability from `src/client/main.tsx` and confirmed the unused primitive set.
+2. Removed the unused files in a single cleanup pass:
+`card`, `dropdown-menu`, `input`, `label`, `scroll-area`, `select`, `separator`, `sheet`, `slider`, `switch`, `toggle`.
+3. Kept actively used primitives (`button`, `badge`, `popover`, `dialog`).
 
 ## 7) Execution Order (Recommended)
 

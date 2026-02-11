@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Trash2, Code2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import ImageModal from '../ImageModal';
-import ImageInputField from './ImageInputField';
-import JobCard from './JobCard';
-import SystemStatsPanel from './SystemStatsPanel';
 import ExportApiModal from './ExportApiModal';
 import WorkflowEditorPanel from './WorkflowEditorPanel';
+import AutoTagSettingsPanel from './workflow-detail/AutoTagSettingsPanel';
+import WorkflowHeader from './workflow-detail/WorkflowHeader';
+import WorkflowInputsSection from './workflow-detail/WorkflowInputsSection';
+import WorkflowJobsSection from './workflow-detail/WorkflowJobsSection';
+import WorkflowOutputModalController from './workflow-detail/WorkflowOutputModalController';
 import { useTags } from '../../contexts/TagsContext';
 import { api } from '../../lib/api';
 import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../../lib/imagesApi';
@@ -838,28 +837,12 @@ export default function WorkflowDetail({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{workflow.name}</h2>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={editMode}
-              onChange={(event) => onEditModeChange(event.target.checked)}
-              className="accent-primary"
-            />
-            Edit Mode
-          </label>
-          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => onDelete(workflow)}>
-            <Trash2 className="mr-1 h-3.5 w-3.5" />
-            Delete
-          </Button>
-        </div>
-      </div>
-
-      {workflow.description && (
-        <p className="text-sm text-muted-foreground">{workflow.description}</p>
-      )}
+      <WorkflowHeader
+        workflow={workflow}
+        editMode={editMode}
+        onEditModeChange={onEditModeChange}
+        onDelete={onDelete}
+      />
 
       {editMode ? (
         <section>
@@ -871,290 +854,109 @@ export default function WorkflowDetail({
           />
         </section>
       ) : (
-        <section className="space-y-4">
-          <div className="space-y-3 rounded-md border border-border/70 bg-muted/20 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Auto-Tag On Generate</div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Automatically applies tags to each generated image after it is saved, using the
-                  selected text inputs below.
-                </p>
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                  Best results require comma-separated prompts (for example: "portrait, cinematic
-                  lighting, dramatic").
-                </p>
-              </div>
-              <label className="flex shrink-0 items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={autoTagEnabled}
-                  onChange={handleToggleAutoTagEnabled}
-                  disabled={autoTagSaving || autoTagEligibleInputs.length === 0}
-                  className="accent-primary"
-                />
-                Enabled
-              </label>
-            </div>
-            <label className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-muted-foreground">Max words per auto-tag</span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                step={1}
-                value={autoTagMaxWords}
-                onChange={(event) =>
-                  setAutoTagMaxWords(normalizeAutoTagMaxWords(event.target.value))
-                }
-                onBlur={handleAutoTagMaxWordsBlur}
-                disabled={autoTagSaving}
-                className="h-8 w-20 rounded-md border border-input bg-background px-2 text-right text-sm"
-              />
-            </label>
+        <>
+          <AutoTagSettingsPanel
+            autoTagEnabled={autoTagEnabled}
+            autoTagInputRefs={autoTagInputRefs}
+            autoTagMaxWords={autoTagMaxWords}
+            autoTagSaving={autoTagSaving}
+            autoTagEligibleInputs={autoTagEligibleInputs}
+            normalizeAutoTagMaxWords={normalizeAutoTagMaxWords}
+            onToggleAutoTagEnabled={handleToggleAutoTagEnabled}
+            onToggleAutoTagInput={handleToggleAutoTagInput}
+            onAutoTagMaxWordsChange={setAutoTagMaxWords}
+            onAutoTagMaxWordsBlur={handleAutoTagMaxWordsBlur}
+          />
 
-            {autoTagEligibleInputs.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No text inputs are configured for this workflow yet.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                  Use these inputs for auto-tag extraction
-                </div>
-                <div className="max-h-36 overflow-y-auto rounded-md border border-border/70 bg-background/50 p-2">
-                  <div className="space-y-2">
-                    {autoTagEligibleInputs.map((input) => {
-                      const ref = `${input.nodeId}:${input.inputKey}`;
-                      const displayLabel = input.label?.trim() || input.inputKey;
-                      const showSystemLabel = displayLabel !== input.inputKey;
-                      return (
-                        <label key={input.id} className="flex items-center gap-2 text-xs">
-                          <input
-                            type="checkbox"
-                            checked={autoTagInputRefs.has(ref)}
-                            onChange={() => handleToggleAutoTagInput(input)}
-                            disabled={autoTagSaving}
-                            className="accent-primary"
-                          />
-                          <span className="font-medium">{displayLabel}</span>
-                          {showSystemLabel && (
-                            <span className="text-muted-foreground">{input.inputKey}</span>
-                          )}
-                          <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground">
-                            {input.inputType}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-            {autoTagSaving && (
-              <p className="text-xs text-muted-foreground">Saving auto-tag settings...</p>
-            )}
-          </div>
-
-          <h3 className="text-sm font-semibold">Inputs</h3>
-          {inputs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No inputs configured for this workflow.</p>
-          ) : (
-            <div className="space-y-3">
-              {inputs.map((input) => {
-                const displayLabel = input.label?.trim() || input.inputKey;
-                const showSystemLabel = displayLabel !== input.inputKey;
-                return (
-                  <div key={input.id} className="space-y-1">
-                    <label htmlFor={`input-${input.id}`} className="block text-sm font-medium">
-                      {displayLabel}
-                      {showSystemLabel && (
-                        <span className="ml-2 text-xs text-muted-foreground">{input.inputKey}</span>
-                      )}
-                    </label>
-                    {input.inputType === 'text' ? (
-                      <textarea
-                        id={`input-${input.id}`}
-                        value={inputValues[input.id] || ''}
-                        onChange={(e) => handleInputChange(input.id, e.target.value)}
-                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
-                        rows={3}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      />
-                    ) : input.inputType === 'number' ? (
-                      <input
-                        id={`input-${input.id}`}
-                        type="number"
-                        value={inputValues[input.id] || ''}
-                        onChange={(e) => handleInputChange(input.id, e.target.value)}
-                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      />
-                    ) : input.inputType === 'seed' ? (
-                      <div className="flex gap-2">
-                        <input
-                          id={`input-${input.id}`}
-                          type="number"
-                          value={inputValues[input.id] || ''}
-                          onChange={(e) => handleInputChange(input.id, e.target.value)}
-                          placeholder="Seed value"
-                          className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleInputChange(
-                              input.id,
-                              String(Math.floor(Math.random() * 2147483647))
-                            )
-                          }
-                        >
-                          Random
-                        </Button>
-                      </div>
-                    ) : input.inputType === 'image' ? (
-                      <ImageInputField
-                        value={inputValues[input.id] || ''}
-                        onChange={(value) => handleInputChange(input.id, value)}
-                        onPreview={handleOpenInputPreview}
-                        onError={setError}
-                      />
-                    ) : (
-                      <input
-                        id={`input-${input.id}`}
-                        type="text"
-                        value={inputValues[input.id] || ''}
-                        onChange={(e) => handleInputChange(input.id, e.target.value)}
-                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {showDebug && (
-            <div className="rounded-md border p-3">
-              <div className="text-xs font-medium text-muted-foreground">Generated prompt JSON (debug=1)</div>
-              <pre className="mt-2 whitespace-pre-wrap break-all text-xs">{promptPreview}</pre>
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <Button onClick={handleRun} disabled={running}>
-              {running ? 'Running...' : 'Run Workflow'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setExportApiOpen(true)}>
-              <Code2 className="mr-1 h-3.5 w-3.5" />
-              API
-            </Button>
-          </div>
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </section>
+          <WorkflowInputsSection
+            inputs={inputs}
+            inputValues={inputValues}
+            showDebug={showDebug}
+            promptPreview={promptPreview}
+            running={running}
+            error={error}
+            onInputChange={handleInputChange}
+            onOpenInputPreview={handleOpenInputPreview}
+            onSetError={setError}
+            onRun={handleRun}
+            onOpenExportApi={() => setExportApiOpen(true)}
+          />
+        </>
       )}
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">Recent Jobs</h3>
-        <SystemStatsPanel
-          stats={systemStats}
-          error={systemStatsError}
-          updatedAt={systemStatsUpdatedAt}
-        />
-        {jobs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No jobs yet. Run the workflow to generate images.</p>
-        ) : (
-          <div className="space-y-3">
-            {jobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                now={jobClock}
-                onOpenOutput={handleOpenOutput}
-                onCancel={handleCancelJob}
-                onRecheck={handleRecheckJobOutputs}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      <WorkflowJobsSection
+        jobs={jobs}
+        jobClock={jobClock}
+        systemStats={systemStats}
+        systemStatsError={systemStatsError}
+        systemStatsUpdatedAt={systemStatsUpdatedAt}
+        onOpenOutput={handleOpenOutput}
+        onCancelJob={handleCancelJob}
+        onRecheckJobOutputs={handleRecheckJobOutputs}
+      />
 
-      {selectedOutputImage && (
-        <ImageModal
-          image={selectedOutputImage}
-          index={Math.max(0, selectedOutputIndex)}
-          total={outputPaths.length || 1}
-          modalTool={outputTool}
-          availableTags={availableTags}
-          onUpdateTags={handleOutputTags}
-          onToggleTags={() =>
-            setOutputTool((current) => (current === 'tags' ? null : 'tags'))
+      <WorkflowOutputModalController
+        availableTags={availableTags}
+        selectedOutputImage={selectedOutputImage}
+        selectedInputImage={selectedInputImage}
+        selectedOutputIndex={selectedOutputIndex}
+        outputPaths={outputPaths}
+        outputTool={outputTool}
+        inputTool={inputTool}
+        onOutputTags={handleOutputTags}
+        onOutputFavorite={handleOutputFavorite}
+        onOutputHidden={handleOutputHidden}
+        onOutputRating={handleOutputRating}
+        onOutputDelete={handleOutputDelete}
+        onInputTags={handleInputTags}
+        onInputFavorite={handleInputFavorite}
+        onInputHidden={handleInputHidden}
+        onInputRating={handleInputRating}
+        onInputDelete={handleInputDelete}
+        onOutputClose={() => {
+          setSelectedOutputPath(null);
+          setOutputTool(null);
+        }}
+        onOutputPrev={() => {
+          if (outputPaths.length === 0) return;
+          if (selectedOutputIndex <= 0) {
+            setSelectedOutputPath(outputPaths[outputPaths.length - 1]);
+            return;
           }
-          onToggleRating={() =>
-            setOutputTool((current) => (current === 'rating' ? null : 'rating'))
+          setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
+        }}
+        onOutputNext={() => {
+          if (outputPaths.length === 0) return;
+          if (selectedOutputIndex === -1 || selectedOutputIndex >= outputPaths.length - 1) {
+            setSelectedOutputPath(outputPaths[0]);
+            return;
           }
-          onTogglePrompt={() =>
-            setOutputTool((current) => (current === 'prompt' ? null : 'prompt'))
-          }
-          onToggleFavorite={handleOutputFavorite}
-          onToggleHidden={handleOutputHidden}
-          onRate={handleOutputRating}
-          onDelete={handleOutputDelete}
-          onClose={() => {
-            setSelectedOutputPath(null);
-            setOutputTool(null);
-          }}
-          onPrev={() => {
-            if (outputPaths.length === 0) return;
-            if (selectedOutputIndex <= 0) {
-              setSelectedOutputPath(outputPaths[outputPaths.length - 1]);
-              return;
-            }
-            setSelectedOutputPath(outputPaths[selectedOutputIndex - 1]);
-          }}
-          onNext={() => {
-            if (outputPaths.length === 0) return;
-            if (selectedOutputIndex === -1 || selectedOutputIndex >= outputPaths.length - 1) {
-              setSelectedOutputPath(outputPaths[0]);
-              return;
-            }
-            setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
-          }}
-        />
-      )}
+          setSelectedOutputPath(outputPaths[selectedOutputIndex + 1]);
+        }}
+        onInputClose={() => {
+          setSelectedInputPath(null);
+          setInputTool(null);
+        }}
+        onToggleOutputTags={() =>
+          setOutputTool((current) => (current === 'tags' ? null : 'tags'))
+        }
+        onToggleOutputRating={() =>
+          setOutputTool((current) => (current === 'rating' ? null : 'rating'))
+        }
+        onToggleOutputPrompt={() =>
+          setOutputTool((current) => (current === 'prompt' ? null : 'prompt'))
+        }
+        onToggleInputTags={() =>
+          setInputTool((current) => (current === 'tags' ? null : 'tags'))
+        }
+        onToggleInputRating={() =>
+          setInputTool((current) => (current === 'rating' ? null : 'rating'))
+        }
+        onToggleInputPrompt={() =>
+          setInputTool((current) => (current === 'prompt' ? null : 'prompt'))
+        }
+      />
 
-      {selectedInputImage && (
-        <ImageModal
-          image={selectedInputImage}
-          index={0}
-          total={1}
-          modalTool={inputTool}
-          availableTags={availableTags}
-          onUpdateTags={handleInputTags}
-          onToggleTags={() =>
-            setInputTool((current) => (current === 'tags' ? null : 'tags'))
-          }
-          onToggleRating={() =>
-            setInputTool((current) => (current === 'rating' ? null : 'rating'))
-          }
-          onTogglePrompt={() =>
-            setInputTool((current) => (current === 'prompt' ? null : 'prompt'))
-          }
-          onToggleFavorite={handleInputFavorite}
-          onToggleHidden={handleInputHidden}
-          onRate={handleInputRating}
-          onDelete={handleInputDelete}
-          onClose={() => {
-            setSelectedInputPath(null);
-            setInputTool(null);
-          }}
-          onPrev={() => {}}
-          onNext={() => {}}
-        />
-      )}
       <ExportApiModal
         workflowId={workflow.id}
         open={exportApiOpen}

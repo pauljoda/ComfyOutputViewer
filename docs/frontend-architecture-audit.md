@@ -75,22 +75,28 @@ WorkflowsPage
    ├─ WorkflowEditorPanel
    │  └─ ui/button
    └─ WorkflowDetail
-      ├─ ui/button
-      ├─ WorkflowEditorPanel
+      ├─ WorkflowHeader
       │  └─ ui/button
-      ├─ ImageInputField
+      ├─ AutoTagSettingsPanel
+      ├─ WorkflowInputsSection
       │  ├─ ui/button
-      │  └─ ImagePickerModal
-      │     └─ ui/button
-      ├─ JobCard
-      │  └─ ui/button
-      ├─ SystemStatsPanel
+      │  └─ ImageInputField
+      │     ├─ ui/button
+      │     └─ ImagePickerModal
+      │        └─ ui/button
+      ├─ WorkflowJobsSection
+      │  ├─ JobCard
+      │  │  └─ ui/button
+      │  └─ SystemStatsPanel
+      ├─ WorkflowOutputModalController
+      │  └─ ImageModal
+      │     ├─ ui/button
+      │     └─ RatingStars
       ├─ ExportApiModal
       │  ├─ ui/button
       │  └─ ui/dialog
-      └─ ImageModal
-         ├─ ui/button
-         └─ RatingStars
+      └─ WorkflowEditorPanel
+         └─ ui/button
 ```
 
 ### 2.4 Shared Between Both Pages
@@ -150,13 +156,17 @@ Legend:
 - `G` = used in Gallery page tree
 - `W` = used in Workflows page tree
 - `Shared` = appears in both trees
-- `Unused` = not reachable from `main.tsx`
 
 | Component | Layer | Usage |
 |---|---|---|
 | `src/client/components/gallery/GalleryWorkspace.tsx` | workspace | G |
 | `src/client/components/workflows/WorkflowsWorkspace.tsx` | workspace | W |
 | `src/client/components/workflows/WorkflowDetail.tsx` | workflows domain | W |
+| `src/client/components/workflows/workflow-detail/WorkflowHeader.tsx` | workflows domain | W |
+| `src/client/components/workflows/workflow-detail/AutoTagSettingsPanel.tsx` | workflows domain | W |
+| `src/client/components/workflows/workflow-detail/WorkflowInputsSection.tsx` | workflows domain | W |
+| `src/client/components/workflows/workflow-detail/WorkflowJobsSection.tsx` | workflows domain | W |
+| `src/client/components/workflows/workflow-detail/WorkflowOutputModalController.tsx` | workflows domain | W |
 | `src/client/components/workflows/WorkflowEditorPanel.tsx` | workflows domain | W |
 | `src/client/components/workflows/ImageInputField.tsx` | workflows domain | W |
 | `src/client/components/workflows/ImagePickerModal.tsx` | workflows domain | W |
@@ -176,17 +186,6 @@ Legend:
 | `src/client/components/ui/badge.tsx` | shared UI primitive | G |
 | `src/client/components/ui/popover.tsx` | shared UI primitive | App shell |
 | `src/client/components/ui/dialog.tsx` | shared UI primitive | W |
-| `src/client/components/ui/card.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/dropdown-menu.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/input.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/label.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/scroll-area.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/select.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/separator.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/sheet.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/slider.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/switch.tsx` | shared UI primitive | Unused |
-| `src/client/components/ui/toggle.tsx` | shared UI primitive | Unused |
 
 Related non-component support modules under component folders:
 - `src/client/components/workflows/formatters.ts`
@@ -212,12 +211,11 @@ Context-level common dependency:
 
 ### Main organization risks
 - Very large orchestration/render components (high cognitive load):
-  - `src/client/components/workflows/WorkflowDetail.tsx` (~1164 lines)
+  - `src/client/components/workflows/WorkflowDetail.tsx` (~967 lines)
   - `src/client/components/ImageModal.tsx` (~880 lines)
-  - `src/client/components/gallery/GalleryWorkspace.tsx` (~813 lines)
-  - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~699 lines)
+  - `src/client/components/workflows/WorkflowsWorkspace.tsx` (~700 lines)
   - `src/client/components/TopBar.tsx` (~615 lines)
-- UI primitives are only partially adopted; many `ui/*` files are currently unreachable from `main.tsx`.
+- `WorkflowDetail` still mixes controller/state/network concerns even after the initial render-section extraction.
 - Domain logic, network effects, and dense JSX are mixed in the same files (especially both workspace components and `WorkflowDetail`).
 
 ### Suggested refactor targets (highest impact first)
