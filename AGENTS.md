@@ -153,6 +153,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Maintain living documentation, semantic versioning, and changelog discipline.
 - Maintain a living frontend architecture/component relationship audit document to support incremental UI refactors and ownership clarity.
 - Execute phased frontend organization cleanup: split oversized workspace/detail components, harden shared client utilities, and retire confirmed dead component surface.
+- Continue phase-1 gallery modularization after controller extraction by splitting `GalleryWorkspace` render concerns into smaller focused modules.
 - Maintain cross-platform install paths (Nix + Linux/macOS + Windows) and keep setup docs/script behavior aligned.
 - Maintain and expand the unified Vitest test suite for server/client core behavior and regression protection.
 - Maintain a reproducible mock sandbox dev mode for screenshot/demo workflows while keeping real ComfyUI API execution paths.
@@ -161,6 +162,9 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Began gallery phase-1 modularization (v0.9.12): extracted gallery state/effects/action orchestration from `src/client/components/gallery/GalleryWorkspace.tsx` into `src/client/components/gallery/useGalleryWorkspaceController.ts`, leaving `GalleryWorkspace` as a composition-focused render layer.
+- Restored stage-click modal dismiss behavior (v0.9.12): updated `ImageModal` so clicking blank space outside the displayed image dismisses the modal while preserving existing dismissal paths (close button, keyboard, and gesture/navigation controls).
+- Bumped package/app version to `0.9.12` and refreshed `flake.nix` `npmDepsHash` after the lockfile update.
 - Began frontend cleanup and refactor prep (v0.9.11): added `docs/frontend-refactor-plan.md` with deep-review findings, concrete split contracts for `WorkflowDetail` + `GalleryWorkspace`, hook/data-flow trees, and a staged deprecation plan for unused `ui/*` components.
 - Hardened frontend image path URL handling (v0.9.11): added shared `buildImageUrl`/`encodeImagePath` helpers in `src/client/utils/images.ts`, updated workflow image preview/output URL callsites to use safe segment encoding, and added reserved-character regression coverage in `src/client/utils/images.test.ts`.
 - Fixed gallery/workflow UX state edge cases (v0.9.11): cleared stale workflow list errors on successful reload, cleared gallery `selectedId` when active filters remove the selected image to avoid surprise modal reopen, and reset workflow JSON file input so re-selecting the same file re-imports reliably.

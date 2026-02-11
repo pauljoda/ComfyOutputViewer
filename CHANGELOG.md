@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.12] - 2026-02-11
+
+### Changed
+- Started Gallery phase-1 modularization by extracting state/effects/handlers into `src/client/components/gallery/useGalleryWorkspaceController.ts`, keeping `GalleryWorkspace` focused on page composition/render wiring.
+- Bumped app version to `0.9.12` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
+### Fixed
+- Restored standard image-modal dismissal behavior for blank stage clicks: clicking outside the rendered image (but inside the stage) now dismisses while preserving existing close options (`X`, `Esc`, swipe, controls).
+
 ## [0.9.11] - 2026-02-11
 
 ### Changed

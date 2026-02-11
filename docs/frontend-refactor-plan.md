@@ -3,6 +3,10 @@
 Date: 2026-02-11  
 Scope: Deep review findings + concrete split plan for `WorkflowDetail` and `GalleryWorkspace`.
 
+Progress snapshot:
+- Completed: extracted `useGalleryWorkspaceController` and reduced `GalleryWorkspace` to composition/render wiring.
+- Pending: split remaining gallery render concerns and execute `WorkflowDetail` phase-1 extraction.
+
 ## 1) Deep Review Findings
 
 ### Critical/High

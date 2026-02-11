@@ -533,7 +533,7 @@ export default function ImageModal({
     dragMovedRef.current = false;
     if (moved) return;
     const target = event.target as HTMLElement;
-    if (target.closest('.zoom-wrapper')) return;
+    if (target.closest('.image-modal-image')) return;
     handleClose();
   };
 
