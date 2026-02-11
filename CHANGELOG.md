@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.19] - 2026-02-11
+
+### Changed
+- Continued `WorkflowDetail` controller decomposition by extracting job-stream concerns from `src/client/components/workflows/workflow-detail/useWorkflowDetailController.ts` into `src/client/components/workflows/workflow-detail/useWorkflowJobs.ts` (websocket updates, polling fallback, cancel/recheck flows, and system stats refresh).
+- Reduced `useWorkflowDetailController` to focus more narrowly on workflow input/output orchestration while keeping runtime behavior and API contracts stable.
+- Updated frontend architecture/refactor docs to reflect the new `useWorkflowJobs` hook layer and remaining decomposition targets.
+- Bumped app version to `0.9.19` and refreshed `flake.nix` `npmDepsHash` after the lockfile version update.
+
 ## [0.9.18] - 2026-02-11
 
 ### Changed

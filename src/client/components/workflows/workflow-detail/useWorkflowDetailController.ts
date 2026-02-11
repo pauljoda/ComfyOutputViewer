@@ -4,6 +4,7 @@ import { deleteImage, setFavorite, setHidden, setRating, setTags } from '../../.
 import { buildImageUrl } from '../../../utils/images';
 import type { ImageItem, Job, JobOutput, ModalTool, Workflow, WorkflowInput } from '../../../types';
 import { useWorkflowAutoTagSettings } from './useWorkflowAutoTagSettings';
+import { useWorkflowJobs } from './useWorkflowJobs';
 import type {
   ImageUploadValue,
   SystemStatsResponse,
@@ -84,27 +85,19 @@ export function useWorkflowDetailController({
 }: UseWorkflowDetailControllerArgs): UseWorkflowDetailControllerResult {
   const [inputs, setInputs] = useState<WorkflowInput[]>([]);
   const [inputValues, setInputValues] = useState<Record<number, string>>({});
-  const [jobs, setJobs] = useState<Job[]>([]);
   const [running, setRunning] = useState(false);
   const [exportApiOpen, setExportApiOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [jobClock, setJobClock] = useState(() => Date.now());
-  const [wsConnected, setWsConnected] = useState(false);
   const [outputCache, setOutputCache] = useState<Record<string, ImageItem>>({});
   const [outputPaths, setOutputPaths] = useState<string[]>([]);
   const [selectedOutputPath, setSelectedOutputPath] = useState<string | null>(null);
   const [outputTool, setOutputTool] = useState<ModalTool>(null);
   const [selectedInputPath, setSelectedInputPath] = useState<string | null>(null);
   const [inputTool, setInputTool] = useState<ModalTool>(null);
-  const [systemStats, setSystemStats] = useState<SystemStatsResponse | null>(null);
-  const [systemStatsError, setSystemStatsError] = useState<string | null>(null);
-  const [systemStatsUpdatedAt, setSystemStatsUpdatedAt] = useState<number | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const isInputDirtyRef = useRef(false);
   const previousWorkflowIdRef = useRef<number | null>(null);
   const imageUploadCacheRef = useRef<Map<string, ImageUploadValue>>(new Map());
-  const recheckAttemptsRef = useRef<Set<number>>(new Set());
-  const pendingJobRefetchTimeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const workflowIdRef = useRef(workflow.id);
 
   workflowIdRef.current = workflow.id;
@@ -115,14 +108,23 @@ export function useWorkflowDetailController({
     onError: setError
   });
 
-  useEffect(() => {
-    return () => {
-      pendingJobRefetchTimeoutsRef.current.forEach((timeoutId) => {
-        clearTimeout(timeoutId);
-      });
-      pendingJobRefetchTimeoutsRef.current.clear();
-    };
-  }, [workflow.id]);
+  const workflowJobs = useWorkflowJobs({
+    workflowId: workflow.id,
+    running,
+    onError: (message) => setError(message)
+  });
+  const {
+    jobs,
+    setJobs,
+    jobClock,
+    systemStats,
+    systemStatsError,
+    systemStatsUpdatedAt,
+    loadJobs,
+    mergeJobUpdate,
+    handleCancelJob,
+    handleRecheckJobOutputs
+  } = workflowJobs;
 
   useEffect(() => {
     autoTag.applyAutoTagSettings({
@@ -131,57 +133,6 @@ export function useWorkflowDetailController({
       autoTagMaxWords: workflow.autoTagMaxWords
     });
   }, [workflow.id, autoTag.applyAutoTagSettings]);
-
-  const mergeJobUpdate = useCallback((job: Job) => {
-    if (job.workflowId !== workflowIdRef.current) {
-      return;
-    }
-    setJobs((prev) => {
-      const next = prev.filter((item) => item.id !== job.id);
-      next.push(job);
-      next.sort((a, b) => b.createdAt - a.createdAt);
-      return next;
-    });
-    if (job.status === 'completed' && (!job.outputs || job.outputs.length === 0)) {
-      const activeWorkflowId = workflowIdRef.current;
-      const timeoutId = setTimeout(async () => {
-        pendingJobRefetchTimeoutsRef.current.delete(timeoutId);
-        if (workflowIdRef.current !== activeWorkflowId) {
-          return;
-        }
-        try {
-          const response = await api<{ job: Job }>(`/api/jobs/${job.id}`);
-          if (
-            response?.job &&
-            response.job.workflowId === workflowIdRef.current &&
-            response.job.outputs &&
-            response.job.outputs.length > 0
-          ) {
-            setJobs((prev) => {
-              const next = prev.filter((item) => item.id !== response.job.id);
-              next.push(response.job);
-              next.sort((a, b) => b.createdAt - a.createdAt);
-              return next;
-            });
-          }
-        } catch (err) {
-          console.warn('Failed to refetch job outputs:', err);
-        }
-      }, 3000);
-      pendingJobRefetchTimeoutsRef.current.add(timeoutId);
-    }
-  }, []);
-
-  const loadSystemStats = useCallback(async () => {
-    try {
-      const response = await api<SystemStatsResponse>('/api/comfy/stats');
-      setSystemStats(response);
-      setSystemStatsUpdatedAt(Date.now());
-      setSystemStatsError(null);
-    } catch (err) {
-      setSystemStatsError(err instanceof Error ? err.message : 'Failed to load system stats');
-    }
-  }, []);
 
   const loadWorkflowDetails = useCallback(
     async (targetWorkflowId?: number, options: { preserveInputValues?: boolean } = {}) => {
@@ -221,17 +172,6 @@ export function useWorkflowDetailController({
     [autoTag.applyAutoTagSettings]
   );
 
-  const loadJobs = useCallback(async (targetWorkflowId?: number) => {
-    const workflowId = targetWorkflowId ?? workflowIdRef.current;
-    try {
-      const response = await api<{ jobs: Job[] }>(`/api/workflows/${workflowId}/jobs`);
-      if (workflowIdRef.current !== workflowId) return;
-      setJobs(response.jobs);
-    } catch (err) {
-      console.error('Failed to load jobs:', err);
-    }
-  }, []);
-
   useEffect(() => {
     const workflowChanged = previousWorkflowIdRef.current !== workflow.id;
     previousWorkflowIdRef.current = workflow.id;
@@ -249,7 +189,6 @@ export function useWorkflowDetailController({
       setSelectedInputPath(null);
       setInputTool(null);
       isInputDirtyRef.current = false;
-      recheckAttemptsRef.current = new Set();
       prefillAppliedRef.current = null;
       void loadWorkflowDetails(workflow.id);
       void loadJobs(workflow.id);
@@ -260,12 +199,6 @@ export function useWorkflowDetailController({
     void loadWorkflowDetails(workflow.id, { preserveInputValues: true });
     void loadJobs(workflow.id);
   }, [workflow.id, workflow.updatedAt, loadJobs, loadWorkflowDetails]);
-
-  useEffect(() => {
-    loadSystemStats();
-    const interval = window.setInterval(loadSystemStats, 8000);
-    return () => window.clearInterval(interval);
-  }, [loadSystemStats]);
 
   useEffect(() => {
     if (!prefill || prefill.workflowId !== workflow.id) {
@@ -382,66 +315,6 @@ export function useWorkflowDetailController({
   );
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
-
-    socket.onopen = () => {
-      setWsConnected(true);
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message?.type === 'job_update' && message.job) {
-          const job = message.job as Job;
-          if (job.workflowId !== workflow.id) {
-            return;
-          }
-          mergeJobUpdate(job);
-        }
-      } catch (err) {
-        console.warn('Failed to parse job update:', err);
-      }
-    };
-
-    socket.onerror = () => {
-      setWsConnected(false);
-    };
-
-    socket.onclose = () => {
-      setWsConnected(false);
-    };
-
-    return () => {
-      setWsConnected(false);
-      socket.close();
-    };
-  }, [mergeJobUpdate, workflow.id]);
-
-  const hasActiveJobs = useMemo(
-    () =>
-      running ||
-      jobs.some((job) => job.status === 'pending' || job.status === 'queued' || job.status === 'running'),
-    [jobs, running]
-  );
-
-  useEffect(() => {
-    if (!hasActiveJobs) return;
-    const interval = window.setInterval(() => {
-      setJobClock(Date.now());
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [hasActiveJobs]);
-
-  useEffect(() => {
-    if (!hasActiveJobs && wsConnected) return;
-    const interval = window.setInterval(() => {
-      loadJobs();
-    }, 8000);
-    return () => window.clearInterval(interval);
-  }, [hasActiveJobs, loadJobs, wsConnected]);
-
-  useEffect(() => {
     if (selectedOutputPath) {
       setOutputTool(null);
     }
@@ -532,59 +405,6 @@ export function useWorkflowDetailController({
       setRunning(false);
     }
   }, [inputs, inputValues, loadJobs, mergeJobUpdate, resolveImageInputValue, workflow.id]);
-
-  const handleCancelJob = useCallback(
-    async (jobId: number) => {
-      setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId
-            ? { ...job, status: 'cancelled', errorMessage: 'Cancelled', completedAt: Date.now() }
-            : job
-        )
-      );
-      try {
-        const response = await api<{ ok: boolean; status?: string }>(`/api/jobs/${jobId}/cancel`, {
-          method: 'POST'
-        });
-        if (!response?.ok) {
-          await loadJobs(workflow.id);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to cancel job');
-        await loadJobs(workflow.id);
-      }
-    },
-    [loadJobs, workflow.id]
-  );
-
-  const handleRecheckJobOutputs = useCallback(
-    async (jobId: number) => {
-      try {
-        await api(`/api/jobs/${jobId}/recheck`, { method: 'POST' });
-        const response = await api<{ job: Job }>(`/api/jobs/${jobId}`);
-        if (response?.job) {
-          mergeJobUpdate(response.job);
-        } else {
-          await loadJobs(workflow.id);
-        }
-      } catch (err) {
-        console.warn('Failed to recheck job outputs:', err);
-      }
-    },
-    [loadJobs, mergeJobUpdate, workflow.id]
-  );
-
-  useEffect(() => {
-    if (jobs.length === 0) return;
-    jobs.forEach((job) => {
-      if (job.status !== 'completed') return;
-      if (job.outputs && job.outputs.length > 0) return;
-      if (!job.promptId) return;
-      if (recheckAttemptsRef.current.has(job.id)) return;
-      recheckAttemptsRef.current.add(job.id);
-      handleRecheckJobOutputs(job.id);
-    });
-  }, [jobs, handleRecheckJobOutputs]);
 
   const handleOpenOutput = useCallback(
     async (job: Job, output: JobOutput) => {
