@@ -1,5 +1,9 @@
 # Comfy Output Viewer
 
+<p align="center">
+  <img src="logo.png" alt="Comfy Output Viewer logo" width="120" />
+</p>
+
 <p align="left">
   <a href="https://nodejs.org/"><img alt="Node 20+" src="https://img.shields.io/badge/Node-20%2B-5FA04E?logo=node.js&logoColor=white"></a>
   <a href="./flake.nix"><img alt="Nix Flake" src="https://img.shields.io/badge/Nix-Flake-5277C3?logo=nixos&logoColor=white"></a>

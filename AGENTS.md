@@ -162,6 +162,7 @@ If a request is purely informational and makes no changes, do not commit.
 - Continue backend modularization by extracting remaining `src/server/index.js` bootstrap/wiring concerns into dedicated modules (in progress).
 
 ## Recent Changes
+- Added project logo to README and generated favicon assets (v0.9.31): added `logo.png` to the README header, generated `public/favicon-32x32.png`, `public/favicon-16x16.png`, `public/apple-touch-icon.png`, and `public/favicon-192x192.png` from the logo using sharp, and wired all favicon links into `index.html`.
 - Fixed mobile tap-to-dismiss regression in `ImageModal` (v0.9.30): added `pointerType !== 'mouse'` guard in `handlePointerEnd` in `src/client/components/ImageModal.tsx` so touch events no longer accidentally close the modal; click-outside-to-close is now restricted to mouse pointer type only while swipe-to-dismiss remains unaffected.
 - Continued `ImageModal` decomposition (v0.9.29): extracted prompt data lifecycle/derivation concerns from `src/client/components/ImageModal.tsx` into `src/client/components/image-modal/useImagePromptData.ts`, and extracted prompt overlay rendering into `src/client/components/image-modal/ImagePromptOverlay.tsx`, reducing `ImageModal` complexity while preserving behavior.
 - Updated frontend architecture/refactor docs after `ImageModal` prompt extraction (v0.9.29): refreshed `docs/frontend-architecture-audit.md` and `docs/frontend-refactor-plan.md` to reflect the new image-modal layering and remaining interaction-focused split targets.

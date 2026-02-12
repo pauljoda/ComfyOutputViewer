@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.31] - 2026-02-11
+
+### Added
+- Added project logo (`logo.png`) to the README header.
+- Generated favicon assets from the logo (`public/favicon-32x32.png`, `public/favicon-16x16.png`, `public/apple-touch-icon.png`, `public/favicon-192x192.png`) and wired them into `index.html`.
+
 ## [0.9.30] - 2026-02-11
 
 ### Fixed
