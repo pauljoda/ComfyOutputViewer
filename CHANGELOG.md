@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.34] - 2026-02-11
+
+### Changed
+- Keyboard shortcuts overlay in `ImageModal` now shows action label first, then keys (e.g. "navigate  ← → / H L"), and is left-aligned for a more compact layout.
+
 ## [0.9.33] - 2026-02-11
 
 ### Fixed

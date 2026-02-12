@@ -773,15 +773,15 @@ export default function ImageModal({
               <div className="absolute bottom-2 left-2 z-10 pointer-events-none select-none">
                 <div
                   className="text-[10px] leading-[1.5] text-white/30"
-                  style={{ display: 'grid', gridTemplateColumns: 'max-content auto', columnGap: '0.375rem' }}
+                  style={{ display: 'grid', gridTemplateColumns: 'auto max-content', columnGap: '0.5rem' }}
                 >
-                  <span className="text-right text-white/40">← → / H L</span><span>navigate</span>
-                  <span className="text-right text-white/40">F</span><span>favorite</span>
-                  <span className="text-right text-white/40">1 – 5</span><span>rating</span>
-                  <span className="text-right text-white/40">T</span><span>tags</span>
-                  <span className="text-right text-white/40">+ / −</span><span>zoom</span>
-                  <span className="text-right text-white/40">⇧ + ←→↑↓ / HJKL</span><span>pan</span>
-                  <span className="text-right text-white/40">Esc</span><span>close</span>
+                  <span>navigate</span><span className="text-white/40">← → / H L</span>
+                  <span>favorite</span><span className="text-white/40">F</span>
+                  <span>rating</span><span className="text-white/40">1 – 5</span>
+                  <span>tags</span><span className="text-white/40">T</span>
+                  <span>zoom</span><span className="text-white/40">+ / −</span>
+                  <span>pan</span><span className="text-white/40">⇧ + ←→↑↓ / HJKL</span>
+                  <span>close</span><span className="text-white/40">Esc</span>
                 </div>
               </div>
             )}
