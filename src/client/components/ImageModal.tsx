@@ -393,6 +393,7 @@ export default function ImageModal({
     dragStartRef.current = null;
     dragMovedRef.current = false;
     if (moved) return;
+    if (event.pointerType !== 'mouse') return;
     const target = event.target as HTMLElement;
     if (target.closest('.image-modal-image')) return;
     handleClose();

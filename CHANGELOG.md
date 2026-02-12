@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.30] - 2026-02-11
+
+### Fixed
+- Fixed mobile tap-to-dismiss in `ImageModal`: added `pointerType !== 'mouse'` guard in `handlePointerEnd` so touch interactions no longer accidentally close the modal. Touch devices retain swipe-to-dismiss; the click-outside-to-close behavior is now mouse-only.
+
 ## [0.9.29] - 2026-02-11
 
 ### Changed
