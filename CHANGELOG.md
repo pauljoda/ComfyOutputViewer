@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.32] - 2026-02-11
+
+### Added
+- Added desktop keyboard shortcuts to `ImageModal` (`src/client/components/ImageModal.tsx`), active only on pointer-fine (mouse) devices:
+  - `H` / `←` — previous image; `L` / `→` — next image (vim-style + arrow keys).
+  - `F` — toggle favorite.
+  - `1`–`5` — set star rating; pressing the same number again clears it to 0.
+  - `T` — open the tags panel and auto-focus the tag text input; if the panel is already open, re-focus the input.
+  - `+` / `=` — zoom in; `-` — zoom out.
+  - `Shift` + `←→↑↓` / `H J K L` — pan the image by 80 px increments.
+  - `Esc` — if a tool panel (tags/rating/prompt) is open, close just that panel first; otherwise dismiss the detail view.
+- Added a subtle keyboard shortcuts reference overlay in the bottom-left corner of the image area (desktop only, `pointer-events-none`).
+- Keyboard handling is now entirely inside `ImageModal` so shortcuts work consistently in both the gallery detail view and the workflow job output detail view.
+
+### Changed
+- Removed the old `useEffect` keyboard handler from `src/client/components/gallery/useGalleryWorkspaceController.ts` that handled `Escape`/`ArrowLeft`/`ArrowRight`; all modal keyboard navigation is now owned by `ImageModal`.
+
 ## [0.9.31] - 2026-02-11
 
 ### Added

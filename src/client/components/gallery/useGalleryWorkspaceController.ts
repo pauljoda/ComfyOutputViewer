@@ -549,23 +549,6 @@ export function useGalleryWorkspaceController({ goHomeSignal }: { goHomeSignal: 
     setSelectedId(filteredImages[nextIndex].id);
   }, [filteredImages, selectedIndex]);
 
-  useEffect(() => {
-    if (!selectedImage) return;
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedId(null);
-      }
-      if (event.key === 'ArrowLeft') {
-        movePrev();
-      }
-      if (event.key === 'ArrowRight') {
-        moveNext();
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [selectedImage, moveNext, movePrev]);
-
   const toggleTool = useCallback((tool: ToolPanel) => {
     setActiveTool((current) => (current === tool ? null : tool));
   }, []);

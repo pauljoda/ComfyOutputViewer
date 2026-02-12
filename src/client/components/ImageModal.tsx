@@ -72,6 +72,13 @@ export default function ImageModal({
     modalTool
   });
 
+  const tagInputRef = useRef<HTMLInputElement | null>(null);
+  const [shouldFocusTag, setShouldFocusTag] = useState(false);
+  const isDesktop = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: fine)').matches;
+  }, []);
+
   const swipeStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const swipeLastRef = useRef<{ x: number; y: number } | null>(null);
   const lastSwipeAtRef = useRef(0);
@@ -251,6 +258,102 @@ export default function ImageModal({
   useEffect(() => {
     setTagInput('');
   }, [image.id]);
+
+  // Focus the tag input after the tags panel opens
+  useEffect(() => {
+    if (!shouldFocusTag || modalTool !== 'tags') return;
+    setShouldFocusTag(false);
+    const timer = window.setTimeout(() => tagInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(timer);
+  }, [shouldFocusTag, modalTool]);
+
+  // Desktop keyboard shortcuts
+  useEffect(() => {
+    if (!isDesktop) return;
+    const PAN_STEP = 80;
+    const handleKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isTyping =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        !!target.isContentEditable;
+
+      // Always handle Escape (even when typing in an input)
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (modalTool) {
+          if (modalTool === 'tags') onToggleTags();
+          else if (modalTool === 'rating') onToggleRating();
+          else onTogglePrompt();
+        } else {
+          onClose();
+        }
+        return;
+      }
+
+      if (isTyping) return;
+
+      const { key, shiftKey } = event;
+
+      // Zoom shortcuts — checked before shift block because + requires Shift on US keyboards
+      if (key === '+' || key === '=') {
+        event.preventDefault();
+        transformRef.current?.zoomIn(0.35);
+        return;
+      }
+      if (key === '-') {
+        event.preventDefault();
+        transformRef.current?.zoomOut(0.35);
+        return;
+      }
+
+      // Shift held: pan the image
+      if (shiftKey) {
+        const state = lastStateRef.current ?? transformRef.current?.state;
+        if (!state) return;
+        const { positionX, positionY, scale } = state;
+        if (key === 'ArrowLeft' || key === 'h' || key === 'H') {
+          event.preventDefault();
+          transformRef.current?.setTransform(positionX + PAN_STEP, positionY, scale, 0);
+        } else if (key === 'ArrowRight' || key === 'l' || key === 'L') {
+          event.preventDefault();
+          transformRef.current?.setTransform(positionX - PAN_STEP, positionY, scale, 0);
+        } else if (key === 'ArrowUp' || key === 'k' || key === 'K') {
+          event.preventDefault();
+          transformRef.current?.setTransform(positionX, positionY + PAN_STEP, scale, 0);
+        } else if (key === 'ArrowDown' || key === 'j' || key === 'J') {
+          event.preventDefault();
+          transformRef.current?.setTransform(positionX, positionY - PAN_STEP, scale, 0);
+        }
+        return;
+      }
+
+      // Navigate
+      if (key === 'ArrowLeft' || key === 'h' || key === 'H') {
+        onPrev();
+      } else if (key === 'ArrowRight' || key === 'l' || key === 'L') {
+        onNext();
+      // Favorite
+      } else if (key === 'f' || key === 'F') {
+        onToggleFavorite();
+      // Tags panel
+      } else if (key === 't' || key === 'T') {
+        if (modalTool !== 'tags') {
+          onToggleTags();
+          setShouldFocusTag(true);
+        } else {
+          tagInputRef.current?.focus();
+        }
+      // Rating (pressing same star again clears)
+      } else if (key >= '1' && key <= '5') {
+        const rating = parseInt(key, 10);
+        onRate(image.rating === rating ? 0 : rating);
+      }
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isDesktop, modalTool, image.rating, onPrev, onNext, onToggleFavorite, onToggleTags, onToggleRating, onTogglePrompt, onClose, onRate]);
 
   const handleAddTagValue = (value: string) => {
     const normalized = normalizeTagInput(value);
@@ -554,6 +657,7 @@ export default function ImageModal({
                     </div>
                     <div className="flex items-center gap-2">
                       <input
+                        ref={tagInputRef}
                         list={suggestionId}
                         name="modalTag"
                         autoComplete="off"
@@ -663,6 +767,22 @@ export default function ImageModal({
                 {Object.entries(debugInfo).map(([key, val]) => (
                   <div key={key}>{key}: {val}</div>
                 ))}
+              </div>
+            )}
+            {isDesktop && (
+              <div className="absolute bottom-2 left-2 z-10 pointer-events-none select-none">
+                <div
+                  className="text-[10px] leading-[1.5] text-white/30"
+                  style={{ display: 'grid', gridTemplateColumns: 'max-content auto', columnGap: '0.375rem' }}
+                >
+                  <span className="text-right text-white/40">← → / H L</span><span>navigate</span>
+                  <span className="text-right text-white/40">F</span><span>favorite</span>
+                  <span className="text-right text-white/40">1 – 5</span><span>rating</span>
+                  <span className="text-right text-white/40">T</span><span>tags</span>
+                  <span className="text-right text-white/40">+ / −</span><span>zoom</span>
+                  <span className="text-right text-white/40">⇧ + ←→↑↓ / HJKL</span><span>pan</span>
+                  <span className="text-right text-white/40">Esc</span><span>close</span>
+                </div>
               </div>
             )}
           </div>
