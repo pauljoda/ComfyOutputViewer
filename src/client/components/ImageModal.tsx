@@ -314,16 +314,16 @@ export default function ImageModal({
         const { positionX, positionY, scale } = state;
         if (key === 'ArrowLeft' || key === 'h' || key === 'H') {
           event.preventDefault();
-          transformRef.current?.setTransform(positionX + PAN_STEP, positionY, scale, 0);
+          transformRef.current?.setTransform(positionX - PAN_STEP, positionY, scale, 0);
         } else if (key === 'ArrowRight' || key === 'l' || key === 'L') {
           event.preventDefault();
-          transformRef.current?.setTransform(positionX - PAN_STEP, positionY, scale, 0);
+          transformRef.current?.setTransform(positionX + PAN_STEP, positionY, scale, 0);
         } else if (key === 'ArrowUp' || key === 'k' || key === 'K') {
           event.preventDefault();
-          transformRef.current?.setTransform(positionX, positionY + PAN_STEP, scale, 0);
+          transformRef.current?.setTransform(positionX, positionY - PAN_STEP, scale, 0);
         } else if (key === 'ArrowDown' || key === 'j' || key === 'J') {
           event.preventDefault();
-          transformRef.current?.setTransform(positionX, positionY - PAN_STEP, scale, 0);
+          transformRef.current?.setTransform(positionX, positionY + PAN_STEP, scale, 0);
         }
         return;
       }

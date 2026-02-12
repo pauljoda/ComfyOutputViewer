@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.33] - 2026-02-11
+
+### Fixed
+- Fixed Shift+arrow/HJKL pan direction in `ImageModal`: pressing a direction key now moves the image in that direction (drag convention) rather than the inverse scroll convention.
+
 ## [0.9.32] - 2026-02-11
 
 ### Added
