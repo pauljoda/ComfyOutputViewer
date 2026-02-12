@@ -11,6 +11,7 @@ type ImageCardProps = {
   tileSize: number;
   tileFit: TileFit;
   selected: boolean;
+  focused?: boolean;
   multiSelect: boolean;
   onSelectImage: (id: string, options?: { shiftKey?: boolean }) => void;
   onToggleFavorite: (image: ImageItem) => void;
@@ -26,6 +27,7 @@ function ImageCard({
   tileSize,
   tileFit,
   selected,
+  focused = false,
   multiSelect,
   onSelectImage,
   onToggleFavorite,
@@ -91,9 +93,10 @@ function ImageCard({
   return (
     <article
       className={`group relative overflow-hidden rounded-lg border bg-card transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring ${
-        selected ? 'ring-2 ring-primary' : ''
+        selected ? 'ring-2 ring-primary' : focused ? 'ring-2 ring-white/70' : ''
       } ${image.hidden ? 'opacity-60' : ''} ${animateIn ? 'animate-card-enter' : ''}`}
       data-image-card="true"
+      data-image-id={image.id}
       role="button"
       tabIndex={0}
       aria-label={image.name}

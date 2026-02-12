@@ -13,6 +13,7 @@ type GalleryProps = {
   columns: number;
   multiSelect: boolean;
   selectedIds: Set<string>;
+  focusedId?: string | null;
   onSelectImage: (id: string, options?: { shiftKey?: boolean }) => void;
   onToggleFavorite: (image: ImageItem) => void;
   onToggleHidden: (image: ImageItem) => void;
@@ -28,6 +29,7 @@ const Gallery = React.memo(
       columns,
       multiSelect,
       selectedIds,
+      focusedId,
       onSelectImage,
       onToggleFavorite,
       onToggleHidden
@@ -86,6 +88,22 @@ const Gallery = React.memo(
     );
     const animateCards = visibleCount <= INITIAL_RENDER_BATCH;
 
+    // Ensure focused card is rendered (bump virtualisation window if needed)
+    useEffect(() => {
+      if (!focusedId) return;
+      const idx = images.findIndex((img) => img.id === focusedId);
+      if (idx >= 0 && idx >= visibleCount) {
+        setVisibleCount(idx + 1);
+      }
+    }, [focusedId, images, visibleCount]);
+
+    // Scroll focused card into view
+    useEffect(() => {
+      if (!focusedId) return;
+      const el = mainRef.current?.querySelector(`[data-image-id="${focusedId}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }, [focusedId]);
+
     const setMainRef = useCallback(
       (element: HTMLElement | null) => {
         mainRef.current = element;
@@ -137,6 +155,7 @@ const Gallery = React.memo(
                 tileSize={tileSize}
                 tileFit={tileFit}
                 selected={selectedIds.has(image.id)}
+                focused={image.id === focusedId}
                 multiSelect={multiSelect}
                 onSelectImage={onSelectImage}
                 onToggleFavorite={onToggleFavorite}

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTags } from '../../contexts/TagsContext';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useLocalStorageState } from '../../hooks/useLocalStorageState';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { api } from '../../lib/api';
 import {
   bulkDelete,
@@ -199,6 +200,16 @@ export function useGalleryWorkspaceController({ goHomeSignal }: { goHomeSignal: 
     : -1;
   const selectedImage = selectedIndex >= 0 ? filteredImages[selectedIndex] : null;
 
+  const isDesktop = useMediaQuery('(pointer: fine)');
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+
+  // Stable refs so the gallery keyboard handler doesn't re-register on every render
+  const filteredImagesRef = useRef(filteredImages);
+  filteredImagesRef.current = filteredImages;
+  const focusedIdRef = useRef(focusedId);
+  focusedIdRef.current = focusedId;
+  const effectiveColumnsRef = useRef(0);
+
   useEffect(() => {
     if (!selectedId) return;
     if (filteredImages.some((image) => image.id === selectedId)) return;
@@ -211,6 +222,57 @@ export function useGalleryWorkspaceController({ goHomeSignal }: { goHomeSignal: 
       setModalTool(null);
     }
   }, [selectedId]);
+
+  // Keep cursor in sync when the modal navigates to a different image
+  useEffect(() => {
+    if (selectedId) setFocusedId(selectedId);
+  }, [selectedId]);
+
+  // Clear cursor if the focused image is filtered out
+  useEffect(() => {
+    if (!focusedId) return;
+    if (!filteredImages.some((image) => image.id === focusedId)) setFocusedId(null);
+  }, [filteredImages, focusedId]);
+
+  // Gallery keyboard navigation (desktop only, only when no modal is open)
+  useEffect(() => {
+    if (!isDesktop || selectedImage) return;
+    const handleKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      const key = event.key;
+      const images = filteredImagesRef.current;
+      const cols = effectiveColumnsRef.current || 1;
+      const currId = focusedIdRef.current;
+      const currIndex = currId ? images.findIndex((img) => img.id === currId) : -1;
+
+      if (key === 'Enter' || key === ' ') {
+        if (currId) { event.preventDefault(); setSelectedId(currId); }
+        return;
+      }
+
+      const isNav = key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown'
+        || key === 'h' || key === 'l' || key === 'k' || key === 'j'
+        || key === 'H' || key === 'L' || key === 'K' || key === 'J';
+      if (!isNav) return;
+
+      event.preventDefault();
+      if (!images.length) return;
+
+      if (currIndex < 0) { setFocusedId(images[0].id); return; }
+
+      let next = currIndex;
+      if (key === 'ArrowLeft' || key === 'h' || key === 'H') next = Math.max(0, currIndex - 1);
+      else if (key === 'ArrowRight' || key === 'l' || key === 'L') next = Math.min(images.length - 1, currIndex + 1);
+      else if (key === 'ArrowUp' || key === 'k' || key === 'K') next = Math.max(0, currIndex - cols);
+      else if (key === 'ArrowDown' || key === 'j' || key === 'J') next = Math.min(images.length - 1, currIndex + cols);
+
+      if (next !== currIndex) setFocusedId(images[next].id);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isDesktop, selectedImage]);
 
   useEffect(() => {
     if (!multiSelect) {
@@ -598,6 +660,7 @@ export function useGalleryWorkspaceController({ goHomeSignal }: { goHomeSignal: 
   }, [favoritesOnly, maxRating, minRating, selectedTags, showUntagged]);
 
   const effectiveColumns = columns > 0 ? columns : COLUMN_MIN;
+  effectiveColumnsRef.current = effectiveColumns;
 
   const tileSize = useMemo(() => {
     if (!galleryWidth) return TARGET_TILE_SIZE;
@@ -632,6 +695,7 @@ export function useGalleryWorkspaceController({ goHomeSignal }: { goHomeSignal: 
     minRating,
     maxRating,
     selectedId,
+    focusedId,
     multiSelect,
     selectedIds,
     drawerOpen,

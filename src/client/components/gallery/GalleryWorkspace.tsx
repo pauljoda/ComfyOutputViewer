@@ -20,6 +20,7 @@ export default function GalleryWorkspace() {
     minRating,
     maxRating,
     multiSelect,
+    focusedId,
     drawerOpen,
     activeTool,
     modalTool,
@@ -178,6 +179,7 @@ export default function GalleryWorkspace() {
           columns: effectiveColumns,
           multiSelect,
           selectedIds: selectedIdSet,
+          focusedId,
           onSelectImage: handleSelectImageWithOptions,
           onToggleFavorite: handleToggleFavorite,
           onToggleHidden: handleToggleHidden

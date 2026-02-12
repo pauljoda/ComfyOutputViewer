@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.35] - 2026-02-11
+
+### Added
+- Added keyboard-navigable gallery cursor: pressing arrow keys or vim keys (H/J/K/L) while no modal is open moves a visible ring outline through the gallery grid. Enter or Space opens the detail view for the focused card. The cursor is desktop-only (`pointer: fine`), is cleared when the focused image is filtered out, and stays in sync with modal navigation so it tracks whichever image was last viewed.
+
 ## [0.9.34] - 2026-02-11
 
 ### Changed
